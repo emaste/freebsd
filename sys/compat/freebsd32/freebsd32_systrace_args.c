@@ -3425,7 +3425,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sys_exit */
 	case 1:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3438,7 +3438,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* read */
 	case 3:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3454,7 +3454,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* write */
 	case 4:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3470,7 +3470,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* open */
 	case 5:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3486,7 +3486,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* close */
 	case 6:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3496,7 +3496,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_wait4 */
 	case 7:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3515,7 +3515,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* link */
 	case 9:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3528,7 +3528,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* unlink */
 	case 10:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3538,7 +3538,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* chdir */
 	case 12:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3548,7 +3548,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fchdir */
 	case 13:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3558,7 +3558,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* chmod */
 	case 15:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3571,7 +3571,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* chown */
 	case 16:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3587,7 +3587,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* break */
 	case 17:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -3600,7 +3600,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mount */
 	case 21:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3619,7 +3619,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* unmount */
 	case 22:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3632,7 +3632,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setuid */
 	case 23:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "uid_t";
 			break;
@@ -3648,7 +3648,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_ptrace */
 	case 26:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3667,7 +3667,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_recvmsg */
 	case 27:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3683,7 +3683,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_sendmsg */
 	case 28:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3699,7 +3699,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_recvfrom */
 	case 29:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3724,7 +3724,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* accept */
 	case 30:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3740,7 +3740,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getpeername */
 	case 31:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3756,7 +3756,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getsockname */
 	case 32:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3772,7 +3772,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* access */
 	case 33:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3785,7 +3785,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* chflags */
 	case 34:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3798,7 +3798,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fchflags */
 	case 35:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3814,7 +3814,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kill */
 	case 37:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3830,7 +3830,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* dup */
 	case 41:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "u_int";
 			break;
@@ -3843,7 +3843,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* profil */
 	case 44:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -3862,7 +3862,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ktrace */
 	case 45:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3884,7 +3884,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getlogin */
 	case 49:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -3897,7 +3897,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setlogin */
 	case 50:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3907,7 +3907,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* acct */
 	case 51:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3917,7 +3917,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_sigaltstack */
 	case 53:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct sigaltstack32 *";
 			break;
@@ -3930,7 +3930,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_ioctl */
 	case 54:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3946,7 +3946,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* reboot */
 	case 55:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3956,7 +3956,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* revoke */
 	case 56:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3966,7 +3966,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* symlink */
 	case 57:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3979,7 +3979,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* readlink */
 	case 58:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -3995,7 +3995,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_execve */
 	case 59:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4011,7 +4011,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* umask */
 	case 60:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "mode_t";
 			break;
@@ -4021,7 +4021,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* chroot */
 	case 61:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4031,7 +4031,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* msync */
 	case 65:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -4050,7 +4050,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sbrk */
 	case 69:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4060,7 +4060,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sstk */
 	case 70:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4070,7 +4070,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* munmap */
 	case 73:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -4083,7 +4083,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_mprotect */
 	case 74:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -4099,7 +4099,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* madvise */
 	case 75:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -4115,7 +4115,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mincore */
 	case 78:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -4131,7 +4131,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getgroups */
 	case 79:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "u_int";
 			break;
@@ -4144,7 +4144,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setgroups */
 	case 80:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "u_int";
 			break;
@@ -4160,7 +4160,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setpgid */
 	case 82:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4173,7 +4173,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_setitimer */
 	case 83:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "u_int";
 			break;
@@ -4189,7 +4189,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* swapon */
 	case 85:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4199,7 +4199,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_getitimer */
 	case 86:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "u_int";
 			break;
@@ -4215,7 +4215,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* dup2 */
 	case 90:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "u_int";
 			break;
@@ -4228,7 +4228,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_fcntl */
 	case 92:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4244,7 +4244,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_select */
 	case 93:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4266,7 +4266,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fsync */
 	case 95:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4276,7 +4276,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setpriority */
 	case 96:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4292,7 +4292,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* socket */
 	case 97:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4308,7 +4308,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* connect */
 	case 98:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4324,7 +4324,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getpriority */
 	case 100:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4337,7 +4337,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* bind */
 	case 104:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4353,7 +4353,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setsockopt */
 	case 105:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4375,7 +4375,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* listen */
 	case 106:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4388,7 +4388,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_gettimeofday */
 	case 116:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct timeval32 *";
 			break;
@@ -4401,7 +4401,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_getrusage */
 	case 117:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4414,7 +4414,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getsockopt */
 	case 118:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4436,7 +4436,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_readv */
 	case 120:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4452,7 +4452,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_writev */
 	case 121:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4468,7 +4468,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_settimeofday */
 	case 122:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct timeval32 *";
 			break;
@@ -4481,7 +4481,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fchown */
 	case 123:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4497,7 +4497,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fchmod */
 	case 124:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4510,7 +4510,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setreuid */
 	case 126:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4523,7 +4523,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setregid */
 	case 127:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4536,7 +4536,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rename */
 	case 128:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4549,7 +4549,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* flock */
 	case 131:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4562,7 +4562,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mkfifo */
 	case 132:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4575,7 +4575,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sendto */
 	case 133:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4600,7 +4600,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* shutdown */
 	case 134:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4613,7 +4613,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* socketpair */
 	case 135:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4632,7 +4632,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mkdir */
 	case 136:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4645,7 +4645,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rmdir */
 	case 137:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4655,7 +4655,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_utimes */
 	case 138:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4668,7 +4668,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_adjtime */
 	case 140:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct timeval32 *";
 			break;
@@ -4684,7 +4684,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* quotactl */
 	case 148:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4703,7 +4703,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getfh */
 	case 161:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4716,7 +4716,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_sysarch */
 	case 165:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4729,7 +4729,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rtprio */
 	case 166:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4745,7 +4745,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_semsys */
 	case 169:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4767,7 +4767,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_msgsys */
 	case 170:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4792,7 +4792,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_shmsys */
 	case 171:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "uint32_t";
 			break;
@@ -4811,7 +4811,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_ntp_adjtime */
 	case 176:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct timex32 *";
 			break;
@@ -4821,7 +4821,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setgid */
 	case 181:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "gid_t";
 			break;
@@ -4831,7 +4831,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setegid */
 	case 182:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "gid_t";
 			break;
@@ -4841,7 +4841,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* seteuid */
 	case 183:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "uid_t";
 			break;
@@ -4851,7 +4851,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* pathconf */
 	case 191:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4864,7 +4864,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fpathconf */
 	case 192:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4877,7 +4877,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getrlimit */
 	case 194:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "u_int";
 			break;
@@ -4890,7 +4890,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setrlimit */
 	case 195:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "u_int";
 			break;
@@ -4906,7 +4906,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32___sysctl */
 	case 202:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland int *";
 			break;
@@ -4931,7 +4931,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mlock */
 	case 203:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -4944,7 +4944,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* munlock */
 	case 204:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -4957,7 +4957,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* undelete */
 	case 205:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4967,7 +4967,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_futimes */
 	case 206:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4980,7 +4980,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getpgid */
 	case 207:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "pid_t";
 			break;
@@ -4990,7 +4990,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* poll */
 	case 209:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct pollfd *";
 			break;
@@ -5036,7 +5036,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* semget */
 	case 221:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "key_t";
 			break;
@@ -5052,7 +5052,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* semop */
 	case 222:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5068,7 +5068,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* msgget */
 	case 225:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "key_t";
 			break;
@@ -5081,7 +5081,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_msgsnd */
 	case 226:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5100,7 +5100,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_msgrcv */
 	case 227:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5122,7 +5122,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* shmat */
 	case 228:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5138,7 +5138,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* shmdt */
 	case 230:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -5148,7 +5148,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* shmget */
 	case 231:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "key_t";
 			break;
@@ -5164,7 +5164,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_clock_gettime */
 	case 232:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "clockid_t";
 			break;
@@ -5177,7 +5177,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_clock_settime */
 	case 233:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "clockid_t";
 			break;
@@ -5190,7 +5190,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_clock_getres */
 	case 234:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "clockid_t";
 			break;
@@ -5203,7 +5203,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_ktimer_create */
 	case 235:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "clockid_t";
 			break;
@@ -5219,7 +5219,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ktimer_delete */
 	case 236:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5229,7 +5229,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_ktimer_settime */
 	case 237:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5248,7 +5248,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_ktimer_gettime */
 	case 238:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5261,7 +5261,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ktimer_getoverrun */
 	case 239:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5271,7 +5271,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_nanosleep */
 	case 240:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const struct timespec32 *";
 			break;
@@ -5284,7 +5284,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ffclock_getcounter */
 	case 241:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland ffcounter *";
 			break;
@@ -5294,7 +5294,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ffclock_setestimate */
 	case 242:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct ffclock_estimate *";
 			break;
@@ -5304,7 +5304,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ffclock_getestimate */
 	case 243:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct ffclock_estimate *";
 			break;
@@ -5314,7 +5314,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_clock_nanosleep */
 	case 244:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "clockid_t";
 			break;
@@ -5333,7 +5333,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_clock_getcpuclockid2 */
 	case 247:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "uint32_t";
 			break;
@@ -5352,7 +5352,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* minherit */
 	case 250:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -5368,7 +5368,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rfork */
 	case 251:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5381,7 +5381,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* lchown */
 	case 254:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -5397,7 +5397,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_aio_read */
 	case 255:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct aiocb32 *";
 			break;
@@ -5407,7 +5407,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_aio_write */
 	case 256:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct aiocb32 *";
 			break;
@@ -5417,7 +5417,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_lio_listio */
 	case 257:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5436,7 +5436,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* lchmod */
 	case 274:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -5449,7 +5449,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_lutimes */
 	case 276:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -5462,7 +5462,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_preadv */
 	case 289:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5484,7 +5484,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_pwritev */
 	case 290:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5506,7 +5506,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fhopen */
 	case 298:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const struct fhandle *";
 			break;
@@ -5519,7 +5519,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* modnext */
 	case 300:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5529,7 +5529,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_modstat */
 	case 301:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5542,7 +5542,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* modfnext */
 	case 302:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5552,7 +5552,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* modfind */
 	case 303:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -5562,7 +5562,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kldload */
 	case 304:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -5572,7 +5572,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kldunload */
 	case 305:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5582,7 +5582,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kldfind */
 	case 306:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -5592,7 +5592,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kldnext */
 	case 307:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5602,7 +5602,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_kldstat */
 	case 308:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5615,7 +5615,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kldfirstmod */
 	case 309:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5625,7 +5625,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getsid */
 	case 310:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "pid_t";
 			break;
@@ -5635,7 +5635,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setresuid */
 	case 311:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "uid_t";
 			break;
@@ -5651,7 +5651,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setresgid */
 	case 312:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "gid_t";
 			break;
@@ -5667,7 +5667,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_aio_return */
 	case 314:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct aiocb32 *";
 			break;
@@ -5677,7 +5677,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_aio_suspend */
 	case 315:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct aiocb32 * const *";
 			break;
@@ -5693,7 +5693,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* aio_cancel */
 	case 316:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5706,7 +5706,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_aio_error */
 	case 317:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct aiocb32 *";
 			break;
@@ -5719,7 +5719,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mlockall */
 	case 324:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5732,7 +5732,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __getcwd */
 	case 326:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -5745,7 +5745,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sched_setparam */
 	case 327:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "pid_t";
 			break;
@@ -5758,7 +5758,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sched_getparam */
 	case 328:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "pid_t";
 			break;
@@ -5771,7 +5771,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sched_setscheduler */
 	case 329:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "pid_t";
 			break;
@@ -5787,7 +5787,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sched_getscheduler */
 	case 330:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "pid_t";
 			break;
@@ -5800,7 +5800,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sched_get_priority_max */
 	case 332:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5810,7 +5810,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sched_get_priority_min */
 	case 333:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5820,7 +5820,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_sched_rr_get_interval */
 	case 334:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "pid_t";
 			break;
@@ -5833,7 +5833,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* utrace */
 	case 335:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -5846,7 +5846,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kldsym */
 	case 337:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5862,7 +5862,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_jail */
 	case 338:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct jail32 *";
 			break;
@@ -5872,7 +5872,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sigprocmask */
 	case 340:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5888,7 +5888,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sigsuspend */
 	case 341:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const sigset_t *";
 			break;
@@ -5898,7 +5898,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sigpending */
 	case 343:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland sigset_t *";
 			break;
@@ -5908,7 +5908,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_sigtimedwait */
 	case 345:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const sigset_t *";
 			break;
@@ -5924,7 +5924,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_sigwaitinfo */
 	case 346:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const sigset_t *";
 			break;
@@ -5937,7 +5937,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_get_file */
 	case 347:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -5953,7 +5953,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_set_file */
 	case 348:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -5969,7 +5969,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_get_fd */
 	case 349:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5985,7 +5985,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_set_fd */
 	case 350:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6001,7 +6001,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_delete_file */
 	case 351:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6014,7 +6014,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_delete_fd */
 	case 352:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6027,7 +6027,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_aclcheck_file */
 	case 353:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6043,7 +6043,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_aclcheck_fd */
 	case 354:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6059,7 +6059,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattrctl */
 	case 355:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6081,7 +6081,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_set_file */
 	case 356:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6103,7 +6103,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_get_file */
 	case 357:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6125,7 +6125,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_delete_file */
 	case 358:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6141,7 +6141,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_aio_waitcomplete */
 	case 359:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct aiocb32 **";
 			break;
@@ -6154,7 +6154,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getresuid */
 	case 360:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland uid_t *";
 			break;
@@ -6170,7 +6170,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getresgid */
 	case 361:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland gid_t *";
 			break;
@@ -6189,7 +6189,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_set_fd */
 	case 371:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6211,7 +6211,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_get_fd */
 	case 372:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6233,7 +6233,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_delete_fd */
 	case 373:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6249,7 +6249,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __setugid */
 	case 374:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6259,7 +6259,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* eaccess */
 	case 376:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6272,7 +6272,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_nmount */
 	case 378:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct iovec32 *";
 			break;
@@ -6288,7 +6288,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kenv */
 	case 390:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6307,7 +6307,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* lchflags */
 	case 391:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6320,7 +6320,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* uuidgen */
 	case 392:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct uuid *";
 			break;
@@ -6333,7 +6333,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_sendfile */
 	case 393:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6364,7 +6364,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ksem_close */
 	case 400:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "semid_t";
 			break;
@@ -6374,7 +6374,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ksem_post */
 	case 401:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "semid_t";
 			break;
@@ -6384,7 +6384,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ksem_wait */
 	case 402:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "semid_t";
 			break;
@@ -6394,7 +6394,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ksem_trywait */
 	case 403:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "semid_t";
 			break;
@@ -6404,7 +6404,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_ksem_init */
 	case 404:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland semid_t *";
 			break;
@@ -6417,7 +6417,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_ksem_open */
 	case 405:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland semid_t *";
 			break;
@@ -6439,7 +6439,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ksem_unlink */
 	case 406:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6449,7 +6449,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ksem_getvalue */
 	case 407:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "semid_t";
 			break;
@@ -6462,7 +6462,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ksem_destroy */
 	case 408:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "semid_t";
 			break;
@@ -6472,7 +6472,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_set_link */
 	case 412:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6494,7 +6494,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_get_link */
 	case 413:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6516,7 +6516,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_delete_link */
 	case 414:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6532,7 +6532,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_sigaction */
 	case 416:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6548,7 +6548,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_sigreturn */
 	case 417:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const struct freebsd32_ucontext *";
 			break;
@@ -6558,7 +6558,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_getcontext */
 	case 421:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct freebsd32_ucontext *";
 			break;
@@ -6568,7 +6568,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_setcontext */
 	case 422:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const struct freebsd32_ucontext *";
 			break;
@@ -6578,7 +6578,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_swapcontext */
 	case 423:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct freebsd32_ucontext *";
 			break;
@@ -6591,7 +6591,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_get_link */
 	case 425:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6607,7 +6607,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_set_link */
 	case 426:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6623,7 +6623,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_delete_link */
 	case 427:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6636,7 +6636,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __acl_aclcheck_link */
 	case 428:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6652,7 +6652,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sigwait */
 	case 429:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const sigset_t *";
 			break;
@@ -6665,7 +6665,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* thr_exit */
 	case 431:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland long *";
 			break;
@@ -6675,7 +6675,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* thr_self */
 	case 432:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland long *";
 			break;
@@ -6685,7 +6685,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* thr_kill */
 	case 433:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "long";
 			break;
@@ -6698,7 +6698,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* jail_attach */
 	case 436:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6708,7 +6708,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_list_fd */
 	case 437:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6727,7 +6727,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_list_file */
 	case 438:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6746,7 +6746,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_list_link */
 	case 439:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6765,7 +6765,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_ksem_timedwait */
 	case 441:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "semid_t";
 			break;
@@ -6778,7 +6778,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_thr_suspend */
 	case 442:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const struct timespec32 *";
 			break;
@@ -6788,7 +6788,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* thr_wake */
 	case 443:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "long";
 			break;
@@ -6798,7 +6798,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kldunloadf */
 	case 444:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6811,7 +6811,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* audit */
 	case 445:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -6824,7 +6824,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* auditon */
 	case 446:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -6840,7 +6840,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getauid */
 	case 447:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland uid_t *";
 			break;
@@ -6850,7 +6850,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setauid */
 	case 448:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland uid_t *";
 			break;
@@ -6860,7 +6860,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getaudit */
 	case 449:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct auditinfo *";
 			break;
@@ -6870,7 +6870,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setaudit */
 	case 450:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct auditinfo *";
 			break;
@@ -6880,7 +6880,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getaudit_addr */
 	case 451:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct auditinfo_addr *";
 			break;
@@ -6893,7 +6893,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setaudit_addr */
 	case 452:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct auditinfo_addr *";
 			break;
@@ -6906,7 +6906,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* auditctl */
 	case 453:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6916,7 +6916,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32__umtx_op */
 	case 454:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -6938,7 +6938,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_thr_new */
 	case 455:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct thr_param32 *";
 			break;
@@ -6951,7 +6951,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_sigqueue */
 	case 456:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "pid_t";
 			break;
@@ -6967,7 +6967,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_kmq_open */
 	case 457:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -6986,7 +6986,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_kmq_setattr */
 	case 458:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7002,7 +7002,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_kmq_timedreceive */
 	case 459:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7024,7 +7024,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_kmq_timedsend */
 	case 460:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7046,7 +7046,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_kmq_notify */
 	case 461:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7059,7 +7059,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kmq_unlink */
 	case 462:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -7069,7 +7069,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* abort2 */
 	case 463:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -7085,7 +7085,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* thr_set_name */
 	case 464:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "long";
 			break;
@@ -7098,7 +7098,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_aio_fsync */
 	case 465:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7111,7 +7111,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rtprio_thread */
 	case 466:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7127,7 +7127,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sctp_peeloff */
 	case 471:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7140,7 +7140,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sctp_generic_sendmsg */
 	case 472:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7168,7 +7168,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sctp_generic_sendmsg_iov */
 	case 473:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7196,7 +7196,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sctp_generic_recvmsg */
 	case 474:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7225,7 +7225,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #ifdef PAD64_REQUIRED
 	/* freebsd32_pread */
 	case 475:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7250,7 +7250,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_pwrite */
 	case 476:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7275,7 +7275,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_mmap */
 	case 477:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -7306,7 +7306,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_lseek */
 	case 478:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7328,7 +7328,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_truncate */
 	case 479:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -7347,7 +7347,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_ftruncate */
 	case 480:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7367,7 +7367,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #else
 	/* freebsd32_pread */
 	case 475:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7389,7 +7389,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_pwrite */
 	case 476:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7411,7 +7411,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_mmap */
 	case 477:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -7439,7 +7439,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_lseek */
 	case 478:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7458,7 +7458,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_truncate */
 	case 479:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -7474,7 +7474,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_ftruncate */
 	case 480:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7491,7 +7491,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #endif
 	/* thr_kill2 */
 	case 481:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "pid_t";
 			break;
@@ -7507,7 +7507,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* shm_unlink */
 	case 483:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -7517,7 +7517,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* cpuset */
 	case 484:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland cpusetid_t *";
 			break;
@@ -7528,7 +7528,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #ifdef PAD64_REQUIRED
 	/* freebsd32_cpuset_setid */
 	case 485:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "cpuwhich_t";
 			break;
@@ -7551,7 +7551,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #else
 	/* freebsd32_cpuset_setid */
 	case 485:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "cpuwhich_t";
 			break;
@@ -7571,7 +7571,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #endif
 	/* freebsd32_cpuset_getid */
 	case 486:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "cpulevel_t";
 			break;
@@ -7593,7 +7593,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_cpuset_getaffinity */
 	case 487:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "cpulevel_t";
 			break;
@@ -7618,7 +7618,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_cpuset_setaffinity */
 	case 488:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "cpulevel_t";
 			break;
@@ -7643,7 +7643,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* faccessat */
 	case 489:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7662,7 +7662,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fchmodat */
 	case 490:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7681,7 +7681,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fchownat */
 	case 491:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7703,7 +7703,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_fexecve */
 	case 492:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7719,7 +7719,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_futimesat */
 	case 494:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7735,7 +7735,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linkat */
 	case 495:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7757,7 +7757,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mkdirat */
 	case 496:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7773,7 +7773,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mkfifoat */
 	case 497:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7789,7 +7789,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* openat */
 	case 499:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7808,7 +7808,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* readlinkat */
 	case 500:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7827,7 +7827,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* renameat */
 	case 501:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7846,7 +7846,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* symlinkat */
 	case 502:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -7862,7 +7862,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* unlinkat */
 	case 503:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7878,7 +7878,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* posix_openpt */
 	case 504:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7888,7 +7888,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_jail_get */
 	case 506:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct iovec32 *";
 			break;
@@ -7904,7 +7904,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_jail_set */
 	case 507:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct iovec32 *";
 			break;
@@ -7920,7 +7920,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* jail_remove */
 	case 508:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7930,7 +7930,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_semctl */
 	case 510:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7949,7 +7949,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_msgctl */
 	case 511:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7965,7 +7965,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_shmctl */
 	case 512:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -7981,7 +7981,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* lpathconf */
 	case 513:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -7994,7 +7994,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __cap_rights_get */
 	case 515:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8013,7 +8013,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* cap_getmode */
 	case 517:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland u_int *";
 			break;
@@ -8023,7 +8023,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* pdfork */
 	case 518:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland int *";
 			break;
@@ -8036,7 +8036,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* pdkill */
 	case 519:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8049,7 +8049,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* pdgetpid */
 	case 520:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8062,7 +8062,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_pselect */
 	case 522:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8087,7 +8087,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getloginclass */
 	case 523:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -8100,7 +8100,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setloginclass */
 	case 524:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -8110,7 +8110,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rctl_get_racct */
 	case 525:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -8129,7 +8129,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rctl_get_rules */
 	case 526:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -8148,7 +8148,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rctl_get_limits */
 	case 527:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -8167,7 +8167,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rctl_add_rule */
 	case 528:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -8186,7 +8186,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rctl_remove_rule */
 	case 529:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -8206,7 +8206,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #ifdef PAD64_REQUIRED
 	/* freebsd32_posix_fallocate */
 	case 530:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8231,7 +8231,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_posix_fadvise */
 	case 531:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8259,7 +8259,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_wait6 */
 	case 532:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8291,7 +8291,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #else
 	/* freebsd32_posix_fallocate */
 	case 530:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8313,7 +8313,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_posix_fadvise */
 	case 531:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8338,7 +8338,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_wait6 */
 	case 532:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8367,7 +8367,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #endif
 	/* cap_rights_limit */
 	case 533:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8380,7 +8380,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_cap_ioctls_limit */
 	case 534:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8396,7 +8396,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_cap_ioctls_get */
 	case 535:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8412,7 +8412,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* cap_fcntls_limit */
 	case 536:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8425,7 +8425,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* cap_fcntls_get */
 	case 537:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8438,7 +8438,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* bindat */
 	case 538:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8457,7 +8457,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* connectat */
 	case 539:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8476,7 +8476,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* chflagsat */
 	case 540:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8495,7 +8495,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* accept4 */
 	case 541:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8514,7 +8514,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* pipe2 */
 	case 542:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland int *";
 			break;
@@ -8527,7 +8527,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_aio_mlock */
 	case 543:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct aiocb32 *";
 			break;
@@ -8538,7 +8538,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #ifdef PAD64_REQUIRED
 	/* freebsd32_procctl */
 	case 544:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8564,7 +8564,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #else
 	/* freebsd32_procctl */
 	case 544:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8587,7 +8587,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #endif
 	/* freebsd32_ppoll */
 	case 545:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct pollfd *";
 			break;
@@ -8606,7 +8606,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_futimens */
 	case 546:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8619,7 +8619,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_utimensat */
 	case 547:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8638,7 +8638,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fdatasync */
 	case 550:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8648,7 +8648,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_fstat */
 	case 551:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8661,7 +8661,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_fstatat */
 	case 552:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8680,7 +8680,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_fhstat */
 	case 553:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const struct fhandle *";
 			break;
@@ -8693,7 +8693,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getdirentries */
 	case 554:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8712,7 +8712,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* statfs */
 	case 555:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -8725,7 +8725,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fstatfs */
 	case 556:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8738,7 +8738,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getfsstat */
 	case 557:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct statfs32 *";
 			break;
@@ -8754,7 +8754,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fhstatfs */
 	case 558:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const struct fhandle *";
 			break;
@@ -8768,7 +8768,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #ifdef PAD64_REQUIRED
 	/* freebsd32_mknodat */
 	case 559:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8794,7 +8794,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #else
 	/* freebsd32_mknodat */
 	case 559:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8817,7 +8817,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #endif
 	/* freebsd32_kevent */
 	case 560:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8842,7 +8842,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_cpuset_getdomain */
 	case 561:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "cpulevel_t";
 			break;
@@ -8870,7 +8870,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_cpuset_setdomain */
 	case 562:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "cpulevel_t";
 			break;
@@ -8898,7 +8898,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getrandom */
 	case 563:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -8914,7 +8914,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getfhat */
 	case 564:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8933,7 +8933,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fhlink */
 	case 565:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct fhandle *";
 			break;
@@ -8946,7 +8946,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fhlinkat */
 	case 566:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct fhandle *";
 			break;
@@ -8962,7 +8962,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fhreadlink */
 	case 567:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct fhandle *";
 			break;
@@ -8978,7 +8978,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* funlinkat */
 	case 568:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -8997,7 +8997,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* copy_file_range */
 	case 569:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -9022,7 +9022,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32___sysctlbyname */
 	case 570:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -9047,7 +9047,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* shm_open2 */
 	case 571:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -9069,7 +9069,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* shm_rename */
 	case 572:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -9085,7 +9085,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sigfastblock */
 	case 573:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -9098,7 +9098,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __realpathat */
 	case 574:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -9120,7 +9120,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* close_range */
 	case 575:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "u_int";
 			break;
@@ -9136,7 +9136,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rpctls_syscall */
 	case 576:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -9149,7 +9149,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* __specialfd */
 	case 577:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -9165,7 +9165,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_aio_writev */
 	case 578:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct aiocb32 *";
 			break;
@@ -9175,7 +9175,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_aio_readv */
 	case 579:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct aiocb32 *";
 			break;

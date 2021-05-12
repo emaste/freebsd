@@ -2226,7 +2226,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #define	nosys	linux_nosys
 	/* linux_setxattr */
 	case 5:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -2248,7 +2248,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_lsetxattr */
 	case 6:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -2270,7 +2270,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fsetxattr */
 	case 7:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2292,7 +2292,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getxattr */
 	case 8:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -2311,7 +2311,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_lgetxattr */
 	case 9:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -2330,7 +2330,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fgetxattr */
 	case 10:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2349,7 +2349,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_listxattr */
 	case 11:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -2365,7 +2365,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_llistxattr */
 	case 12:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -2381,7 +2381,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_flistxattr */
 	case 13:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2397,7 +2397,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_removexattr */
 	case 14:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -2410,7 +2410,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_lremovexattr */
 	case 15:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -2423,7 +2423,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fremovexattr */
 	case 16:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2436,7 +2436,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getcwd */
 	case 17:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -2452,7 +2452,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_eventfd2 */
 	case 19:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -2465,7 +2465,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_epoll_create1 */
 	case 20:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2475,7 +2475,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_epoll_ctl */
 	case 21:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2494,7 +2494,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_epoll_pwait */
 	case 22:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2519,7 +2519,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* dup */
 	case 23:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "u_int";
 			break;
@@ -2529,7 +2529,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_dup3 */
 	case 24:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2545,7 +2545,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fcntl */
 	case 25:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -2561,7 +2561,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_inotify_init1 */
 	case 26:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2577,7 +2577,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_ioctl */
 	case 29:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -2599,7 +2599,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* flock */
 	case 32:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -2612,7 +2612,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mknodat */
 	case 33:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2631,7 +2631,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mkdirat */
 	case 34:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2647,7 +2647,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_unlinkat */
 	case 35:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2663,7 +2663,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_symlinkat */
 	case 36:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -2679,7 +2679,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_linkat */
 	case 37:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2701,7 +2701,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_renameat */
 	case 38:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2720,7 +2720,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mount */
 	case 40:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -2745,7 +2745,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_statfs */
 	case 43:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -2758,7 +2758,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fstatfs */
 	case 44:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -2771,7 +2771,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_truncate */
 	case 45:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -2784,7 +2784,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_ftruncate */
 	case 46:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2797,7 +2797,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fallocate */
 	case 47:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2816,7 +2816,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_faccessat */
 	case 48:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2832,7 +2832,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_chdir */
 	case 49:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -2842,7 +2842,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fchdir */
 	case 50:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -2852,7 +2852,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* chroot */
 	case 51:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -2862,7 +2862,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fchmod */
 	case 52:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -2875,7 +2875,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fchmodat */
 	case 53:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2891,7 +2891,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fchownat */
 	case 54:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2913,7 +2913,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fchown */
 	case 55:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -2929,7 +2929,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_openat */
 	case 56:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -2948,7 +2948,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* close */
 	case 57:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -2961,7 +2961,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pipe2 */
 	case 59:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland l_int *";
 			break;
@@ -2974,7 +2974,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getdents64 */
 	case 61:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -2990,7 +2990,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_lseek */
 	case 62:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -3006,7 +3006,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* read */
 	case 63:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3022,7 +3022,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* write */
 	case 64:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3038,7 +3038,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* readv */
 	case 65:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3054,7 +3054,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* writev */
 	case 66:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3070,7 +3070,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pread */
 	case 67:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -3089,7 +3089,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pwrite */
 	case 68:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -3108,7 +3108,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_preadv */
 	case 69:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -3130,7 +3130,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pwritev */
 	case 70:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -3152,7 +3152,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sendfile */
 	case 71:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3171,7 +3171,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pselect6 */
 	case 72:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3196,7 +3196,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_ppoll */
 	case 73:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct pollfd *";
 			break;
@@ -3224,7 +3224,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_splice */
 	case 76:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3252,7 +3252,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_readlinkat */
 	case 78:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3271,7 +3271,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_newfstatat */
 	case 79:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3290,7 +3290,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_newfstat */
 	case 80:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -3303,7 +3303,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* fsync */
 	case 82:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -3313,7 +3313,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fdatasync */
 	case 83:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -3323,7 +3323,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sync_file_range */
 	case 84:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3342,7 +3342,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timerfd_create */
 	case 85:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3355,7 +3355,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timerfd_settime */
 	case 86:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3374,7 +3374,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timerfd_gettime */
 	case 87:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3387,7 +3387,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_utimensat */
 	case 88:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3406,7 +3406,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* acct */
 	case 89:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -3416,7 +3416,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_capget */
 	case 90:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct l_user_cap_header *";
 			break;
@@ -3429,7 +3429,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_capset */
 	case 91:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct l_user_cap_header *";
 			break;
@@ -3442,7 +3442,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_personality */
 	case 92:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -3452,7 +3452,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_exit */
 	case 93:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "u_int";
 			break;
@@ -3462,7 +3462,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_exit_group */
 	case 94:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3472,7 +3472,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_waitid */
 	case 95:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3494,7 +3494,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_set_tid_address */
 	case 96:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland l_int *";
 			break;
@@ -3507,7 +3507,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sys_futex */
 	case 98:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -3532,7 +3532,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_set_robust_list */
 	case 99:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct linux_robust_list_head *";
 			break;
@@ -3545,7 +3545,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_get_robust_list */
 	case 100:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3561,7 +3561,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_nanosleep */
 	case 101:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const struct l_timespec *";
 			break;
@@ -3574,7 +3574,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getitimer */
 	case 102:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3587,7 +3587,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_setitimer */
 	case 103:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3612,7 +3612,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timer_create */
 	case 107:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "clockid_t";
 			break;
@@ -3628,7 +3628,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timer_gettime */
 	case 108:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_timer_t";
 			break;
@@ -3641,7 +3641,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timer_getoverrun */
 	case 109:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_timer_t";
 			break;
@@ -3651,7 +3651,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timer_settime */
 	case 110:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_timer_t";
 			break;
@@ -3670,7 +3670,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timer_delete */
 	case 111:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_timer_t";
 			break;
@@ -3680,7 +3680,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_clock_settime */
 	case 112:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "clockid_t";
 			break;
@@ -3693,7 +3693,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_clock_gettime */
 	case 113:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "clockid_t";
 			break;
@@ -3706,7 +3706,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_clock_getres */
 	case 114:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "clockid_t";
 			break;
@@ -3719,7 +3719,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_clock_nanosleep */
 	case 115:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "clockid_t";
 			break;
@@ -3738,7 +3738,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_syslog */
 	case 116:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3754,7 +3754,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_ptrace */
 	case 117:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_long";
 			break;
@@ -3773,7 +3773,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_setparam */
 	case 118:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -3786,7 +3786,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_setscheduler */
 	case 119:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -3802,7 +3802,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_getscheduler */
 	case 120:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -3812,7 +3812,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_getparam */
 	case 121:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -3825,7 +3825,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_setaffinity */
 	case 122:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -3841,7 +3841,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_getaffinity */
 	case 123:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -3860,7 +3860,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_get_priority_max */
 	case 125:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3870,7 +3870,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_get_priority_min */
 	case 126:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3880,7 +3880,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_rr_get_interval */
 	case 127:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -3893,7 +3893,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_kill */
 	case 129:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -3906,7 +3906,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_tkill */
 	case 130:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -3919,7 +3919,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_tgkill */
 	case 131:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -3935,7 +3935,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sigaltstack */
 	case 132:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland l_stack_t *";
 			break;
@@ -3948,7 +3948,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigsuspend */
 	case 133:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland l_sigset_t *";
 			break;
@@ -3961,7 +3961,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigaction */
 	case 134:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3980,7 +3980,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigprocmask */
 	case 135:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -3999,7 +3999,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigpending */
 	case 136:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland l_sigset_t *";
 			break;
@@ -4012,7 +4012,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigtimedwait */
 	case 137:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland l_sigset_t *";
 			break;
@@ -4031,7 +4031,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigqueueinfo */
 	case 138:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -4047,7 +4047,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigreturn */
 	case 139:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct l_ucontext *";
 			break;
@@ -4057,7 +4057,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setpriority */
 	case 140:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4073,7 +4073,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getpriority */
 	case 141:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4086,7 +4086,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_reboot */
 	case 142:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4105,7 +4105,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setregid */
 	case 143:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "gid_t";
 			break;
@@ -4118,7 +4118,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setgid */
 	case 144:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "gid_t";
 			break;
@@ -4128,7 +4128,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setreuid */
 	case 145:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "uid_t";
 			break;
@@ -4141,7 +4141,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setuid */
 	case 146:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "uid_t";
 			break;
@@ -4151,7 +4151,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setresuid */
 	case 147:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "uid_t";
 			break;
@@ -4167,7 +4167,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getresuid */
 	case 148:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland uid_t *";
 			break;
@@ -4183,7 +4183,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setresgid */
 	case 149:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "gid_t";
 			break;
@@ -4199,7 +4199,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getresgid */
 	case 150:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland gid_t *";
 			break;
@@ -4215,7 +4215,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_setfsuid */
 	case 151:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uid_t";
 			break;
@@ -4225,7 +4225,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_setfsgid */
 	case 152:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_gid_t";
 			break;
@@ -4235,7 +4235,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_times */
 	case 153:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct l_times_argv *";
 			break;
@@ -4245,7 +4245,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setpgid */
 	case 154:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4258,7 +4258,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getpgid */
 	case 155:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4268,7 +4268,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getsid */
 	case 156:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -4281,7 +4281,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getgroups */
 	case 158:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4294,7 +4294,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_setgroups */
 	case 159:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4307,7 +4307,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_newuname */
 	case 160:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct l_new_utsname *";
 			break;
@@ -4317,7 +4317,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sethostname */
 	case 161:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -4330,7 +4330,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_setdomainname */
 	case 162:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -4343,7 +4343,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getrlimit */
 	case 163:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -4356,7 +4356,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_setrlimit */
 	case 164:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -4369,7 +4369,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getrusage */
 	case 165:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4382,7 +4382,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* umask */
 	case 166:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -4392,7 +4392,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_prctl */
 	case 167:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4414,7 +4414,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getcpu */
 	case 168:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland l_uint *";
 			break;
@@ -4430,7 +4430,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* gettimeofday */
 	case 169:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct l_timeval *";
 			break;
@@ -4443,7 +4443,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* settimeofday */
 	case 170:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct l_timeval *";
 			break;
@@ -4480,7 +4480,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sysinfo */
 	case 179:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland struct l_sysinfo *";
 			break;
@@ -4490,7 +4490,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mq_open */
 	case 180:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4509,7 +4509,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mq_unlink */
 	case 181:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -4519,7 +4519,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mq_timedsend */
 	case 182:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_mqd_t";
 			break;
@@ -4541,7 +4541,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mq_timedreceive */
 	case 183:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_mqd_t";
 			break;
@@ -4563,7 +4563,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mq_notify */
 	case 184:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_mqd_t";
 			break;
@@ -4576,7 +4576,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mq_getsetattr */
 	case 185:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_mqd_t";
 			break;
@@ -4592,7 +4592,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_msgget */
 	case 186:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_key_t";
 			break;
@@ -4605,7 +4605,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_msgctl */
 	case 187:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4621,7 +4621,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_msgrcv */
 	case 188:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4643,7 +4643,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_msgsnd */
 	case 189:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4662,7 +4662,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_semget */
 	case 190:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_key_t";
 			break;
@@ -4678,7 +4678,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_semctl */
 	case 191:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4700,7 +4700,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_semop */
 	case 193:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4716,7 +4716,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_shmget */
 	case 194:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_key_t";
 			break;
@@ -4732,7 +4732,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_shmctl */
 	case 195:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4748,7 +4748,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_shmat */
 	case 196:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4764,7 +4764,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_shmdt */
 	case 197:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -4774,7 +4774,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_socket */
 	case 198:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4790,7 +4790,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_socketpair */
 	case 199:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4809,7 +4809,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_bind */
 	case 200:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4825,7 +4825,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_listen */
 	case 201:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4838,7 +4838,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_accept */
 	case 202:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4854,7 +4854,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_connect */
 	case 203:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4870,7 +4870,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getsockname */
 	case 204:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4886,7 +4886,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getpeername */
 	case 205:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4902,7 +4902,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sendto */
 	case 206:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4927,7 +4927,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_recvfrom */
 	case 207:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4952,7 +4952,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_setsockopt */
 	case 208:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4974,7 +4974,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getsockopt */
 	case 209:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -4996,7 +4996,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_shutdown */
 	case 210:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5009,7 +5009,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sendmsg */
 	case 211:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5025,7 +5025,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_recvmsg */
 	case 212:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5041,7 +5041,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_brk */
 	case 214:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5051,7 +5051,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* munmap */
 	case 215:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
@@ -5064,7 +5064,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mremap */
 	case 216:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5095,7 +5095,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_clone */
 	case 220:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5117,7 +5117,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_execve */
 	case 221:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -5133,7 +5133,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mmap2 */
 	case 222:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5158,7 +5158,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fadvise64 */
 	case 223:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5177,7 +5177,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* swapon */
 	case 224:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -5190,7 +5190,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mprotect */
 	case 226:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5206,7 +5206,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_msync */
 	case 227:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5222,7 +5222,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mlock */
 	case 228:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -5235,7 +5235,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* munlock */
 	case 229:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const void *";
 			break;
@@ -5248,7 +5248,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mlockall */
 	case 230:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "int";
 			break;
@@ -5261,7 +5261,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mincore */
 	case 232:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5277,7 +5277,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_madvise */
 	case 233:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5311,7 +5311,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_tgsigqueueinfo */
 	case 240:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -5333,7 +5333,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_accept4 */
 	case 242:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5352,7 +5352,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_recvmmsg */
 	case 243:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5374,7 +5374,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_wait4 */
 	case 260:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -5393,7 +5393,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_prlimit64 */
 	case 261:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -5418,7 +5418,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_name_to_handle_at */
 	case 264:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5440,7 +5440,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_open_by_handle_at */
 	case 265:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5459,7 +5459,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_syncfs */
 	case 267:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5469,7 +5469,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_setns */
 	case 268:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5482,7 +5482,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sendmmsg */
 	case 269:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5501,7 +5501,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_process_vm_readv */
 	case 270:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -5526,7 +5526,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_process_vm_writev */
 	case 271:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -5551,7 +5551,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_kcmp */
 	case 272:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -5573,7 +5573,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_finit_module */
 	case 273:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5589,7 +5589,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_setattr */
 	case 274:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -5605,7 +5605,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_getattr */
 	case 275:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_pid_t";
 			break;
@@ -5624,7 +5624,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_renameat2 */
 	case 276:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5646,7 +5646,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_seccomp */
 	case 277:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_uint";
 			break;
@@ -5662,7 +5662,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getrandom */
 	case 278:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland char *";
 			break;
@@ -5678,7 +5678,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_memfd_create */
 	case 279:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "userland const char *";
 			break;
@@ -5691,7 +5691,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_bpf */
 	case 280:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5707,7 +5707,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_execveat */
 	case 281:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5729,7 +5729,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_userfaultfd */
 	case 282:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5739,7 +5739,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_membarrier */
 	case 283:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5752,7 +5752,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mlock2 */
 	case 284:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5768,7 +5768,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_copy_file_range */
 	case 285:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
@@ -5793,7 +5793,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_preadv2 */
 	case 286:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5818,7 +5818,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pwritev2 */
 	case 287:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5843,7 +5843,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pkey_mprotect */
 	case 288:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5862,7 +5862,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pkey_alloc */
 	case 289:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_ulong";
 			break;
@@ -5875,7 +5875,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pkey_free */
 	case 290:
-		switch(ndx) {
+		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
