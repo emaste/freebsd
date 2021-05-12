@@ -9,7 +9,7 @@
 static void
 systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 {
-	int64_t *iarg  = (int64_t *) uarg;
+	int64_t *iarg = (int64_t *)uarg;
 	switch (sysnum) {
 	/* cloudabi_sys_clock_res_get */
 	case 0: {
@@ -29,7 +29,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cloudabi_sys_condvar_signal */
 	case 2: {
 		struct cloudabi_sys_condvar_signal_args *p = params;
-		uarg[0] = (intptr_t) p->condvar; /* cloudabi_condvar_t * */
+		uarg[0] = (intptr_t)p->condvar; /* cloudabi_condvar_t * */
 		iarg[1] = p->scope; /* cloudabi_scope_t */
 		iarg[2] = p->nwaiters; /* cloudabi_nthreads_t */
 		*n_args = 3;
@@ -74,7 +74,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 8: {
 		struct cloudabi64_sys_fd_pread_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->iovs; /* const cloudabi64_iovec_t * */
+		uarg[1] = (intptr_t)p->iovs; /* const cloudabi64_iovec_t * */
 		uarg[2] = p->iovs_len; /* size_t */
 		iarg[3] = p->offset; /* cloudabi_filesize_t */
 		*n_args = 4;
@@ -84,7 +84,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 9: {
 		struct cloudabi64_sys_fd_pwrite_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->iovs; /* const cloudabi64_ciovec_t * */
+		uarg[1] = (intptr_t)p->iovs; /* const cloudabi64_ciovec_t * */
 		uarg[2] = p->iovs_len; /* size_t */
 		iarg[3] = p->offset; /* cloudabi_filesize_t */
 		*n_args = 4;
@@ -94,7 +94,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 10: {
 		struct cloudabi64_sys_fd_read_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->iovs; /* const cloudabi64_iovec_t * */
+		uarg[1] = (intptr_t)p->iovs; /* const cloudabi64_iovec_t * */
 		uarg[2] = p->iovs_len; /* size_t */
 		*n_args = 3;
 		break;
@@ -120,7 +120,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 13: {
 		struct cloudabi_sys_fd_stat_get_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->buf; /* cloudabi_fdstat_t * */
+		uarg[1] = (intptr_t)p->buf; /* cloudabi_fdstat_t * */
 		*n_args = 2;
 		break;
 	}
@@ -128,7 +128,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 14: {
 		struct cloudabi_sys_fd_stat_put_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->buf; /* const cloudabi_fdstat_t * */
+		uarg[1] = (intptr_t)p->buf; /* const cloudabi_fdstat_t * */
 		iarg[2] = p->flags; /* cloudabi_fdsflags_t */
 		*n_args = 3;
 		break;
@@ -144,7 +144,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 16: {
 		struct cloudabi64_sys_fd_write_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->iovs; /* const cloudabi64_ciovec_t * */
+		uarg[1] = (intptr_t)p->iovs; /* const cloudabi64_ciovec_t * */
 		uarg[2] = p->iovs_len; /* size_t */
 		*n_args = 3;
 		break;
@@ -172,7 +172,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 19: {
 		struct cloudabi_sys_file_create_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t)p->path; /* const char * */
 		uarg[2] = p->path_len; /* size_t */
 		iarg[3] = p->type; /* cloudabi_filetype_t */
 		*n_args = 4;
@@ -182,10 +182,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 20: {
 		struct cloudabi_sys_file_link_args *p = params;
 		iarg[0] = p->fd1; /* cloudabi_lookup_t */
-		uarg[1] = (intptr_t) p->path1; /* const char * */
+		uarg[1] = (intptr_t)p->path1; /* const char * */
 		uarg[2] = p->path1_len; /* size_t */
 		iarg[3] = p->fd2; /* cloudabi_fd_t */
-		uarg[4] = (intptr_t) p->path2; /* const char * */
+		uarg[4] = (intptr_t)p->path2; /* const char * */
 		uarg[5] = p->path2_len; /* size_t */
 		*n_args = 6;
 		break;
@@ -194,10 +194,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 21: {
 		struct cloudabi_sys_file_open_args *p = params;
 		iarg[0] = p->dirfd; /* cloudabi_lookup_t */
-		uarg[1] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t)p->path; /* const char * */
 		uarg[2] = p->path_len; /* size_t */
 		iarg[3] = p->oflags; /* cloudabi_oflags_t */
-		uarg[4] = (intptr_t) p->fds; /* const cloudabi_fdstat_t * */
+		uarg[4] = (intptr_t)p->fds; /* const cloudabi_fdstat_t * */
 		*n_args = 5;
 		break;
 	}
@@ -205,7 +205,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 22: {
 		struct cloudabi_sys_file_readdir_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->buf; /* void * */
+		uarg[1] = (intptr_t)p->buf; /* void * */
 		uarg[2] = p->buf_len; /* size_t */
 		iarg[3] = p->cookie; /* cloudabi_dircookie_t */
 		*n_args = 4;
@@ -215,9 +215,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 23: {
 		struct cloudabi_sys_file_readlink_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t)p->path; /* const char * */
 		uarg[2] = p->path_len; /* size_t */
-		uarg[3] = (intptr_t) p->buf; /* char * */
+		uarg[3] = (intptr_t)p->buf; /* char * */
 		uarg[4] = p->buf_len; /* size_t */
 		*n_args = 5;
 		break;
@@ -226,10 +226,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 24: {
 		struct cloudabi_sys_file_rename_args *p = params;
 		iarg[0] = p->fd1; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->path1; /* const char * */
+		uarg[1] = (intptr_t)p->path1; /* const char * */
 		uarg[2] = p->path1_len; /* size_t */
 		iarg[3] = p->fd2; /* cloudabi_fd_t */
-		uarg[4] = (intptr_t) p->path2; /* const char * */
+		uarg[4] = (intptr_t)p->path2; /* const char * */
 		uarg[5] = p->path2_len; /* size_t */
 		*n_args = 6;
 		break;
@@ -238,7 +238,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 25: {
 		struct cloudabi_sys_file_stat_fget_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->buf; /* cloudabi_filestat_t * */
+		uarg[1] = (intptr_t)p->buf; /* cloudabi_filestat_t * */
 		*n_args = 2;
 		break;
 	}
@@ -246,7 +246,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 26: {
 		struct cloudabi_sys_file_stat_fput_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->buf; /* const cloudabi_filestat_t * */
+		uarg[1] = (intptr_t)p->buf; /* const cloudabi_filestat_t * */
 		iarg[2] = p->flags; /* cloudabi_fsflags_t */
 		*n_args = 3;
 		break;
@@ -255,9 +255,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 27: {
 		struct cloudabi_sys_file_stat_get_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_lookup_t */
-		uarg[1] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t)p->path; /* const char * */
 		uarg[2] = p->path_len; /* size_t */
-		uarg[3] = (intptr_t) p->buf; /* cloudabi_filestat_t * */
+		uarg[3] = (intptr_t)p->buf; /* cloudabi_filestat_t * */
 		*n_args = 4;
 		break;
 	}
@@ -265,9 +265,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 28: {
 		struct cloudabi_sys_file_stat_put_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_lookup_t */
-		uarg[1] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t)p->path; /* const char * */
 		uarg[2] = p->path_len; /* size_t */
-		uarg[3] = (intptr_t) p->buf; /* const cloudabi_filestat_t * */
+		uarg[3] = (intptr_t)p->buf; /* const cloudabi_filestat_t * */
 		iarg[4] = p->flags; /* cloudabi_fsflags_t */
 		*n_args = 5;
 		break;
@@ -275,10 +275,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cloudabi_sys_file_symlink */
 	case 29: {
 		struct cloudabi_sys_file_symlink_args *p = params;
-		uarg[0] = (intptr_t) p->path1; /* const char * */
+		uarg[0] = (intptr_t)p->path1; /* const char * */
 		uarg[1] = p->path1_len; /* size_t */
 		iarg[2] = p->fd; /* cloudabi_fd_t */
-		uarg[3] = (intptr_t) p->path2; /* const char * */
+		uarg[3] = (intptr_t)p->path2; /* const char * */
 		uarg[4] = p->path2_len; /* size_t */
 		*n_args = 5;
 		break;
@@ -287,7 +287,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 30: {
 		struct cloudabi_sys_file_unlink_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t)p->path; /* const char * */
 		uarg[2] = p->path_len; /* size_t */
 		iarg[3] = p->flags; /* cloudabi_ulflags_t */
 		*n_args = 4;
@@ -296,7 +296,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cloudabi_sys_lock_unlock */
 	case 31: {
 		struct cloudabi_sys_lock_unlock_args *p = params;
-		uarg[0] = (intptr_t) p->lock; /* cloudabi_lock_t * */
+		uarg[0] = (intptr_t)p->lock; /* cloudabi_lock_t * */
 		iarg[1] = p->scope; /* cloudabi_scope_t */
 		*n_args = 2;
 		break;
@@ -304,7 +304,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cloudabi_sys_mem_advise */
 	case 32: {
 		struct cloudabi_sys_mem_advise_args *p = params;
-		uarg[0] = (intptr_t) p->mapping; /* void * */
+		uarg[0] = (intptr_t)p->mapping; /* void * */
 		uarg[1] = p->mapping_len; /* size_t */
 		iarg[2] = p->advice; /* cloudabi_advice_t */
 		*n_args = 3;
@@ -313,7 +313,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cloudabi_sys_mem_map */
 	case 33: {
 		struct cloudabi_sys_mem_map_args *p = params;
-		uarg[0] = (intptr_t) p->addr; /* void * */
+		uarg[0] = (intptr_t)p->addr; /* void * */
 		uarg[1] = p->len; /* size_t */
 		iarg[2] = p->prot; /* cloudabi_mprot_t */
 		iarg[3] = p->flags; /* cloudabi_mflags_t */
@@ -325,7 +325,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cloudabi_sys_mem_protect */
 	case 34: {
 		struct cloudabi_sys_mem_protect_args *p = params;
-		uarg[0] = (intptr_t) p->mapping; /* void * */
+		uarg[0] = (intptr_t)p->mapping; /* void * */
 		uarg[1] = p->mapping_len; /* size_t */
 		iarg[2] = p->prot; /* cloudabi_mprot_t */
 		*n_args = 3;
@@ -334,7 +334,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cloudabi_sys_mem_sync */
 	case 35: {
 		struct cloudabi_sys_mem_sync_args *p = params;
-		uarg[0] = (intptr_t) p->mapping; /* void * */
+		uarg[0] = (intptr_t)p->mapping; /* void * */
 		uarg[1] = p->mapping_len; /* size_t */
 		iarg[2] = p->flags; /* cloudabi_msflags_t */
 		*n_args = 3;
@@ -343,7 +343,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cloudabi_sys_mem_unmap */
 	case 36: {
 		struct cloudabi_sys_mem_unmap_args *p = params;
-		uarg[0] = (intptr_t) p->mapping; /* void * */
+		uarg[0] = (intptr_t)p->mapping; /* void * */
 		uarg[1] = p->mapping_len; /* size_t */
 		*n_args = 2;
 		break;
@@ -351,8 +351,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cloudabi64_sys_poll */
 	case 37: {
 		struct cloudabi64_sys_poll_args *p = params;
-		uarg[0] = (intptr_t) p->in; /* const cloudabi64_subscription_t * */
-		uarg[1] = (intptr_t) p->out; /* cloudabi_event_t * */
+		uarg[0] = (intptr_t)p->in; /* const cloudabi64_subscription_t * */
+		uarg[1] = (intptr_t)p->out; /* cloudabi_event_t * */
 		uarg[2] = p->nsubscriptions; /* size_t */
 		*n_args = 3;
 		break;
@@ -361,9 +361,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 38: {
 		struct cloudabi_sys_proc_exec_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->data; /* const void * */
+		uarg[1] = (intptr_t)p->data; /* const void * */
 		uarg[2] = p->data_len; /* size_t */
-		uarg[3] = (intptr_t) p->fds; /* const cloudabi_fd_t * */
+		uarg[3] = (intptr_t)p->fds; /* const cloudabi_fd_t * */
 		uarg[4] = p->fds_len; /* size_t */
 		*n_args = 5;
 		break;
@@ -390,7 +390,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cloudabi_sys_random_get */
 	case 42: {
 		struct cloudabi_sys_random_get_args *p = params;
-		uarg[0] = (intptr_t) p->buf; /* void * */
+		uarg[0] = (intptr_t)p->buf; /* void * */
 		uarg[1] = p->buf_len; /* size_t */
 		*n_args = 2;
 		break;
@@ -399,8 +399,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 43: {
 		struct cloudabi64_sys_sock_recv_args *p = params;
 		iarg[0] = p->sock; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->in; /* const cloudabi64_recv_in_t * */
-		uarg[2] = (intptr_t) p->out; /* cloudabi64_recv_out_t * */
+		uarg[1] = (intptr_t)p->in; /* const cloudabi64_recv_in_t * */
+		uarg[2] = (intptr_t)p->out; /* cloudabi64_recv_out_t * */
 		*n_args = 3;
 		break;
 	}
@@ -408,8 +408,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 44: {
 		struct cloudabi64_sys_sock_send_args *p = params;
 		iarg[0] = p->sock; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->in; /* const cloudabi64_send_in_t * */
-		uarg[2] = (intptr_t) p->out; /* cloudabi64_send_out_t * */
+		uarg[1] = (intptr_t)p->in; /* const cloudabi64_send_in_t * */
+		uarg[2] = (intptr_t)p->out; /* cloudabi64_send_out_t * */
 		*n_args = 3;
 		break;
 	}
@@ -424,14 +424,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cloudabi64_sys_thread_create */
 	case 46: {
 		struct cloudabi64_sys_thread_create_args *p = params;
-		uarg[0] = (intptr_t) p->attr; /* cloudabi64_threadattr_t * */
+		uarg[0] = (intptr_t)p->attr; /* cloudabi64_threadattr_t * */
 		*n_args = 1;
 		break;
 	}
 	/* cloudabi_sys_thread_exit */
 	case 47: {
 		struct cloudabi_sys_thread_exit_args *p = params;
-		uarg[0] = (intptr_t) p->lock; /* cloudabi_lock_t * */
+		uarg[0] = (intptr_t)p->lock; /* cloudabi_lock_t * */
 		iarg[1] = p->scope; /* cloudabi_scope_t */
 		*n_args = 2;
 		break;
