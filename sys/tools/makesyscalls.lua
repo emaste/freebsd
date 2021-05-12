@@ -1205,6 +1205,7 @@ write_line("syssw", string.format([[/*
  * DO NOT EDIT-- this file is automatically %s.
  * $%s$
  */
+/* clang-format off */
 
 ]], generated_tag, config['os_id_keyword']))
 
