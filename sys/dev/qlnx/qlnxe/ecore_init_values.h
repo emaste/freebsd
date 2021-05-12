@@ -27,6 +27,7 @@
  * $FreeBSD$
  *
  */
+/* clang-format off */
 
 #ifndef __INIT_VALUES_H__
 #define __INIT_VALUES_H__
