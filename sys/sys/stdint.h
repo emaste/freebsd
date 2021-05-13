@@ -32,10 +32,10 @@
 #define _SYS_STDINT_H_
 
 #include <sys/cdefs.h>
-#include <sys/_stdint.h>
 #include <sys/_types.h>
 
 #include <machine/_stdint.h>
+#include <sys/_stdint.h>
 
 typedef __int_least8_t int_least8_t;
 typedef __int_least16_t int_least16_t;
