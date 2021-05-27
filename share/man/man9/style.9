@@ -25,7 +25,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2020
+.Dd May 27, 2021
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -769,9 +769,10 @@ not:
 !(p = f())
 .Ed
 .Pp
-Do not use
+Do not test without a comparison, or with unary
 .Ic \&!
-for tests unless it is a boolean, e.g., use:
+(except for booleans).
+For example, use:
 .Bd -literal
 if (*p == '\e0')
 .Ed
@@ -779,6 +780,16 @@ if (*p == '\e0')
 not:
 .Bd -literal
 if (!*p)
+.Ed
+.Pp
+Prefer:
+.Bd -literal
+if (count != 0)
+.Ed
+.Pp
+over:
+.Bd -literal
+if (count)
 .Ed
 .Pp
 Routines returning
