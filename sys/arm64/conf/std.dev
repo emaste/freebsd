@@ -99,6 +99,7 @@ device		umass			# Disks/Mass storage - Requires scbus and da
 
 # Sound support
 device		sound
+device		snd_hda			# Intel High Definition Audio
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
