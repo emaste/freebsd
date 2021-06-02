@@ -356,8 +356,9 @@ device		smsc
 device		ure
 
 # Sound support
-device sound
-device a10_codec
+device		sound			# Generic sound driver (required)
+device		a10_codec		# Allwinner A10/A20 and H3 Audio
+device		snd_hda			# Intel High Definition Audio
 
 # MMC/SD/SDIO Card slot support
 device		sdhci
