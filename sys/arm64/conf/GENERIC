@@ -356,11 +356,12 @@ device		smsc
 device		ure
 
 # Sound support
-device		sound
+device		sound			# Generic sound driver (required)
 device		a10_codec		# Allwinner A10 codec
 device		aw_i2s			# Allwinner I2S
 device		a33_codec		# Allwinner A33 codec
 device		a64_codec		# Allwinner A64 Analog codec
+device		snd_hda			# Intel High Definition Audio
 
 # MMC/SD/SDIO Card slot support
 device		sdhci
