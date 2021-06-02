@@ -18,7 +18,7 @@ task:
   timeout_in: 120m
   install_script:
   - sh .cirrus-ci/pkg-install.sh qemu uefi-edk2-qemu-x86_64 llvm12
-  - pkg install -y git-lite
+  - sh .cirrus-ci/pkg-install.sh git-lite
   setup_script:
   - uname -a
   - df -m
