@@ -3,6 +3,8 @@
 .include <src.opts.mk>
 .include "../Makefile.inc"
 
+.include "../Makefile.crypto"
+
 .PATH.c:${HOSTAPD_DISTDIR}
 
 PACKAGE=	hostapd
@@ -29,18 +31,16 @@ CFLAGS+=-I${.CURDIR:H}/wpa_supplicant \
 CFLAGS+= -DCONFIG_IPV6
 .endif
 #CFLAGS+= -g
-LIBADD+=	pcap util wpaap wpacommon wpacrypto \
-		wpadrivers wpal2_packet wpaeap_common wpaeap_server \
-		wpaeapol_auth \
-		wparadius wpatls wpautils wpawps
+LIBADD+=	pcap util \
+		wpadrivers wpaap wpal2_packet wpaeap_server \
+		wpaeapol_auth wpaeap_common \
+		wparadius wpatls wpawps wpacommon wpacrypto wpautils
 
 # User customizations for wpa_supplicant/hostapd build environment
 CFLAGS+=${HOSTAPD_CFLAGS}
 #DPADD+=${HOSTAPD_DPADD}
 LDADD+=${HOSTAPD_LDADD}
 #LDFLAGS+=${HOSTAPD_LDFLAGS}
-
-TLS_FUNCS=y
 
 # For WPS, EAP modes, etc
 NEED_DH_GROUPS=y
@@ -66,7 +66,5 @@ NEED_FIPS186_2_PRF=y
 CFLAGS+=-DEAP_GPSK_SHA256
 NEED_AES_OMAC1=y
 .endif
-
-.include "../Makefile.crypto"
 
 .include <bsd.prog.mk>

@@ -298,7 +298,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_ucontext = PTROUT(&fp->sf_sc);
 
 	/* Fill in POSIX parts. */
-	ksiginfo_to_lsiginfo(ksi, &frame.sf_si, sig);
+	siginfo_to_lsiginfo(&ksi->ksi_info, &frame.sf_si, sig);
 
 	/*
 	 * Build the signal context to be used by sigreturn and libgcc unwind.
@@ -931,6 +931,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_onexec	= linux_on_exec,
 	.sv_onexit	= linux_on_exit,
 	.sv_ontdexit	= linux_thread_dtor,
+	.sv_setid_allowed = &linux_setid_allowed_query,
 };
 
 static void

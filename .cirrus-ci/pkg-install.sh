@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 start_time=$(date +%s)
 pkg install -y "$@" && exit 0

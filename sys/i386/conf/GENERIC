@@ -269,7 +269,6 @@ device		wlan_wep		# 802.11 WEP support
 device		wlan_ccmp		# 802.11 CCMP support
 device		wlan_tkip		# 802.11 TKIP support
 device		wlan_amrr		# AMRR transmit rate control algorithm
-device		an			# Aironet 4500/4800 802.11 wireless NICs.
 device		ath			# Atheros NICs
 device		ath_pci			# Atheros pci/cardbus glue
 device		ath_hal			# pci/cardbus chip support
@@ -339,7 +338,9 @@ device		virtio_scsi		# VirtIO SCSI device
 device		virtio_balloon		# VirtIO Memory Balloon device
 
 # HyperV drivers and enhancement support
-device		hyperv			# HyperV drivers 
+# NOTE: HYPERV depends on hyperv.  They must be added or removed together.
+options 	HYPERV			# Kernel support for HyperV drivers
+device		hyperv			# HyperV drivers
 
 # Xen HVM Guest Optimizations
 # NOTE: XENHVM depends on xenpci.  They must be added or removed together.

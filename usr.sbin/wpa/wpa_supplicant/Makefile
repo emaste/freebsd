@@ -4,6 +4,8 @@
 
 .include "../Makefile.inc"
 
+.include "../Makefile.crypto"
+
 .PATH.c:${WPA_SUPPLICANT_DISTDIR} \
 	${WPA_DISTDIR}/src/drivers
 
@@ -39,9 +41,10 @@ FILES=	wpa_supplicant.conf
 
 CFLAGS+=-DCONFIG_BACKEND_FILE
 #CFLAGS+= -g
-LIBADD=	pcap util wpaap wpacommon wpacrypto wpadrivers wpaeapol_supp \
-	wpaeap_common wpaeap_server \
-	wpaeap_peer wpal2_packet wparsn_supp wpatls wpautils wpawps
+LIBADD+=pcap util wpadrivers wpaap wpaeapol_supp \
+	wpaeap_server \
+	wpaeap_peer wpaeap_common wpal2_packet wparsn_supp wpatls wpawps \
+	wpacommon wpacrypto wpautils
 
 # User customizations to the wpa_supplicant build environment
 CFLAGS+=${WPA_SUPPLICANT_CFLAGS}
@@ -68,7 +71,6 @@ NEED_AES_EAX=y
 NEED_AES_ENCBLOCK=y
 NEED_AES_OMAC1=y
 .endif
-TLS_FUNCS=y
 
 .if !empty(CFLAGS:M*-DEAP_AKA)
 SRCS+=	eap_aka.c
@@ -115,7 +117,5 @@ SRCS+=	eap_pax.c \
 SRCS+=	eap_sake.c \
 	eap_sake_common.c
 .endif
-
-.include "../Makefile.crypto"
 
 .include <bsd.prog.mk>

@@ -666,7 +666,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	sf.sf_handler = catcher;
 	/* Fill in POSIX parts. */
-	ksiginfo_to_lsiginfo(ksi, &sf.sf_si, sig);
+	siginfo_to_lsiginfo(&ksi->ksi_info, &sf.sf_si, sig);
 
 	/* Copy the sigframe out to the user's stack. */
 	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
@@ -764,6 +764,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_onexec	= linux_on_exec,
 	.sv_onexit	= linux_on_exit,
 	.sv_ontdexit	= linux_thread_dtor,
+	.sv_setid_allowed = &linux_setid_allowed_query,
 };
 
 static void
