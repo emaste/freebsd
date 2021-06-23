@@ -44,3 +44,29 @@ task:
   post_script:
   - df -m
   - du -m -s /usr/obj
+
+arm64_task:
+  name: World and kernel arm64 build and boot smoke test
+  trigger_type: manual
+  timeout_in: 120m
+  install_script:
+  - sh .cirrus-ci/pkg-install.sh qemu llvm12
+  - sh .cirrus-ci/pkg-install.sh git-lite
+  setup_script:
+  - uname -a
+  - df -m
+  - pw useradd user
+  - mkdir -p /usr/obj/$(pwd -P)
+  - chown user:user /usr/obj/$(pwd -P)
+  submodules_script:
+  - git submodule init
+  - git submodule update
+  script:
+  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm12 WITHOUT_TOOLCHAIN=yes TARGET=arm64 TARGET_ARCH=aarch64 buildworld buildkernel"
+  package_script:
+  - su user -c "make CROSS_TOOLCHAIN=llvm12 WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar TARGET=arm64 packages"
+  test_script:
+  - TARGET=arm64 TARGET_ARCH=aarch64 sh tools/boot/ci-qemu-test.sh
+  post_script:
+  - df -m
+  - du -m -s /usr/obj
