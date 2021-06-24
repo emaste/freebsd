@@ -12,6 +12,7 @@ compute_engine_instance:
 
 task:
   name: World and kernel amd64 build and boot smoke test
+  trigger_type: manual
   timeout_in: 120m
   install_script:
   - sh .cirrus-ci/pkg-install.sh qemu llvm12
@@ -33,7 +34,7 @@ task:
 
 arm64_task:
   name: World and kernel arm64 build and boot smoke test
-  trigger_type: manual
+  #trigger_type: manual
   timeout_in: 120m
   install_script:
   - sh .cirrus-ci/pkg-install.sh qemu uefi-edk2-qemu-x86_64 llvm12
