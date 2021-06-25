@@ -51,11 +51,13 @@ quota7.sh		panic: dqflush: stray dquot					20120221
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sendfile25.sh		WiP								20200611
 signal.sh		Timing issues. Needs fixing					20171116
+snap8.sh		panic: handle_workitem_remove: bad dir delta			20210619
 swapoff2.sh		swap_pager_force_pagein: read from swap failed			20171223
 swapoff5.sh		log0005.txt, known issue					20210111
 systrace.sh		WiP								20200227
 systrace2.sh		WiP								20200227
 syzkaller11.sh		WiP								20200721
+syzkaller15.sh		WiP								20200712
 syzkaller19.sh		WiP								20200712
 syzkaller25.sh		WiP								20201116
 syzkaller28.sh		WiP								20201120
@@ -67,6 +69,7 @@ syzkaller33.sh		Fatal trap 18: integer divide fault while in kernel mode	2021041
 syzkaller39.sh		WiP								20210607
 syzkaller40.sh		WiP								20210607
 syzkaller41.sh		WiP								20210607
+syzkaller42.sh		WiP								20210613
 truss3.sh		WiP								20200915
 unionfs.sh		insmntque: non-locked vp: xx is not exclusive locked...		20130909
 unionfs2.sh		insmntque: mp-safe fs and non-locked vp is not ...		20111219

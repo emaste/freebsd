@@ -90,7 +90,10 @@ __FBSDID("$FreeBSD$");
 
 MODULE_VERSION(linux, 1);
 
-const char *linux_kplatform;
+#define	LINUX32_MAXUSER		((1ul << 32) - PAGE_SIZE)
+#define	LINUX32_SHAREDPAGE	(LINUX32_MAXUSER - PAGE_SIZE)
+#define	LINUX32_USRSTACK	LINUX32_SHAREDPAGE
+
 static int linux_szsigcode;
 static vm_object_t linux_shared_page_obj;
 static char *linux_shared_page_mapping;
@@ -159,6 +162,8 @@ struct linux32_ps_strings {
 	u_int32_t ps_envstr;	/* first of 0 or more environment strings */
 	u_int ps_nenvstr;	/* the number of environment strings */
 };
+#define	LINUX32_PS_STRINGS	(LINUX32_USRSTACK - \
+				    sizeof(struct linux32_ps_strings))
 
 LINUX_VDSO_SYM_INTPTR(linux32_sigcode);
 LINUX_VDSO_SYM_INTPTR(linux32_rt_sigcode);
@@ -919,7 +924,8 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_setregs	= linux_exec_setregs,
 	.sv_fixlimit	= linux32_fixlimit,
 	.sv_maxssiz	= &linux32_maxssiz,
-	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32 | SV_SHP,
+	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32 | SV_SHP |
+	    SV_SIG_DISCIGN | SV_SIG_WAITNDQ,
 	.sv_set_syscall_retval = linux32_set_syscall_retval,
 	.sv_fetch_syscall_args = linux32_fetch_syscall_args,
 	.sv_syscallnames = NULL,
@@ -954,9 +960,6 @@ linux_vdso_install(const void *param)
 	bcopy(elf_linux_sysvec.sv_sigcode, linux_shared_page_mapping,
 	    linux_szsigcode);
 	elf_linux_sysvec.sv_shared_page_obj = linux_shared_page_obj;
-
-	linux_kplatform = linux_shared_page_mapping +
-	    (linux_platform - (caddr_t)elf_linux_sysvec.sv_shared_page_base);
 }
 SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_ANY,
     linux_vdso_install, NULL);

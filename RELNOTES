@@ -11,9 +11,15 @@ newline.  Entries should be separated by a newline.
 Changes to this file should not be MFCed.
 
 d575e81fbcfa
-	Support to appending additional devices in gconcact has been
-	added.
+	gconcat(8) has added support for appending devices to the device
+	not present at creation time.
 
 76681661be28
 	Remove support for asymmetric cryptographic operations from
 	the kernel open cryptographic framework (OCF).
+
+a145cf3f73c7
+	The NFSv4 client now uses the highest minor version of NFSv4
+	supported by the NFSv4 server by default instead of minor version 0,
+	for NFSv4 mounts.
+	The "minorversion" mount option may be used to override this default.
