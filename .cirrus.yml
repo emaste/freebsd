@@ -47,6 +47,9 @@ arm64_task:
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
+  submodules_script:
+  - git submodule init
+  - git submodule update
   script:
   - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm12 WITHOUT_TOOLCHAIN=yes TARGET=arm64 TARGET_ARCH=aarch64 buildworld buildkernel"
   package_script:
