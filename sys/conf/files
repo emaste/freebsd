@@ -1879,9 +1879,18 @@ dev/iicbus/s35390a.c		optional s35390a
 dev/iicbus/sy8106a.c		optional sy8106a ext_resources fdt
 dev/iicbus/syr827.c		optional syr827 ext_resources fdt
 dev/iicbus/gpio/tca6416.c	optional tca6416 fdt
+dev/iicbus/pmic/fan53555.c	optional fan53555 ext_resources fdt
 dev/iir/iir.c			optional iir
 dev/iir/iir_ctrl.c		optional iir
 dev/iir/iir_pci.c		optional iir pci
+dev/igc/if_igc.c		optional igc iflib pci
+dev/igc/igc_api.c		optional igc iflib pci
+dev/igc/igc_base.c		optional igc iflib pci
+dev/igc/igc_i225.c		optional igc iflib pci
+dev/igc/igc_mac.c		optional igc iflib pci
+dev/igc/igc_nvm.c		optional igc iflib pci
+dev/igc/igc_phy.c		optional igc iflib pci
+dev/igc/igc_txrx.c		optional igc iflib pci
 dev/intpm/intpm.c		optional intpm pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/ips/ips.c			optional ips \
@@ -2577,6 +2586,7 @@ dev/oce/oce_mbox.c		optional oce pci
 dev/oce/oce_queue.c		optional oce pci
 dev/oce/oce_sysctl.c		optional oce pci
 dev/oce/oce_util.c		optional oce pci
+dev/ocs_fc/ocs_gendump.c	optional ocs_fc pci
 dev/ocs_fc/ocs_pci.c		optional ocs_fc pci
 dev/ocs_fc/ocs_ioctl.c		optional ocs_fc pci
 dev/ocs_fc/ocs_os.c		optional ocs_fc pci

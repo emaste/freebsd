@@ -83,6 +83,7 @@ device		cpufreq
 
 # Interrupt controller
 device		gic
+device		aw_r_intc
 
 # PMU support (for CCNT).
 device		pmu
@@ -257,7 +258,6 @@ device		ti_pruss
 device		ti_mbox
 
 # DMA controller
-device		fslsdma
 device		ti_sdma
 device		a10_dmac
 device		a31_dmac

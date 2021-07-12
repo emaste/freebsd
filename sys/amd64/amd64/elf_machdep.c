@@ -59,6 +59,9 @@ struct sysentvec elf64_freebsd_sysvec_la48 = {
 	.sv_szsigcode	= &szsigcode,
 	.sv_name	= "FreeBSD ELF64",
 	.sv_coredump	= __elfN(coredump),
+	.sv_elf_core_osabi = ELFOSABI_FREEBSD,
+	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
+	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
 	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
@@ -82,6 +85,8 @@ struct sysentvec elf64_freebsd_sysvec_la48 = {
 	.sv_thread_detach = NULL,
 	.sv_trap	= NULL,
 	.sv_stackgap	= elf64_stackgap,
+	.sv_onexec_old	= exec_onexec_old,
+	.sv_onexit	= exit_onexit,
 };
 
 struct sysentvec elf64_freebsd_sysvec_la57 = {
@@ -94,6 +99,9 @@ struct sysentvec elf64_freebsd_sysvec_la57 = {
 	.sv_szsigcode	= &szsigcode,
 	.sv_name	= "FreeBSD ELF64",
 	.sv_coredump	= __elfN(coredump),
+	.sv_elf_core_osabi = ELFOSABI_FREEBSD,
+	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
+	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
 	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
@@ -117,6 +125,8 @@ struct sysentvec elf64_freebsd_sysvec_la57 = {
 	.sv_thread_detach = NULL,
 	.sv_trap	= NULL,
 	.sv_stackgap	= elf64_stackgap,
+	.sv_onexec_old	= exec_onexec_old,
+	.sv_onexit	= exit_onexit,
 };
 
 static void

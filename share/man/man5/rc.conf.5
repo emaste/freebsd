@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2021
+.Dd July 8, 2021
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -996,6 +996,42 @@ is set to
 these flags are passed to the
 .Xr pfctl 8
 program when loading the ruleset.
+.It Va pf_fallback_rules_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+Setting this to
+.Dq Li YES
+enables loading
+.Va pf_fallback_rules_file
+or
+.Va pf_fallback_rules
+in case of a problem when loading the ruleset in
+.Va pf_rules .
+.It Va pf_fallback_rules_file
+.Pq Vt str
+Path to a pf ruleset to load in case of failure when loading the
+ruleset in
+.Va pf_rules
+(default
+.Pa /etc/pf-fallback.conf ) .
+.It Va pf_fallback_rules
+.Pq Vt str
+A pf ruleset to load in case of failure when loading the ruleset in
+.Va pf_rules
+and
+.Va pf_fallback_rules_file
+is not found.
+Multiple rules can be set as follows:
+.Bd -literal
+pf_fallback_rules="\\
+	block drop log all\\
+	pass in quick on em0"
+.Pp
+.Ed
+The default fallback rule is
+.Dq block drop log all
 .It Va pflog_enable
 .Pq Vt bool
 Set to
@@ -1391,7 +1427,7 @@ ifconfig_em0_aliases="\\
 It also supports CIDR notation.
 .Pp
 If the
-.Pa /etc/start_if. Ns Aq Ar interface
+.Pa /etc/start_if . Ns Aq Ar interface
 file is present, it is read and executed by the
 .Xr sh 1
 interpreter
@@ -1517,7 +1553,7 @@ will use the settings from
 Finally, you can add
 .Xr ifconfig 8
 options in this variable, in addition to the
-.Pa /etc/start_if. Ns Aq Ar interface
+.Pa /etc/start_if . Ns Aq Ar interface
 file.
 For instance, to configure an
 .Xr ath 4
@@ -1887,16 +1923,16 @@ The value of this variable is used to configure the link layer of the
 tunnel using the
 .Cm tunnel
 option to
-.Xr ifconfig .
+.Xr ifconfig 8 .
 Additionally, this option ensures that each listed interface is created
 via the
 .Cm create
 option to
-.Xr ifconfig
+.Xr ifconfig 8
 before attempting to configure it.
 .Pp
 For example, configure two
-.Xr gif
+.Xr gif 4
 interfaces with:
 .Bd -literal
 gif_interfaces="gif0 gif1"
@@ -3896,7 +3932,7 @@ For backward compatibility,
 when per-jail configuration variables are defined,
 .Xr jail 8
 configuration files are created as
-.Pa /var/run/jail. Ns Ao Ar jname Ac Ns Pa .conf
+.Pa /var/run/jail . Ns Ao Ar jname Ac Ns Pa .conf
 and used.
 .Pp
 The following per-jail parameters are handled by
@@ -4593,7 +4629,6 @@ it will be made permanently active.
 .Xr gdb 1 ,
 .Xr info 1 ,
 .Xr kbdcontrol 1 ,
-.Xr makewhatis 1 ,
 .Xr sh 1 ,
 .Xr vi 1 ,
 .Xr vidcontrol 1 ,
@@ -4618,7 +4653,10 @@ it will be made permanently active.
 .Xr motd 5 ,
 .Xr newsyslog.conf 5 ,
 .Xr pf.conf 5 ,
+.Xr firewall 7 ,
+.Xr growfs 7 ,
 .Xr security 7 ,
+.Xr tuning 7 ,
 .Xr accton 8 ,
 .Xr amd 8 ,
 .Xr apm 8 ,
@@ -4642,6 +4680,7 @@ it will be made permanently active.
 .Xr kldxref 8 ,
 .Xr loader 8 ,
 .Xr lpd 8 ,
+.Xr makewhatis 8 ,
 .Xr mdconfig 8 ,
 .Xr mdmfs 8 ,
 .Xr mixer 8 ,

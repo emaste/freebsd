@@ -444,9 +444,9 @@ spa_config_lock_init(spa_t *spa)
 		spa_config_lock_t *scl = &spa->spa_config_lock[i];
 		mutex_init(&scl->scl_lock, NULL, MUTEX_DEFAULT, NULL);
 		cv_init(&scl->scl_cv, NULL, CV_DEFAULT, NULL);
-		zfs_refcount_create_untracked(&scl->scl_count);
 		scl->scl_writer = NULL;
 		scl->scl_write_wanted = 0;
+		scl->scl_count = 0;
 	}
 }
 
@@ -457,9 +457,9 @@ spa_config_lock_destroy(spa_t *spa)
 		spa_config_lock_t *scl = &spa->spa_config_lock[i];
 		mutex_destroy(&scl->scl_lock);
 		cv_destroy(&scl->scl_cv);
-		zfs_refcount_destroy(&scl->scl_count);
 		ASSERT(scl->scl_writer == NULL);
 		ASSERT(scl->scl_write_wanted == 0);
+		ASSERT(scl->scl_count == 0);
 	}
 }
 
@@ -480,7 +480,7 @@ spa_config_tryenter(spa_t *spa, int locks, void *tag, krw_t rw)
 			}
 		} else {
 			ASSERT(scl->scl_writer != curthread);
-			if (!zfs_refcount_is_zero(&scl->scl_count)) {
+			if (scl->scl_count != 0) {
 				mutex_exit(&scl->scl_lock);
 				spa_config_exit(spa, locks & ((1 << i) - 1),
 				    tag);
@@ -488,7 +488,7 @@ spa_config_tryenter(spa_t *spa, int locks, void *tag, krw_t rw)
 			}
 			scl->scl_writer = curthread;
 		}
-		(void) zfs_refcount_add(&scl->scl_count, tag);
+		scl->scl_count++;
 		mutex_exit(&scl->scl_lock);
 	}
 	return (1);
@@ -514,14 +514,14 @@ spa_config_enter(spa_t *spa, int locks, const void *tag, krw_t rw)
 			}
 		} else {
 			ASSERT(scl->scl_writer != curthread);
-			while (!zfs_refcount_is_zero(&scl->scl_count)) {
+			while (scl->scl_count != 0) {
 				scl->scl_write_wanted++;
 				cv_wait(&scl->scl_cv, &scl->scl_lock);
 				scl->scl_write_wanted--;
 			}
 			scl->scl_writer = curthread;
 		}
-		(void) zfs_refcount_add(&scl->scl_count, tag);
+		scl->scl_count++;
 		mutex_exit(&scl->scl_lock);
 	}
 	ASSERT3U(wlocks_held, <=, locks);
@@ -535,8 +535,8 @@ spa_config_exit(spa_t *spa, int locks, const void *tag)
 		if (!(locks & (1 << i)))
 			continue;
 		mutex_enter(&scl->scl_lock);
-		ASSERT(!zfs_refcount_is_zero(&scl->scl_count));
-		if (zfs_refcount_remove(&scl->scl_count, tag) == 0) {
+		ASSERT(scl->scl_count > 0);
+		if (--scl->scl_count == 0) {
 			ASSERT(scl->scl_writer == NULL ||
 			    scl->scl_writer == curthread);
 			scl->scl_writer = NULL;	/* OK in either case */
@@ -555,8 +555,7 @@ spa_config_held(spa_t *spa, int locks, krw_t rw)
 		spa_config_lock_t *scl = &spa->spa_config_lock[i];
 		if (!(locks & (1 << i)))
 			continue;
-		if ((rw == RW_READER &&
-		    !zfs_refcount_is_zero(&scl->scl_count)) ||
+		if ((rw == RW_READER && scl->scl_count != 0) ||
 		    (rw == RW_WRITER && scl->scl_writer == curthread))
 			locks_held |= 1 << i;
 	}
@@ -615,7 +614,7 @@ spa_deadman(void *arg)
 
 	zfs_dbgmsg("slow spa_sync: started %llu seconds ago, calls %llu",
 	    (gethrtime() - spa->spa_sync_starttime) / NANOSEC,
-	    ++spa->spa_deadman_calls);
+	    (u_longlong_t)++spa->spa_deadman_calls);
 	if (zfs_deadman_enabled)
 		vdev_deadman(spa->spa_root_vdev, FTAG);
 
@@ -1495,31 +1494,20 @@ spa_strfree(char *s)
 }
 
 uint64_t
-spa_get_random(uint64_t range)
-{
-	uint64_t r;
-
-	ASSERT(range != 0);
-
-	if (range == 1)
-		return (0);
-
-	(void) random_get_pseudo_bytes((void *)&r, sizeof (uint64_t));
-
-	return (r % range);
-}
-
-uint64_t
 spa_generate_guid(spa_t *spa)
 {
-	uint64_t guid = spa_get_random(-1ULL);
+	uint64_t guid;
 
 	if (spa != NULL) {
-		while (guid == 0 || spa_guid_exists(spa_guid(spa), guid))
-			guid = spa_get_random(-1ULL);
+		do {
+			(void) random_get_pseudo_bytes((void *)&guid,
+			    sizeof (guid));
+		} while (guid == 0 || spa_guid_exists(spa_guid(spa), guid));
 	} else {
-		while (guid == 0 || spa_guid_exists(guid, 0))
-			guid = spa_get_random(-1ULL);
+		do {
+			(void) random_get_pseudo_bytes((void *)&guid,
+			    sizeof (guid));
+		} while (guid == 0 || spa_guid_exists(guid, 0));
 	}
 
 	return (guid);
@@ -2888,7 +2876,6 @@ EXPORT_SYMBOL(spa_maxdnodesize);
 EXPORT_SYMBOL(spa_guid_exists);
 EXPORT_SYMBOL(spa_strdup);
 EXPORT_SYMBOL(spa_strfree);
-EXPORT_SYMBOL(spa_get_random);
 EXPORT_SYMBOL(spa_generate_guid);
 EXPORT_SYMBOL(snprintf_blkptr);
 EXPORT_SYMBOL(spa_freeze);

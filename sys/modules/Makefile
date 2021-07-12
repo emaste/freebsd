@@ -164,6 +164,7 @@ SUBDIR=	\
 	if_vxlan \
 	${_if_wg} \
 	iflib \
+	${_igc} \
 	${_iir} \
 	imgact_binmisc \
 	${_intelspi} \
@@ -634,6 +635,7 @@ _em=		em
 _et=		et
 _ftwd=		ftwd
 _exca=		exca
+_igc=		igc
 _io=		io
 _itwd=		itwd
 _ix=		ix

@@ -224,6 +224,7 @@ MAN=	aac.4 \
 	iicmux.4 \
 	iicsmb.4 \
 	iir.4 \
+	${_igc.4} \
 	${_imcsmb.4} \
 	inet.4 \
 	inet6.4 \
@@ -817,6 +818,7 @@ _if_nfe.4=	if_nfe.4
 _if_urtw.4=	if_urtw.4
 _if_vmx.4=	if_vmx.4
 _if_wpi.4=	if_wpi.4
+_igc.4=		igc.4
 _imcsmb.4=	imcsmb.4
 _io.4=		io.4
 _itwd.4=	itwd.4
@@ -899,9 +901,7 @@ _cgem.4=	cgem.4
 MLINKS+=cgem.4 if_cgem.4
 .endif
 
-.if empty(MAN_ARCH)
-__arches=	${MACHINE} ${MACHINE_ARCH} ${MACHINE_CPUARCH}
-.elif ${MAN_ARCH} == "all"
+.if empty(MAN_ARCH) || ${MAN_ARCH} == "all"
 __arches=	${:!/bin/sh -c "/bin/ls -d ${.CURDIR}/man4.*"!:E}
 .else
 __arches=	${MAN_ARCH}

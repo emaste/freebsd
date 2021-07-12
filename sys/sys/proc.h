@@ -700,8 +700,9 @@ struct proc {
 	pid_t		p_reapsubtree;	/* (e) Pid of the direct child of the
 					       reaper which spawned
 					       our subtree. */
-	uint16_t	p_elf_machine;	/* (x) ELF machine type */
 	uint64_t	p_elf_flags;	/* (x) ELF flags */
+	void		*p_elf_brandinfo; /* (x) Elf_Brandinfo, NULL for
+						 non ELF binaries. */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_xexit
 
@@ -834,6 +835,7 @@ struct proc {
 						   after exec */
 #define	P2_ITSTOPPED		0x00002000
 #define	P2_PTRACEREQ		0x00004000	/* Active ptrace req */
+#define	P2_NO_NEW_PRIVS		0x00008000	/* Ignore setuid */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
