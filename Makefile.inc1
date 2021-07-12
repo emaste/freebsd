@@ -717,8 +717,8 @@ BSARGS= 	DESTDIR= \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WERROR=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FORMAT=no MK_CLANG_FULL=no \
-		MK_LLDB=no MK_RETPOLINE=no MK_TESTS=no \
-		MK_INCLUDES=yes
+		MK_LLDB=no MK_LLVM_BINUTILS=${MK_LLVM_BINUTILS} \
+		MK_RETPOLINE=no MK_TESTS=no MK_INCLUDES=yes
 
 BMAKE=		\
 		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
@@ -2296,15 +2296,19 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 
 # We need to build tblgen when we're building clang or lld, either as
 # bootstrap tools, or as the part of the normal build.
+# llvm-tblgen is also needed for various llvm binutils (e.g. objcopy).
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
-    ${MK_LLD_BOOTSTRAP} != "no" || ${MK_LLD} != "no"
+    ${MK_LLD_BOOTSTRAP} != "no" || ${MK_LLD} != "no" || \
+    ${MK_LLDB} != "no" || ${MK_LLVM_BINUTILS} != "no"
 _clang_tblgen= \
 	lib/clang/libllvmminimal \
-	usr.bin/clang/llvm-tblgen \
-	usr.bin/clang/clang-tblgen \
-	usr.bin/clang/lldb-tblgen
-# XXX: lldb-tblgen is not needed, if top-level MK_LLDB=no
-
+	usr.bin/clang/llvm-tblgen
+.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no"
+_clang_tblgen+=	usr.bin/clang/clang-tblgen
+.endif
+.if ${MK_LLDB} != "no"
+_clang_tblgen+=	usr.bin/clang/lldb-tblgen
+.endif
 ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmminimal
 ${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
 ${_bt}-usr.bin/clang/lldb-tblgen: ${_bt}-lib/clang/libllvmminimal
