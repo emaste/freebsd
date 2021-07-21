@@ -210,7 +210,6 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 				m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
 				if (m == NULL) {
 					KMOD_TCPSTAT_INC(tcps_rcvshort);
-					m_freem(m);
 					return (-1);
 				}
 			}
@@ -243,7 +242,6 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 				m = m_pullup(m, sizeof (struct tcpiphdr));
 				if (m == NULL) {
 					KMOD_TCPSTAT_INC(tcps_rcvshort);
-					m_freem(m);
 					return (-1);
 				}
 			}
@@ -510,16 +508,18 @@ skip_vnet:
 				m_freem(m);
 				m = m_save;
 			}
-			if (no_vn == 0)
+			if (no_vn == 0) {
 				CURVNET_RESTORE();
+			}
 			INP_UNLOCK_ASSERT(inp);
 			return(retval);
 		}
 skipped_pkt:
 		m = m_save;
 	}
-	if (no_vn == 0)
+	if (no_vn == 0) {
 		CURVNET_RESTORE();
+	}
 	return(retval);
 }
 

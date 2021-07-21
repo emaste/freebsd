@@ -1072,8 +1072,6 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	if (p->p_sysent->sv_onexec_old != NULL)
 		p->p_sysent->sv_onexec_old(td);
 	itimers_exec(p);
-	if (sv->sv_onexec != NULL)
-		sv->sv_onexec(p, imgp);
 
 	EVENTHANDLER_DIRECT_INVOKE(process_exec, p, imgp);
 
@@ -1165,7 +1163,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
 	vmspace->vm_maxsaddr = (char *)stack_addr;
 
-	return (0);
+	return (sv->sv_onexec != NULL ? sv->sv_onexec(p, imgp) : 0);
 }
 
 /*
