@@ -41,12 +41,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <assert.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <syslog.h>
-#include <machine/atomic.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
 #include "random.h"
 
 /*
@@ -65,34 +66,29 @@ __FBSDID("$FreeBSD$");
  * the advantage of being the one already in the tree.
  */
 static struct __random_state *rand3_state;
+static pthread_once_t rand3_state_once = PTHREAD_ONCE_INIT;
 
 static void
 initialize_rand3(void)
 {
-	struct __random_state *state;
 	int error;
 
-	state = allocatestate(TYPE_3);
-	error = initstate_r(state, 1, state->rst_randtbl, BREAK_3);
+	rand3_state = allocatestate(TYPE_3);
+	error = initstate_r(rand3_state, 1, rand3_state->rst_randtbl, BREAK_3);
 	assert(error == 0);
-	if (!atomic_cmpset_rel_ptr((volatile uintptr_t *)&rand3_state,
-	    (uintptr_t)NULL, (uintptr_t)state))
-		free(state);
 }
 
 int
 rand(void)
 {
-	if (rand3_state == NULL)
-		initialize_rand3();
+	_once(&rand3_state_once, initialize_rand3);
 	return ((int)random_r(rand3_state));
 }
 
 void
 srand(unsigned seed)
 {
-	if (rand3_state == NULL)
-		initialize_rand3();
+	_once(&rand3_state_once, initialize_rand3);
 	srandom_r(rand3_state, seed);
 }
 
