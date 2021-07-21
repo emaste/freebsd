@@ -304,16 +304,16 @@ hdac_pin_patch(struct hdaa_widget *w)
 		}
 	} else if (id == HDA_CODEC_ALC256 && (subid == DELL_I7577_SUBVENDOR ||
 	    subid == DELL_L7480_SUBVENDOR)) {
-	} else if (id == HDA_CODEC_ALC257 &&
-	    (subid == LENOVO_L5AMD_SUBVENDOR)) {
 		switch (nid) {
 		case 20:
-			patch = "as=1 seq=0";
+			patch_str = "as=1 seq=0";
 			break;
 		case 33:
-			patch = "as=1 seq=15";
+			patch_str = "as=1 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC257 &&
+	    (subid == LENOVO_L5AMD_SUBVENDOR)) {
 		switch (nid) {
 		case 20:
 			patch_str = "as=1 seq=0";
