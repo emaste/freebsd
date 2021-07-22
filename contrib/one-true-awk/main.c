@@ -22,9 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-const char	*version = "version 20210215 (FreeBSD)";
+const char	*version = "version 20210215";
 
 #define DEBUG
 #include <stdio.h>
@@ -117,7 +115,6 @@ int main(int argc, char *argv[])
 	char *fn, *vn;
 
 	setlocale(LC_CTYPE, "");
-	setlocale(LC_COLLATE, "");
 	setlocale(LC_NUMERIC, "C"); /* for parsing cmdline & prog */
 	cmdname = argv[0];
 	if (argc == 1) {
