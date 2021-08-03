@@ -102,10 +102,11 @@ main(int argc, char **argv)
 	struct bsdar	*bsdar, bsdar_storage;
 	char		*p;
 	size_t		 len;
-	int		 i, opt, Dflag, Uflag;
+	int		 exitcode, i, opt, Dflag, Uflag;
 
 	bsdar = &bsdar_storage;
 	memset(bsdar, 0, sizeof(*bsdar));
+	exitcode = EXIT_SUCCESS;
 	Dflag = 0;
 	Uflag = 0;
 
@@ -151,9 +152,10 @@ main(int argc, char **argv)
 			bsdar->options |= AR_D;
 		bsdar->options |= AR_S;
 		while ((bsdar->filename = *argv++) != NULL)
-			ar_mode_s(bsdar);
+			if (ar_mode_s(bsdar))
+				exitcode = EXIT_FAILURE;
 
-		exit(EX_OK);
+		exit(exitcode);
 	} else {
 		if (argc < 2)
 			bsdar_usage();
@@ -262,20 +264,20 @@ main(int argc, char **argv)
 		bsdar_usage();
 
 	if (bsdar->options & AR_A && bsdar->options & AR_B)
-		bsdar_errc(bsdar, EX_USAGE, 0,
+		bsdar_errc(bsdar, EXIT_FAILURE, 0,
 		    "only one of -a and -[bi] options allowed");
 
 	if (bsdar->options & AR_J && bsdar->options & AR_Z)
-		bsdar_errc(bsdar, EX_USAGE, 0,
+		bsdar_errc(bsdar, EXIT_FAILURE, 0,
 		    "only one of -j and -z options allowed");
 
 	if (bsdar->options & AR_S && bsdar->options & AR_SS)
-		bsdar_errc(bsdar, EX_USAGE, 0,
+		bsdar_errc(bsdar, EXIT_FAILURE, 0,
 		    "only one of -s and -S options allowed");
 
 	if (bsdar->options & (AR_A | AR_B)) {
 		if (*argv == NULL)
-			bsdar_errc(bsdar, EX_USAGE, 0,
+			bsdar_errc(bsdar, EXIT_FAILURE, 0,
 			    "no position operand specified");
 		if ((bsdar->posarg = basename(*argv)) == NULL)
 			bsdar_errc(bsdar, EX_SOFTWARE, errno,
@@ -310,7 +312,7 @@ main(int argc, char **argv)
 
 	if (bsdar->mode == 'M') {
 		ar_mode_script(bsdar);
-		exit(EX_OK);
+		exit(EXIT_SUCCESS);
 	}
 
 	if ((bsdar->filename = *argv) == NULL)
@@ -321,9 +323,9 @@ main(int argc, char **argv)
 
 	if ((!bsdar->mode || strchr("ptx", bsdar->mode)) &&
 	    bsdar->options & AR_S) {
-		ar_mode_s(bsdar);
+		exitcode = ar_mode_s(bsdar);
 		if (!bsdar->mode)
-			exit(EX_OK);
+			exit(exitcode);
 	}
 
 	switch(bsdar->mode) {
@@ -353,12 +355,15 @@ main(int argc, char **argv)
 		/* NOTREACHED */
 	}
 
-	for (i = 0; i < bsdar->argc; i++)
-		if (bsdar->argv[i] != NULL)
+	for (i = 0; i < bsdar->argc; i++) {
+		if (bsdar->argv[i] != NULL) {
 			bsdar_warnc(bsdar, 0, "%s: not found in archive",
 			    bsdar->argv[i]);
+			exitcode = EXIT_FAILURE;
+		}
+	}
 
-	exit(EX_OK);
+	exit(exitcode);
 }
 
 static void
@@ -366,7 +371,7 @@ set_mode(struct bsdar *bsdar, char opt)
 {
 
 	if (bsdar->mode != '\0' && bsdar->mode != opt)
-		bsdar_errc(bsdar, EX_USAGE, 0,
+		bsdar_errc(bsdar, EXIT_FAILURE, 0,
 		    "Can't specify both -%c and -%c", opt, bsdar->mode);
 	bsdar->mode = opt;
 }
@@ -376,7 +381,7 @@ only_mode(struct bsdar *bsdar, const char *opt, const char *valid_modes)
 {
 
 	if (strchr(valid_modes, bsdar->mode) == NULL)
-		bsdar_errc(bsdar, EX_USAGE, 0,
+		bsdar_errc(bsdar, EXIT_FAILURE, 0,
 		    "Option %s is not permitted in mode -%c", opt, bsdar->mode);
 }
 
@@ -395,7 +400,7 @@ bsdar_usage(void)
 	(void)fprintf(stderr, "\tar -t [-Tv] archive [file ...]\n");
 	(void)fprintf(stderr, "\tar -x [-CTouv] archive [file ...]\n");
 	(void)fprintf(stderr, "\tar -V\n");
-	exit(EX_USAGE);
+	exit(EXIT_FAILURE);
 }
 
 static void
@@ -404,19 +409,19 @@ ranlib_usage(void)
 
 	(void)fprintf(stderr, "usage:	ranlib [-DtU] archive ...\n");
 	(void)fprintf(stderr, "\tranlib -V\n");
-	exit(EX_USAGE);
+	exit(EXIT_FAILURE);
 }
 
 static void
 bsdar_version(void)
 {
 	(void)printf("BSD ar %s - %s\n", BSDAR_VERSION, archive_version_string());
-	exit(EX_OK);
+	exit(EXIT_SUCCESS);
 }
 
 static void
 ranlib_version(void)
 {
 	(void)printf("ranlib %s - %s\n", BSDAR_VERSION, archive_version_string());
-	exit(EX_OK);
+	exit(EXIT_SUCCESS);
 }
