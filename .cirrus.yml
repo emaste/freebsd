@@ -14,7 +14,7 @@ task:
   name: World and kernel amd64 build and boot smoke test
   timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh qemu llvm12
+  - sh .cirrus-ci/pkg-install.sh qemu
   setup_script:
   - uname -a
   - df -m
@@ -23,9 +23,9 @@ task:
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
   script:
-  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm12 WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
+  - su user -c "make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
   package_script:
-  - su user -c "make CROSS_TOOLCHAIN=llvm12 WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
+  - su user -c "make WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
   test_script:
   - sh tools/boot/ci-qemu-test.sh
   post_script:
