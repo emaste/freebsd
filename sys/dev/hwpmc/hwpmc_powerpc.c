@@ -603,6 +603,9 @@ pmc_md_initialize()
 		pmc_mdep = NULL;
 	}
 
+	/* Set the value for kern.hwpmc.cpuid */
+	snprintf(pmc_cpuid, sizeof(pmc_cpuid), "%08x", mfpvr());
+
 	return (pmc_mdep);
 }
 

@@ -222,6 +222,8 @@ struct mtx dt_lock;	/* lock for GDT and LDT */
 
 void (*vmm_resume_p)(void);
 
+bool efi_boot;
+
 static void
 cpu_startup(dummy)
 	void *dummy;
@@ -1270,16 +1272,6 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	    (boothowto & RB_VERBOSE))
 		printf("Physical memory use set to %ldK\n", Maxmem * 4);
 
-	/*
-	 * Make hole for "AP -> long mode" bootstrap code.  The
-	 * mp_bootaddress vector is only available when the kernel
-	 * is configured to support APs and APs for the system start
-	 * in real mode mode (e.g. SMP bare metal).
-	 */
-#ifdef SMP
-	mp_bootaddress(physmap, &physmap_idx);
-#endif
-
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap(&first);
 
@@ -1598,15 +1590,46 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	int gsel_tss, x;
 	struct pcpu *pc;
 	struct xstate_hdr *xhdr;
-	u_int64_t rsp0;
+	uint64_t cr3, rsp0;
+	pml4_entry_t *pml4e;
+	pdp_entry_t *pdpe;
+	pd_entry_t *pde;
 	char *env;
 	struct user_segment_descriptor *gdt;
 	struct region_descriptor r_gdt;
 	size_t kstack0_sz;
 	int late_console;
-	bool efi_boot;
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
+
+	/*
+	 * Calculate kernphys by inspecting page table created by loader.
+	 * The assumptions:
+	 * - kernel is mapped at KERNBASE, backed by contiguous phys memory
+	 *   aligned at 2M, below 4G (the latter is important for AP startup)
+	 * - there is a 2M hole at KERNBASE
+	 * - kernel is mapped with 2M superpages
+	 * - all participating memory, i.e. kernel, modules, metadata,
+	 *   page table is accessible by pre-created 1:1 mapping
+	 *   (right now loader creates 1:1 mapping for lower 4G, and all
+	 *   memory is from there)
+	 * - there is a usable memory block right after the end of the
+	 *   mapped kernel and all modules/metadata, pointed to by
+	 *   physfree, for early allocations
+	 */
+	cr3 = rcr3();
+	pml4e = (pml4_entry_t *)(cr3 & ~PAGE_MASK) + pmap_pml4e_index(
+	    (vm_offset_t)hammer_time);
+	pdpe = (pdp_entry_t *)(*pml4e & ~PAGE_MASK) + pmap_pdpe_index(
+	    (vm_offset_t)hammer_time);
+	pde = (pd_entry_t *)(*pdpe & ~PAGE_MASK) + pmap_pde_index(
+	    (vm_offset_t)hammer_time);
+	kernphys = (vm_paddr_t)(*pde & ~PDRMASK) -
+	    (vm_paddr_t)(((vm_offset_t)hammer_time - KERNBASE) & ~PDRMASK);
+
+	/* Fix-up for 2M hole */
+	physfree += kernphys;
+	kernphys += NBPDR;
 
 	kmdp = init_ops.parse_preload_data(modulep);
 
@@ -1653,7 +1676,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/* Init basic tunables, hz etc */
 	init_param1();
 
-	thread0.td_kstack = physfree + KERNBASE;
+	thread0.td_kstack = physfree - kernphys + KERNSTART;
 	thread0.td_kstack_pages = kstack_pages;
 	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
 	bzero((void *)thread0.td_kstack, kstack0_sz);
@@ -1690,7 +1713,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
 	wrmsr(MSR_KGSBASE, 0);		/* User value while in the kernel */
 
-	dpcpu_init((void *)(physfree + KERNBASE), 0);
+	dpcpu_init((void *)(physfree - kernphys + KERNSTART), 0);
 	physfree += DPCPU_SIZE;
 	amd64_bsp_pcpu_init1(pc);
 	/* Non-late cninit() and printf() can be moved up to here. */
