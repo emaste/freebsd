@@ -23,7 +23,7 @@ task:
       TARGET_ARCH: aarch64
   timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh qemu llvm13
+  - sh .cirrus-ci/pkg-install.sh qemu
   - sh .cirrus-ci/pkg-install.sh git-lite
   setup_script:
   - uname -a
@@ -36,9 +36,9 @@ task:
   - git submodule init
   - git submodule update
   script:
-  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm13 WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
+  - su user -c "make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
   package_script:
-  - su user -c "make CROSS_TOOLCHAIN=llvm13 WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
+  - su user -c "make WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
   test_script:
   - sh tools/boot/ci-qemu-test.sh
   post_script:
