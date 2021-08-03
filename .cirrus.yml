@@ -141,8 +141,7 @@ task:
       EXTRA_MAKE_FLAGS: -s
   timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh ${TOOLCHAIN_PKG} git-lite
-
+  - sh .cirrus-ci/pkg-install.sh git-lite
   setup_script:
   - uname -a
   - gpart show
@@ -158,13 +157,13 @@ task:
   - git submodule update
 
   build_world_script:
-  - su user -c "make -j$(nproc) ${EXTRA_MAKE_FLAGS} CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes buildworld"
+  - su user -c "make -j$(nproc) ${EXTRA_MAKE_FLAGS} WITHOUT_TOOLCHAIN=yes buildworld"
 
   build_kernel_script:
-  - su user -c "make -j$(nproc) CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes buildkernel"
+  - su user -c "make -j$(nproc) WITHOUT_TOOLCHAIN=yes buildkernel"
 
   package_script:
-  - su user -c "make -j$(nproc) CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes packages"
+  - su user -c "make -j$(nproc) WITHOUT_TOOLCHAIN=yes packages"
 
   test_script:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11
