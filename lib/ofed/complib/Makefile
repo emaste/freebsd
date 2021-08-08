@@ -6,7 +6,6 @@ _spath=	${SRCTOP}/contrib/ofed/opensm/complib
 SHLIBDIR?=	/usr/lib
 LIB=		osmcomp
 SHLIB_MAJOR=    3
-MK_PROFILE=     no
 
 SRCS= \
 cl_complib.c \
