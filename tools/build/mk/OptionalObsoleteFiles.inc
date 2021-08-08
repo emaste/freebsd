@@ -7386,7 +7386,7 @@ OLD_FILES+=usr/share/man/man8/ppp.8.gz
 OLD_FILES+=usr/share/man/man8/pppctl.8.gz
 .endif
 
-.if ${MK_PROFILE} == no
+# XXX move to ObsoleteFiles before pushing upstream
 OLD_FILES+=usr/lib/lib80211_p.a
 OLD_FILES+=usr/lib/libBlocksRuntime_p.a
 OLD_FILES+=usr/lib/libalias_dummy_p.a
@@ -7551,7 +7551,6 @@ OLD_FILES+=usr/lib/libzfs_core_p.a
 OLD_FILES+=usr/lib/libzfs_p.a
 OLD_FILES+=usr/lib/libprivateldns_p.a
 OLD_FILES+=usr/lib/libprivatessh_p.a
-.endif
 
 .if ${MK_QUOTAS} == no
 OLD_FILES+=sbin/quotacheck

@@ -9,7 +9,6 @@ __BOOT_DEFS_MK__=${MFILE}
 
 MK_CTF=		no
 MK_SSP=		no
-MK_PROFILE=	no
 MK_PIE=		no
 MAN=
 .if !defined(PIC)
