@@ -6,7 +6,6 @@ _spath=	${SRCTOP}/contrib/ofed/libmlx5
 SHLIBDIR?=	/lib
 LIB=		mlx5
 SHLIB_MAJOR=	1
-MK_PROFILE=	no
 
 SRCS= \
 buf.c \
