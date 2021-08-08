@@ -78,7 +78,6 @@ __DEFAULT_NO_OPTIONS = \
     CCACHE_BUILD \
     CTF \
     INSTALL_AS_USER \
-    PROFILE \
     STALE_STAGED \
     UBSAN
 
@@ -122,7 +121,6 @@ __INIT_ALL_DEFAULT=	zero
     DEBUG_FILES \
     INSTALLLIB \
     MAN \
-    PROFILE \
     WARNS \
     WERROR
 .if defined(NO_${var})

@@ -255,9 +255,6 @@ OPTIMIZE_OBJECT_META_FILES ?= yes
 
 
 .if ${MK_LIBTOOL} == "yes"
-# because libtool is so fascist about naming the object files,
-# we cannot (yet) build profiled libs
-MK_PROFILE=no
 _LIBS=lib${LIB}.a
 .if exists(${.CURDIR}/shlib_version)
 SHLIB_AGE != . ${.CURDIR}/shlib_version ; echo $$age
