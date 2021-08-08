@@ -80,7 +80,6 @@ __DEFAULT_NO_OPTIONS = \
     INIT_ALL_PATTERN \
     INSTALL_AS_USER \
     MANSPLITPKG \
-    PROFILE \
     STALE_STAGED \
     UBSAN
 
@@ -120,7 +119,6 @@ __DEFAULT_YES_OPTIONS+=PIE
     DEBUG_FILES \
     INSTALLLIB \
     MAN \
-    PROFILE \
     WARNS \
     WERROR
 .if defined(NO_${var})
