@@ -6,7 +6,6 @@ _spath=	${SRCTOP}/contrib/ofed/librdmacm
 SHLIBDIR?=	/usr/lib
 LIB=		rdmacm
 SHLIB_MAJOR=	1
-MK_PROFILE=	no
 CFLAGS+=	-I${_spath}
 
 SRCS= \
