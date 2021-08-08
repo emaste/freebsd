@@ -309,18 +309,6 @@ SYMLINKS+=	libncursesw.so ${LIBDIR}/libtermcap.so
 SYMLINKS+=	libncursesw.so ${LIBDIR}/libtermlib.so
 SYMLINKS+=	libncursesw.so ${LIBDIR}/libtinfo.so
 .endif
-.if ${MK_PROFILE} != "no"
-SYMLINKS+=	libncursesw_p.a ${LIBDIR}/libcursesw_p.a
-SYMLINKS+=	libncursesw_p.a ${LIBDIR}/libtermcapw_p.a
-SYMLINKS+=	libncursesw_p.a ${LIBDIR}/libtermlibw_p.a
-SYMLINKS+=	libncursesw_p.a ${LIBDIR}/libtinfow_p.a
-# backward compat
-SYMLINKS+=	libncursesw_p.a ${LIBDIR}/libncurses_p.a
-SYMLINKS+=	libncursesw_p.a ${LIBDIR}/libcurses_p.a
-SYMLINKS+=	libncursesw_p.a ${LIBDIR}/libtermcap_p.a
-SYMLINKS+=	libncursesw_p.a ${LIBDIR}/libtermlib_p.a
-SYMLINKS+=	libncursesw_p.a ${LIBDIR}/libtinfo_p.a
-.endif
 
 DOCSDIR=	${SHAREDIR}/doc/ncurses
 DOCS=		ncurses-intro.html hackguide.html

@@ -50,7 +50,6 @@ BSARGS= 	DESTDIR= \
 		MK_HTML=no \
 		MK_LLDB=no \
 		MK_MAN=no \
-		MK_PROFILE=no \
 		MK_RETPOLINE=no \
 		MK_SSP=no \
 		MK_TESTS=no \
