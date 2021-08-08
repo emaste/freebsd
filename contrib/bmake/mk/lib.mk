@@ -229,6 +229,9 @@ SHLIB_LINKS += lib${LIB}.${LD_solink}.${SHLIB_MAJOR}
 .endif
 
 LIBTOOL?=libtool
+# because libtool is so fascist about naming the object files,
+# we cannot (yet) build profiled libs
+MK_PROFILE=no
 LD_shared ?= -Bshareable -Bforcearchive
 LD_so ?= so.${SHLIB_FULLVERSION}
 LD_solink ?= so
@@ -257,9 +260,6 @@ OPTIMIZE_OBJECT_META_FILES ?= yes
 
 
 .if ${MK_LIBTOOL} == "yes"
-# because libtool is so fascist about naming the object files,
-# we cannot (yet) build profiled libs
-MK_PROFILE=no
 _LIBS=lib${LIB}.a
 .if exists(${.CURDIR}/shlib_version)
 SHLIB_AGE != . ${.CURDIR}/shlib_version ; echo $$age
