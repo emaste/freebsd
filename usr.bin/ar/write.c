@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <archive.h>
 #include <archive_entry.h>
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <gelf.h>
@@ -42,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "ar.h"
@@ -67,7 +67,6 @@ static void	insert_obj(struct bsdar *bsdar, struct ar_obj *obj,
 static void	prefault_buffer(const char *buf, size_t s);
 static void	read_objs(struct bsdar *bsdar, const char *archive,
 		    int checkargv);
-//static int	write_archive(struct bsdar *bsdar, char mode);
 static void	write_cleanup(struct bsdar *bsdar);
 static void	write_data(struct bsdar *bsdar, struct archive *a,
 		    const void *buf, size_t s);
@@ -350,6 +349,9 @@ ar_write_archive(struct bsdar *bsdar, int mode)
 	pos = NULL;
 	memset(&sb, 0, sizeof(sb));
 
+	assert(mode == 'A' || mode == 'd' || mode == 'm' || mode == 'q' ||
+	    mode == 'r' || mode == 's');
+
 	/*
 	 * Test if the specified archive exists, to figure out
 	 * whether we are creating one here.
@@ -585,8 +587,8 @@ write_objs(struct bsdar *bsdar)
 	uint32_t		 nr32;
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
-		bsdar_errc(bsdar, 0,
-		    "ELF library initialization failed: %s", elf_errmsg(-1));
+		bsdar_errc(bsdar, 0, "ELF library initialization failed: %s",
+		    elf_errmsg(-1));
 
 	bsdar->rela_off = 0;
 
@@ -749,7 +751,7 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 		return;
 	}
 	if (elf_getshstrndx(e, &shstrndx) == 0) {
-		bsdar_warnc(bsdar, EX_SOFTWARE, 0, "elf_getshstrndx failed: %s",
+		bsdar_warnc(bsdar, 0, "elf_getshstrndx failed: %s",
 		     elf_errmsg(-1));
 		elf_end(e);
 		return;
@@ -786,8 +788,8 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 	scn = NULL;
 	while ((scn = elf_nextscn(e, scn)) != NULL) {
 		if (gelf_getshdr(scn, &shdr) != &shdr) {
-			bsdar_warnc(bsdar, EX_SOFTWARE, 0,
-			    "elf_getshdr failed: %s", elf_errmsg(-1));
+			bsdar_warnc(bsdar, 0, "elf_getshdr failed: %s",
+			    elf_errmsg(-1));
 			continue;
 		}
 		if (shdr.sh_type != SHT_SYMTAB)
@@ -800,7 +802,7 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 			len = data->d_size / shdr.sh_entsize;
 			for (i = 0; i < len; i++) {
 				if (gelf_getsym(data, i, &sym) != &sym) {
-					bsdar_warnc(bsdar, EX_SOFTWARE, 0,
+					bsdar_warnc(bsdar, 0,
 					    "gelf_getsym failed: %s",
 					     elf_errmsg(-1));
 					continue;
@@ -817,7 +819,7 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 
 				if ((name = elf_strptr(e, tabndx,
 				    sym.st_name)) == NULL) {
-					bsdar_warnc(bsdar, EX_SOFTWARE, 0,
+					bsdar_warnc(bsdar, 0,
 					    "elf_strptr failed: %s",
 					     elf_errmsg(-1));
 					continue;
@@ -829,7 +831,7 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 	}
 	elferr = elf_errno();
 	if (elferr != 0)
-		bsdar_warnc(bsdar, EX_SOFTWARE, 0, "elf_nextscn failed: %s",
+		bsdar_warnc(bsdar, 0, "elf_nextscn failed: %s",
 		     elf_errmsg(elferr));
 
 	elf_end(e);

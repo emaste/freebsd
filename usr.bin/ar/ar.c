@@ -151,7 +151,7 @@ main(int argc, char **argv)
 			bsdar->options |= AR_D;
 		bsdar->options |= AR_S;
 		while ((bsdar->filename = *argv++) != NULL)
-			if (ar_read_archive(bsdar, 's'))
+			if (ar_write_archive(bsdar, 's'))
 				exitcode = EXIT_FAILURE;
 
 		exit(exitcode);
@@ -350,8 +350,8 @@ set_mode(struct bsdar *bsdar, char opt)
 {
 
 	if (bsdar->mode != '\0' && bsdar->mode != opt)
-		bsdar_errc(bsdar, 0, "Can't specify both -%c and -%c",
-		    opt, bsdar->mode);
+		bsdar_errc(bsdar, 0, "Can't specify both -%c and -%c", opt,
+		    bsdar->mode);
 	bsdar->mode = opt;
 }
 

@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_fork.h>
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
@@ -108,6 +109,7 @@ static int	linux_on_exec_vmspace(struct proc *p,
 		    struct image_params *imgp);
 static int	linux_copyout_strings(struct image_params *imgp,
 		    uintptr_t *stack_base);
+static void	linux_set_fork_retval(struct thread *td);
 static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(const void *param);
 static void	linux_vdso_deinstall(const void *param);
@@ -803,6 +805,14 @@ linux_set_syscall_retval(struct thread *td, int error)
 	}
 }
 
+static void
+linux_set_fork_retval(struct thread *td)
+{
+	struct trapframe *frame = td->td_frame;
+
+	frame->tf_eax = 0;
+}
+
 /*
  * exec_setregs may initialize some registers differently than Linux
  * does, thus potentially confusing Linux binaries. If necessary, we
@@ -856,6 +866,7 @@ struct sysentvec linux_sysvec = {
 	.sv_onexit	= linux_on_exit,
 	.sv_ontdexit	= linux_thread_dtor,
 	.sv_setid_allowed = &linux_setid_allowed_query,
+	.sv_set_fork_retval = linux_set_fork_retval,
 };
 INIT_SYSENTVEC(aout_sysvec, &linux_sysvec);
 
@@ -898,6 +909,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_onexit	= linux_on_exit,
 	.sv_ontdexit	= linux_thread_dtor,
 	.sv_setid_allowed = &linux_setid_allowed_query,
+	.sv_set_fork_retval = linux_set_fork_retval,
 };
 
 static int

@@ -920,6 +920,35 @@ get_advice(struct file *fp, struct uio *uio)
 	return (ret);
 }
 
+static int
+get_write_ioflag(struct file *fp)
+{
+	int ioflag;
+	struct mount *mp;
+	struct vnode *vp;
+
+	ioflag = 0;
+	vp = fp->f_vnode;
+	mp = atomic_load_ptr(&vp->v_mount);
+
+	if ((fp->f_flag & O_DIRECT) != 0)
+		ioflag |= IO_DIRECT;
+
+	if ((fp->f_flag & O_FSYNC) != 0 ||
+	    (mp != NULL && (mp->mnt_flag & MNT_SYNCHRONOUS) != 0))
+		ioflag |= IO_SYNC;
+
+	/*
+	 * For O_DSYNC we set both IO_SYNC and IO_DATASYNC, so that VOP_WRITE()
+	 * or VOP_DEALLOCATE() implementations that don't understand IO_DATASYNC
+	 * fall back to full O_SYNC behavior.
+	 */
+	if ((fp->f_flag & O_DSYNC) != 0)
+		ioflag |= IO_SYNC | IO_DATASYNC;
+
+	return (ioflag);
+}
+
 int
 vn_read_from_obj(struct vnode *vp, struct uio *uio)
 {
@@ -1119,25 +1148,12 @@ vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 	if (vp->v_type == VREG)
 		bwillwrite();
 	ioflag = IO_UNIT;
-	if (vp->v_type == VREG && (fp->f_flag & O_APPEND))
+	if (vp->v_type == VREG && (fp->f_flag & O_APPEND) != 0)
 		ioflag |= IO_APPEND;
-	if (fp->f_flag & FNONBLOCK)
+	if ((fp->f_flag & FNONBLOCK) != 0)
 		ioflag |= IO_NDELAY;
-	if (fp->f_flag & O_DIRECT)
-		ioflag |= IO_DIRECT;
+	ioflag |= get_write_ioflag(fp);
 
-	mp = atomic_load_ptr(&vp->v_mount);
-	if ((fp->f_flag & O_FSYNC) ||
-	    (mp != NULL && (mp->mnt_flag & MNT_SYNCHRONOUS)))
-		ioflag |= IO_SYNC;
-
-	/*
-	 * For O_DSYNC we set both IO_SYNC and IO_DATASYNC, so that VOP_WRITE()
-	 * implementations that don't understand IO_DATASYNC fall back to full
-	 * O_SYNC behavior.
-	 */
-	if (fp->f_flag & O_DSYNC)
-		ioflag |= IO_SYNC | IO_DATASYNC;
 	mp = NULL;
 	need_finished_write = false;
 	if (vp->v_type != VCHR) {
@@ -3447,7 +3463,7 @@ vn_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 
 static int
 vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
-    int ioflg, struct ucred *active_cred, struct ucred *file_cred)
+    int ioflag, struct ucred *active_cred, struct ucred *file_cred)
 {
 	struct mount *mp;
 	void *rl_cookie;
@@ -3463,7 +3479,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 	off = *offset;
 	len = *length;
 
-	if ((ioflg & (IO_NODELOCKED|IO_RANGELOCKED)) == 0)
+	if ((ioflag & (IO_NODELOCKED | IO_RANGELOCKED)) == 0)
 		rl_cookie = vn_rangelock_wlock(vp, off, off + len);
 	while (len > 0 && error == 0) {
 		/*
@@ -3473,7 +3489,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 		 * pass.
 		 */
 
-		if ((ioflg & IO_NODELOCKED) == 0) {
+		if ((ioflag & IO_NODELOCKED) == 0) {
 			bwillwrite();
 			if ((error = vn_start_write(vp, &mp,
 			    V_WAIT | PCATCH)) != 0)
@@ -3488,15 +3504,15 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 #endif
 
 #ifdef MAC
-		if ((ioflg & IO_NOMACCHECK) == 0)
+		if ((ioflag & IO_NOMACCHECK) == 0)
 			error = mac_vnode_check_write(active_cred, file_cred,
 			    vp);
 #endif
 		if (error == 0)
-			error = VOP_DEALLOCATE(vp, &off, &len, flags,
+			error = VOP_DEALLOCATE(vp, &off, &len, flags, ioflag,
 			    active_cred);
 
-		if ((ioflg & IO_NODELOCKED) == 0) {
+		if ((ioflag & IO_NODELOCKED) == 0) {
 			VOP_UNLOCK(vp);
 			if (mp != NULL) {
 				vn_finished_write(mp);
@@ -3514,7 +3530,7 @@ out:
 
 int
 vn_deallocate(struct vnode *vp, off_t *offset, off_t *length, int flags,
-    int ioflg, struct ucred *active_cred, struct ucred *file_cred)
+    int ioflag, struct ucred *active_cred, struct ucred *file_cred)
 {
 	if (*offset < 0 || *length <= 0 || *length > OFF_MAX - *offset ||
 	    flags != 0)
@@ -3522,7 +3538,7 @@ vn_deallocate(struct vnode *vp, off_t *offset, off_t *length, int flags,
 	if (vp->v_type != VREG)
 		return (ENODEV);
 
-	return (vn_deallocate_impl(vp, offset, length, flags, ioflg,
+	return (vn_deallocate_impl(vp, offset, length, flags, ioflag,
 	    active_cred, file_cred));
 }
 
@@ -3532,6 +3548,7 @@ vn_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length, int flags,
 {
 	int error;
 	struct vnode *vp;
+	int ioflag;
 
 	vp = fp->f_vnode;
 
@@ -3541,9 +3558,11 @@ vn_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length, int flags,
 	if (vp->v_type != VREG)
 		return (ENODEV);
 
+	ioflag = get_write_ioflag(fp);
+
 	switch (cmd) {
 	case SPACECTL_DEALLOC:
-		error = vn_deallocate_impl(vp, offset, length, flags, 0,
+		error = vn_deallocate_impl(vp, offset, length, flags, ioflag,
 		    active_cred, fp->f_cred);
 		break;
 	default:

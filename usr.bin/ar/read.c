@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <archive.h>
 #include <archive_entry.h>
+#include <assert.h>
 #include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -63,6 +64,8 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 	char			  buf[25];
 	char			  find;
 	int			  exitcode, flags, r, i;
+
+	assert(mode == 'p' || mode == 't' || mode == 'x');
 
 	if ((a = archive_read_new()) == NULL)
 		bsdar_errc(bsdar, 0, "archive_read_new failed");
