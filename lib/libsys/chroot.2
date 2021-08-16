@@ -61,10 +61,10 @@ It should be noted that
 .Fn chroot
 has no effect on the process's current directory.
 .Pp
-This call is restricted to the super-user, unless the
+This call is restricted to the super-user if the
 .Ql security.bsd.unprivileged_chroot
-sysctl variable is set to 1
-and the process has enabled the
+sysctl variable is set to 0.
+Unprivileged use requires that the process has enabled the
 .Dv PROC_NO_NEW_PRIVS_CTL
 .Xr procctl 2 .
 .Pp
