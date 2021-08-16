@@ -967,7 +967,7 @@ kern_chdir(struct thread *td, const char *path, enum uio_seg pathseg)
 	return (0);
 }
 
-static int unprivileged_chroot = 0;
+static int unprivileged_chroot = 1;
 SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_chroot, CTLFLAG_RW,
     &unprivileged_chroot, 0,
     "Unprivileged processes can use chroot(2)");
