@@ -209,6 +209,8 @@ static bool dangerous_ld_env;	/* True if environment variables have been
 bool ld_bind_not;		/* Disable PLT update */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
+static bool ld_dynamic_weak = true; /* True if non-weak definition overrides
+				       weak definition */
 static char *ld_library_path;	/* Environment variable for search path */
 static char *ld_library_dirs;	/* Environment variable for library descriptors */
 static char *ld_preload;	/* Environment variable for libraries to
@@ -583,7 +585,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    unsetenv(_LD("LIBMAP_DISABLE")) || unsetenv(_LD("BIND_NOT")) ||
 	    unsetenv(_LD("DEBUG")) || unsetenv(_LD("ELF_HINTS_PATH")) ||
 	    unsetenv(_LD("LOADFLTR")) || unsetenv(_LD("LIBRARY_PATH_RPATH")) ||
-	    unsetenv(_LD("PRELOAD_FDS"))) {
+	    unsetenv(_LD("PRELOAD_FDS")) || unsetenv(_LD("DYNAMIC_WEAK"))) {
 		_rtld_error("environment corrupt; aborting");
 		rtld_die();
 	}
@@ -591,6 +593,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     ld_debug = getenv(_LD("DEBUG"));
     if (ld_bind_now == NULL)
 	    ld_bind_not = getenv(_LD("BIND_NOT")) != NULL;
+    ld_dynamic_weak = getenv(_LD("DYNAMIC_WEAK")) == NULL;
     libmap_disable = getenv(_LD("LIBMAP_DISABLE")) != NULL;
     libmap_override = getenv(_LD("LIBMAP"));
     ld_library_path = getenv(_LD("LIBRARY_PATH"));
@@ -610,7 +613,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     }
     dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
 	(ld_library_path != NULL) || (ld_preload != NULL) ||
-	(ld_elf_hints_path != NULL) || ld_loadfltr;
+	(ld_elf_hints_path != NULL) || ld_loadfltr || ld_dynamic_weak;
     ld_tracing = getenv(_LD("TRACE_LOADED_OBJECTS"));
     ld_utrace = getenv(_LD("UTRACE"));
 
@@ -3673,11 +3676,12 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 		    continue;
 		res = symlook_obj(&req, obj);
 		if (res == 0) {
-		    if (def == NULL ||
-		      ELF_ST_BIND(req.sym_out->st_info) != STB_WEAK) {
+		    if (def == NULL || (ld_dynamic_weak &&
+                      ELF_ST_BIND(req.sym_out->st_info) != STB_WEAK)) {
 			def = req.sym_out;
 			defobj = req.defobj_out;
-			if (ELF_ST_BIND(def->st_info) != STB_WEAK)
+			if (!ld_dynamic_weak ||
+			  ELF_ST_BIND(def->st_info) != STB_WEAK)
 			    break;
 		    }
 		}
@@ -3686,6 +3690,8 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	     * Search the dynamic linker itself, and possibly resolve the
 	     * symbol from there.  This is how the application links to
 	     * dynamic linker services such as dlopen.
+	     * Note that we ignore ld_dynamic_weak == false case,
+	     * always overriding weak symbols by rtld definitions.
 	     */
 	    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
 		res = symlook_obj(&req, &obj_rtld);
@@ -4288,10 +4294,10 @@ symlook_global(SymLook *req, DoneList *donelist)
     symlook_init_from_req(&req1, req);
 
     /* Search all objects loaded at program start up. */
-    if (req->defobj_out == NULL ||
-      ELF_ST_BIND(req->sym_out->st_info) == STB_WEAK) {
+    if (req->defobj_out == NULL || (ld_dynamic_weak &&
+      ELF_ST_BIND(req->sym_out->st_info) == STB_WEAK)) {
 	res = symlook_list(&req1, &list_main, donelist);
-	if (res == 0 && (req->defobj_out == NULL ||
+	if (res == 0 && (!ld_dynamic_weak || req->defobj_out == NULL ||
 	  ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK)) {
 	    req->sym_out = req1.sym_out;
 	    req->defobj_out = req1.defobj_out;
@@ -4301,8 +4307,8 @@ symlook_global(SymLook *req, DoneList *donelist)
 
     /* Search all DAGs whose roots are RTLD_GLOBAL objects. */
     STAILQ_FOREACH(elm, &list_global, link) {
-	if (req->defobj_out != NULL &&
-	  ELF_ST_BIND(req->sym_out->st_info) != STB_WEAK)
+	if (req->defobj_out != NULL && (!ld_dynamic_weak ||
+          ELF_ST_BIND(req->sym_out->st_info) != STB_WEAK))
 	    break;
 	res = symlook_list(&req1, &elm->obj->dagmembers, donelist);
 	if (res == 0 && (req->defobj_out == NULL ||
@@ -4351,8 +4357,8 @@ symlook_default(SymLook *req, const Obj_Entry *refobj)
 
     /* Search all dlopened DAGs containing the referencing object. */
     STAILQ_FOREACH(elm, &refobj->dldags, link) {
-	if (req->sym_out != NULL &&
-	  ELF_ST_BIND(req->sym_out->st_info) != STB_WEAK)
+	if (req->sym_out != NULL && (!ld_dynamic_weak ||
+          ELF_ST_BIND(req->sym_out->st_info) != STB_WEAK))
 	    break;
 	res = symlook_list(&req1, &elm->obj->dagmembers, &donelist);
 	if (res == 0 && (req->sym_out == NULL ||
@@ -4397,10 +4403,11 @@ symlook_list(SymLook *req, const Objlist *objlist, DoneList *dlp)
 	    continue;
 	symlook_init_from_req(&req1, req);
 	if ((res = symlook_obj(&req1, elm->obj)) == 0) {
-	    if (def == NULL || ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK) {
+	    if (def == NULL || (ld_dynamic_weak &&
+              ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK)) {
 		def = req1.sym_out;
 		defobj = req1.defobj_out;
-		if (ELF_ST_BIND(def->st_info) != STB_WEAK)
+		if (!ld_dynamic_weak || ELF_ST_BIND(def->st_info) != STB_WEAK)
 		    break;
 	    }
 	}
@@ -4435,10 +4442,11 @@ symlook_needed(SymLook *req, const Needed_Entry *needed, DoneList *dlp)
 	if (n->obj == NULL ||
 	    (res = symlook_list(&req1, &n->obj->dagmembers, dlp)) != 0)
 	    continue;
-	if (def == NULL || ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK) {
+	if (def == NULL || (ld_dynamic_weak &&
+          ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK)) {
 	    def = req1.sym_out;
 	    defobj = req1.defobj_out;
-	    if (ELF_ST_BIND(def->st_info) != STB_WEAK)
+	    if (!ld_dynamic_weak || ELF_ST_BIND(def->st_info) != STB_WEAK)
 		break;
 	}
     }
@@ -4939,8 +4947,7 @@ tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
 	return (tls_get_addr_slow(dtvp, index, offset, false));
 }
 
-#if defined(__aarch64__) || defined(__arm__) || defined(__mips__) || \
-    defined(__powerpc__) || defined(__riscv)
+#ifdef TLS_VARIANT_I
 
 /*
  * Return pointer to allocated TLS block
@@ -5071,9 +5078,9 @@ free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
     free_aligned(get_tls_block_ptr(tcb, tcbsize));
 }
 
-#endif
+#endif	/* TLS_VARIANT_I */
 
-#if defined(__i386__) || defined(__amd64__)
+#ifdef TLS_VARIANT_II
 
 /*
  * Allocate Static TLS using the Variant II method.
@@ -5179,7 +5186,7 @@ free_tls(void *tls, size_t tcbsize  __unused, size_t tcbalign)
     free((void*) dtv);
 }
 
-#endif
+#endif	/* TLS_VARIANT_II */
 
 /*
  * Allocate TLS block for module with given index.
@@ -5227,6 +5234,11 @@ allocate_tls_offset(Obj_Entry *obj)
 	off = calculate_tls_offset(tls_last_offset, tls_last_size,
 	  obj->tlssize, obj->tlsalign, obj->tlspoffset);
 
+    obj->tlsoffset = off;
+#ifdef TLS_VARIANT_I
+    off += obj->tlssize;
+#endif
+
     /*
      * If we have already fixed the size of the static TLS block, we
      * must stay within that size. When allocating the static TLS, we
@@ -5234,13 +5246,13 @@ allocate_tls_offset(Obj_Entry *obj)
      * loading modules which use static TLS.
      */
     if (tls_static_space != 0) {
-	if (calculate_tls_end(off, obj->tlssize) > tls_static_space)
+	if (off > tls_static_space)
 	    return false;
     } else if (obj->tlsalign > tls_static_max_align) {
 	    tls_static_max_align = obj->tlsalign;
     }
 
-    tls_last_offset = obj->tlsoffset = off;
+    tls_last_offset = off;
     tls_last_size = obj->tlssize;
     obj->tls_done = true;
 
@@ -5257,8 +5269,11 @@ free_tls_offset(Obj_Entry *obj)
      * simplistic workaround to allow libGL.so.1 to be loaded and
      * unloaded multiple times.
      */
-    if (calculate_tls_end(obj->tlsoffset, obj->tlssize)
-	== calculate_tls_end(tls_last_offset, tls_last_size)) {
+    size_t off = obj->tlsoffset;
+#ifdef TLS_VARIANT_I
+    off += obj->tlssize;
+#endif
+    if (off == tls_last_offset) {
 	tls_last_offset -= obj->tlssize;
 	tls_last_size = 0;
     }
