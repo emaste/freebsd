@@ -177,11 +177,10 @@ argument of
 .Dv FCHALTROOT_DISABLE
 disables the alternative root for the process.
 .Pp
-All functions described in this page are restricted to the super-user,
-unless the
+All functions described in this page are restricted to the super-user if the
 .Ql Va security.bsd.unprivileged_chroot
-sysctl variable is set to 1
-and the process has enabled the
+sysctl variable is set to 0.
+Unprivileged use requires that the process has enabled the
 .Dv PROC_NO_NEW_PRIVS_CTL
 .Xr procctl 2
 setting.
