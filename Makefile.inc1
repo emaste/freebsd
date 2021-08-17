@@ -1043,11 +1043,11 @@ _worldtmp: .PHONY
 	@touch ${WORLDTMP}/${.TARGET}
 # We can't use mtree to create the worldtmp directories since it may not be
 # available on the target system (this happens e.g. when building on non-FreeBSD)
-	cd ${.CURDIR}/tools/build; \
+	${_+_}cd ${.CURDIR}/tools/build; \
 	    ${MAKE} DIRPRFX=tools/build/ DESTDIR=${WORLDTMP}/legacy installdirs
 # In order to build without inheriting $PATH we need to add symlinks to the host
 # tools in $WORLDTMP for the tools that we don't build during bootstrap-tools
-	cd ${.CURDIR}/tools/build; \
+	${_+_}cd ${.CURDIR}/tools/build; \
 	    ${MAKE} DIRPRFX=tools/build/ DESTDIR=${WORLDTMP}/legacy host-symlinks
 
 _legacy:
@@ -2472,7 +2472,7 @@ _bootstrap_tools_links+=${_links:S/,/ /g}
 ${_bt}-links: .PHONY
 
 .for _tool in ${_bootstrap_tools_links}
-${_bt}-link-${_tool}: .PHONY .MAKE
+${_bt}-link-${_tool}: .PHONY
 	@rm -f "${WORLDTMP}/legacy/bin/${_tool}"; \
 	source_path=`which ${_tool}`; \
 	if [ ! -e "$${source_path}" ] ; then \
