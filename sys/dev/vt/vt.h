@@ -51,6 +51,10 @@
 #include "opt_syscons.h"
 #include "opt_splash.h"
 
+#ifndef VT_IME
+#define VT_IME 1
+#endif
+
 #ifndef	VT_MAXWINDOWS
 #ifdef	MAXCONS
 #define	VT_MAXWINDOWS	MAXCONS
@@ -93,6 +97,10 @@ int vt_allocate(const struct vt_driver *, void *);
 int vt_deallocate(const struct vt_driver *, void *);
 
 typedef unsigned int	vt_axis_t;
+
+#ifdef VT_IME
+extern int vt_ime_buf_state;
+#endif
 
 /*
  * List of locks
@@ -221,6 +229,10 @@ struct vt_buf {
 	term_rect_t		 vb_dirtyrect;	/* (b) Dirty rectangle. */
 	term_char_t		*vb_buffer;	/* (u) Data buffer. */
 	term_char_t		**vb_rows;	/* (u) Array of rows */
+
+#ifdef VT_IME
+	term_char_t		*vb_ime_buffer; /* (u) IME status bar buffer. */
+#endif
 };
 
 #ifdef SC_HISTORY_SIZE
@@ -266,8 +278,21 @@ void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz, int mark)
 	((vb)->vb_history_size)
 #define	VTBUF_GET_ROW(vb, r) \
 	((vb)->vb_rows[((vb)->vb_roffset + (r)) % VTBUF_MAX_HEIGHT(vb)])
-#define	VTBUF_GET_FIELD(vb, r, c) \
+
+#ifdef VT_IME
+inline term_char_t
+VTBUF_GET_FIELD(const struct vt_buf *vb, int r, int c)
+{
+	if (vt_ime_buf_state && r == 0)
+		return vb->vb_ime_buffer[c];
+	else
+		return ((vb)->vb_rows[((vb)->vb_roffset + (r)) % VTBUF_MAX_HEIGHT(vb)][(c)]);
+}
+#else
+#define VTBUF_GET_FIELD(vb, r, c) \
 	((vb)->vb_rows[((vb)->vb_roffset + (r)) % VTBUF_MAX_HEIGHT(vb)][(c)])
+#endif
+
 #define	VTBUF_FIELD(vb, r, c) \
 	((vb)->vb_rows[((vb)->vb_curroffset + (r)) % VTBUF_MAX_HEIGHT(vb)][(c)])
 #define	VTBUF_ISCURSOR(vb, r, c) \
