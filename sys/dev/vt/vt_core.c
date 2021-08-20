@@ -56,6 +56,7 @@
 
 #include <dev/kbd/kbdreg.h>
 #include <dev/vt/vt.h>
+#include <dev/vt/ime/vt_ime.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/psl.h>
@@ -179,6 +180,13 @@ extern struct vt_font vt_font_default;
 static struct vt_font vt_font_loader;
 static struct vt_font *vt_font_assigned = &vt_font_default;
 
+#ifdef VT_IME
+static struct vt_ime vt_ime_default = {
+	.vt_ime_state = 0,
+};
+int vt_ime_buf_state = 0;
+#endif
+
 #ifndef SC_NO_CUTPASTE
 extern struct vt_mouse_cursor vt_default_mouse_pointer;
 #endif
@@ -238,10 +246,19 @@ struct vt_device	vt_consdev = {
 };
 static term_char_t vt_constextbuf[(_VTDEFW) * (VBF_DEFAULT_HISTORY_SIZE)];
 static term_char_t *vt_constextbufrows[VBF_DEFAULT_HISTORY_SIZE];
+
+#ifdef VT_IME
+static term_char_t vt_imebuf[(_VTDEFW)];
+#endif
+
 static struct vt_window	vt_conswindow = {
 	.vw_number = VT_CONSWINDOW,
 	.vw_flags = VWF_CONSOLE,
 	.vw_buf = {
+
+#ifdef VT_IME
+        .vb_ime_buffer = &vt_imebuf[0],
+#endif
 		.vb_buffer = &vt_constextbuf[0],
 		.vb_rows = &vt_constextbufrows[0],
 		.vb_history_size = VBF_DEFAULT_HISTORY_SIZE,
@@ -988,6 +1005,11 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 		case FKEY | F(61): /* Delete key. */
 			terminal_input_special(vw->vw_terminal, TKEY_DELETE);
 			break;
+#if VT_IME
+		case VT_IME_KEY:
+			vt_ime_toggle_mode(&vt_ime_default);
+			break;
+#endif
 		}
 	} else if (KEYFLAGS(c) == 0) {
 		/* Don't do UTF-8 conversion when doing raw mode. */
@@ -1003,9 +1025,16 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 #if defined(KDB)
 			kdb_alt_break(c, &vd->vd_altbrk);
 #endif
-			terminal_input_char(vw->vw_terminal, KEYCHAR(c));
+
+#if VT_IME
+			if (vt_ime_is_enabled(&vt_ime_default))
+				vt_ime_process_char(vw->vw_terminal, main_vd, &vt_ime_default, KEYCHAR(c));
+			else
+#endif
+				terminal_input_char(vw->vw_terminal, KEYCHAR(c));
 		} else
 			terminal_input_raw(vw->vw_terminal, c);
+
 	}
 	return (0);
 }
