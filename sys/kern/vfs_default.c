@@ -93,7 +93,6 @@ static int vop_stdgetpages_async(struct vop_getpages_async_args *ap);
 static int vop_stdread_pgcache(struct vop_read_pgcache_args *ap);
 static int vop_stdstat(struct vop_stat_args *ap);
 static int vop_stdvput_pair(struct vop_vput_pair_args *ap);
-static int vop_stddeallocate(struct vop_deallocate_args *ap);
 
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
@@ -1126,7 +1125,7 @@ vp_zerofill(struct vnode *vp, struct vattr *vap, off_t *offsetp, off_t *lenp,
 	return (error);
 }
 
-static int
+int
 vop_stddeallocate(struct vop_deallocate_args *ap)
 {
 	struct vnode *vp;
@@ -1138,14 +1137,13 @@ vop_stddeallocate(struct vop_deallocate_args *ap)
 
 	vp = ap->a_vp;
 	offset = *ap->a_offset;
-	len = *ap->a_len;
 	cred = ap->a_cred;
 
 	error = VOP_GETATTR(vp, &va, cred);
 	if (error)
 		return (error);
 
-	len = omin(OFF_MAX - offset, *ap->a_len);
+	len = omin((off_t)va.va_size - offset, *ap->a_len);
 	while (len > 0) {
 		noff = offset;
 		error = vn_bmap_seekhole_locked(vp, FIOSEEKDATA, &noff, cred);
@@ -1157,6 +1155,7 @@ vop_stddeallocate(struct vop_deallocate_args *ap)
 			/*
 			 * No more data region to be filled
 			 */
+			offset += len;
 			len = 0;
 			error = 0;
 			break;
@@ -1185,6 +1184,9 @@ vop_stddeallocate(struct vop_deallocate_args *ap)
 		if (should_yield())
 			break;
 	}
+	/* Handle the case when offset is beyond EOF */
+	if (len < 0)
+		len = 0;
 out:
 	*ap->a_offset = offset;
 	*ap->a_len = len;

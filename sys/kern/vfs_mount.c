@@ -122,7 +122,6 @@ struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
 
 /* For any iteration/modification of mountlist */
 struct mtx_padalign __exclusive_cache_line mountlist_mtx;
-MTX_SYSINIT(mountlist, &mountlist_mtx, "mountlist", MTX_DEF);
 
 EVENTHANDLER_LIST_DEFINE(vfs_mounted);
 EVENTHANDLER_LIST_DEFINE(vfs_unmounted);
@@ -188,6 +187,7 @@ vfs_mount_init(void *dummy __unused)
 	deferred_unmount_retry_delay_hz = hz;
 	mount_zone = uma_zcreate("Mountpoints", sizeof(struct mount), NULL,
 	    NULL, mount_init, mount_fini, UMA_ALIGN_CACHE, UMA_ZONE_NOFREE);
+	mtx_init(&mountlist_mtx, "mountlist", NULL, MTX_DEF);
 }
 SYSINIT(vfs_mount, SI_SUB_VFS, SI_ORDER_ANY, vfs_mount_init, NULL);
 
@@ -1588,8 +1588,9 @@ kern_unmount(struct thread *td, const char *path, int flags)
 {
 	struct nameidata nd;
 	struct mount *mp;
-	char *pathbuf;
-	int error, id0, id1;
+	char *fsidbuf, *pathbuf;
+	fsid_t fsid;
+	int error;
 
 	AUDIT_ARG_VALUE(flags);
 	if (jailed(td->td_ucred) || usermount == 0) {
@@ -1598,30 +1599,34 @@ kern_unmount(struct thread *td, const char *path, int flags)
 			return (error);
 	}
 
-	pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
-	error = copyinstr(path, pathbuf, MNAMELEN, NULL);
-	if (error) {
-		free(pathbuf, M_TEMP);
-		return (error);
-	}
 	if (flags & MNT_BYFSID) {
-		AUDIT_ARG_TEXT(pathbuf);
+		fsidbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
+		error = copyinstr(path, fsidbuf, MNAMELEN, NULL);
+		if (error) {
+			free(fsidbuf, M_TEMP);
+			return (error);
+		}
+
+		AUDIT_ARG_TEXT(fsidbuf);
 		/* Decode the filesystem ID. */
-		if (sscanf(pathbuf, "FSID:%d:%d", &id0, &id1) != 2) {
-			free(pathbuf, M_TEMP);
+		if (sscanf(fsidbuf, "FSID:%d:%d", &fsid.val[0], &fsid.val[1]) != 2) {
+			free(fsidbuf, M_TEMP);
 			return (EINVAL);
 		}
 
-		mtx_lock(&mountlist_mtx);
-		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
-			if (mp->mnt_stat.f_fsid.val[0] == id0 &&
-			    mp->mnt_stat.f_fsid.val[1] == id1) {
-				vfs_ref(mp);
-				break;
-			}
+		mp = vfs_getvfs(&fsid);
+		free(fsidbuf, M_TEMP);
+		if (mp == NULL) {
+			return (ENOENT);
 		}
-		mtx_unlock(&mountlist_mtx);
 	} else {
+		pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
+		error = copyinstr(path, pathbuf, MNAMELEN, NULL);
+		if (error) {
+			free(pathbuf, M_TEMP);
+			return (error);
+		}
+
 		/*
 		 * Try to find global path for path argument.
 		 */
@@ -1642,16 +1647,16 @@ kern_unmount(struct thread *td, const char *path, int flags)
 			}
 		}
 		mtx_unlock(&mountlist_mtx);
-	}
-	free(pathbuf, M_TEMP);
-	if (mp == NULL) {
-		/*
-		 * Previously we returned ENOENT for a nonexistent path and
-		 * EINVAL for a non-mountpoint.  We cannot tell these apart
-		 * now, so in the !MNT_BYFSID case return the more likely
-		 * EINVAL for compatibility.
-		 */
-		return ((flags & MNT_BYFSID) ? ENOENT : EINVAL);
+		free(pathbuf, M_TEMP);
+		if (mp == NULL) {
+			/*
+			 * Previously we returned ENOENT for a nonexistent path and
+			 * EINVAL for a non-mountpoint.  We cannot tell these apart
+			 * now, so in the !MNT_BYFSID case return the more likely
+			 * EINVAL for compatibility.
+			 */
+			return (EINVAL);
+		}
 	}
 
 	/*

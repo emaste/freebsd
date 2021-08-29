@@ -177,12 +177,13 @@ out:
 }
 #endif /* __i386__ || __amd64__ */
 
-#ifndef EFI_STAGING_SIZE
 #if defined(__arm__)
-#define	EFI_STAGING_SIZE	M(32)
+#define	DEFAULT_EFI_STAGING_SIZE	32
 #else
-#define	EFI_STAGING_SIZE	M(64)
+#define	DEFAULT_EFI_STAGING_SIZE	64
 #endif
+#ifndef EFI_STAGING_SIZE
+#define	EFI_STAGING_SIZE	DEFAULT_EFI_STAGING_SIZE
 #endif
 
 #if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
@@ -214,7 +215,7 @@ efi_copy_free(void)
 }
 
 #ifdef __amd64__
-int copy_staging = COPY_STAGING_ENABLE;
+int copy_staging = COPY_STAGING_AUTO;
 
 static int
 command_copy_staging(int argc, char *argv[])
@@ -313,8 +314,12 @@ efi_copy_init(void)
 {
 	EFI_STATUS	status;
 	unsigned long nr_pages;
+	vm_offset_t ess;
 
-	nr_pages = EFI_SIZE_TO_PAGES((EFI_STAGING_SIZE));
+	ess = EFI_STAGING_SIZE;
+	if (ess < DEFAULT_EFI_STAGING_SIZE)
+		ess = DEFAULT_EFI_STAGING_SIZE;
+	nr_pages = EFI_SIZE_TO_PAGES(M(1) * ess);
 
 #if defined(__i386__) || defined(__amd64__)
 	/*

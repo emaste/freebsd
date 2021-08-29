@@ -282,6 +282,8 @@ int nfsrvd_teststateid(struct nfsrv_descript *, int,
     vnode_t, struct nfsexstuff *);
 int nfsrvd_allocate(struct nfsrv_descript *, int,
     vnode_t, struct nfsexstuff *);
+int nfsrvd_deallocate(struct nfsrv_descript *, int,
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_copy_file_range(struct nfsrv_descript *, int,
     vnode_t, vnode_t, struct nfsexstuff *, struct nfsexstuff *);
 int nfsrvd_seek(struct nfsrv_descript *, int,
@@ -551,6 +553,8 @@ int nfscl_findlayoutforio(struct nfscllayout *, uint64_t, uint32_t,
 void nfscl_freenfsclds(struct nfsclds *);
 int nfsrpc_allocate(vnode_t, off_t, off_t, struct nfsvattr *, int *,
     struct ucred *, NFSPROC_T *, void *);
+int nfsrpc_deallocate(vnode_t, off_t, off_t, struct nfsvattr *, int *,
+    struct ucred *, NFSPROC_T *, void *);
 int nfsrpc_copy_file_range(vnode_t, off_t *, vnode_t, off_t *, size_t *,
     unsigned int, int *, struct nfsvattr *, int *, struct nfsvattr *,
     struct ucred *, bool, bool *);
@@ -752,6 +756,8 @@ int nfsrv_setacl(struct vnode *, NFSACL_T *, struct ucred *, NFSPROC_T *);
 int nfsvno_seek(struct nfsrv_descript *, struct vnode *, u_long, off_t *, int,
     bool *, struct ucred *, NFSPROC_T *);
 int nfsvno_allocate(struct vnode *, off_t, off_t, struct ucred *, NFSPROC_T *);
+int nfsvno_deallocate(struct vnode *, off_t, off_t, struct ucred *,
+    NFSPROC_T *);
 int nfsvno_getxattr(struct vnode *, char *, uint32_t, struct ucred *,
     uint64_t, int, struct thread *, struct mbuf **, struct mbuf **, int *);
 int nfsvno_setxattr(struct vnode *, char *, int, struct mbuf *, char *,
