@@ -1975,18 +1975,18 @@ parse_pubkey_algos:
 		goto parse_flag;
 
 	case oVersionAddendum:
-		if (s == NULL)
+		if (str == NULL)
 			fatal("%.200s line %d: Missing argument.", filename,
 			    linenum);
-		len = strspn(s, WHITESPACE);
+		len = strspn(str, WHITESPACE);
 		if (*activep && options->version_addendum == NULL) {
-			if (strcasecmp(s + len, "none") == 0)
+			if (strcasecmp(str + len, "none") == 0)
 				options->version_addendum = xstrdup("");
-			else if (strchr(s + len, '\r') != NULL)
+			else if (strchr(str + len, '\r') != NULL)
 				fatal("%.200s line %d: Invalid argument",
 				    filename, linenum);
 			else
-				options->version_addendum = xstrdup(s + len);
+				options->version_addendum = xstrdup(str + len);
 		}
 		return 0;
 
