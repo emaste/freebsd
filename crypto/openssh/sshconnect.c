@@ -561,8 +561,6 @@ ssh_connect(struct ssh *ssh, const char *host, const char *host_arg,
 	}
 	return ssh_proxy_connect(ssh, host, host_arg, port,
 	    options.proxy_command);
-	    *options.version_addendum == '\0' ? "" : " ",
-	    options.version_addendum);
 }
 
 /* defaults to 'no' */
