@@ -63,6 +63,8 @@ zfs/zfs_defs.o: .PHONY
 	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.o
 zfs/zfs_defs.pico: .PHONY
 	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.pico
+zfs/zfs_defs.pieo: .PHONY
+	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.pieo
 .endif
 
 .include <bsd.lib.mk>
