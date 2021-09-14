@@ -21,6 +21,16 @@ task:
     env:
       TARGET: arm64
       TARGET_ARCH: aarch64
+  - name: World and kernel armv7 build and boot smoke test
+    trigger_type: manual
+    env:
+      TARGET: arm
+      TARGET_ARCH: armv7
+  - name: World and kernel riscv64 build and boot smoke test
+    trigger_type: manual
+    env:
+      TARGET: riscv
+      TARGET_ARCH: riscv64
   timeout_in: 120m
   install_script:
   - sh .cirrus-ci/pkg-install.sh qemu llvm12
