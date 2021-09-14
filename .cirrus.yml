@@ -20,7 +20,7 @@ task:
     trigger_type: manual
     env:
       TARGET: arm64
-      TARGET_ARCH: arm64
+      TARGET_ARCH: aarch64
   timeout_in: 120m
   install_script:
   - sh .cirrus-ci/pkg-install.sh qemu llvm12
