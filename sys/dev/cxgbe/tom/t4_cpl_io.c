@@ -1374,6 +1374,16 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	if (toep->flags & TPF_ABORT_SHUTDOWN)
 		goto done;
 
+	so = inp->inp_socket;
+	socantrcvmore(so);
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP) {
+		DDP_LOCK(toep);
+		if (__predict_false(toep->ddp.flags &
+		    (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE)))
+			handle_ddp_close(toep, tp, cpl->rcv_nxt);
+		DDP_UNLOCK(toep);
+	}
+
 	if (ulp_mode(toep) == ULP_MODE_RDMA ||
 	    (ulp_mode(toep) == ULP_MODE_ISCSI && chip_id(sc) >= CHELSIO_T6)) {
 		/*
@@ -1389,16 +1399,6 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	tp->rcv_nxt = be32toh(cpl->rcv_nxt);
-
-	so = inp->inp_socket;
-	socantrcvmore(so);
-	if (ulp_mode(toep) == ULP_MODE_TCPDDP) {
-		DDP_LOCK(toep);
-		if (__predict_false(toep->ddp.flags &
-		    (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE)))
-			handle_ddp_close(toep, tp, cpl->rcv_nxt);
-		DDP_UNLOCK(toep);
-	}
 
 	switch (tp->t_state) {
 	case TCPS_SYN_RECEIVED:
@@ -2353,9 +2353,11 @@ t4_aiotx_task(void *context, int pending)
 	struct toepcb *toep = context;
 	struct socket *so;
 	struct kaiocb *job;
+	struct epoch_tracker et;
 
 	so = toep->aiotx_so;
 	CURVNET_SET(toep->vnet);
+	NET_EPOCH_ENTER(et);
 	SOCKBUF_LOCK(&so->so_snd);
 	while (!TAILQ_EMPTY(&toep->aiotx_jobq) && sowriteable(so)) {
 		job = TAILQ_FIRST(&toep->aiotx_jobq);
@@ -2367,11 +2369,12 @@ t4_aiotx_task(void *context, int pending)
 	}
 	toep->aiotx_so = NULL;
 	SOCKBUF_UNLOCK(&so->so_snd);
-	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 
 	free_toepcb(toep);
 	SOCK_LOCK(so);
 	sorele(so);
+	CURVNET_RESTORE();
 }
 
 static void
