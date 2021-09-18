@@ -1032,9 +1032,6 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 		r.pc.pc_limit = PAIR32TO64(off_t, r32.pc.pc_limit);
 		data = sizeof(r.pc);
 		break;
-	case PT_GET_SC_ARGS_ALL:
-		error = EINVAL;
-		break;
 	default:
 		addr = uap->addr;
 		break;
@@ -3646,6 +3643,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	case PROC_TRACE_CTL:
 	case PROC_TRAPCAP_CTL:
 	case PROC_NO_NEW_PRIVS_CTL:
+	case PROC_WXMAP_CTL:
 		error = copyin(PTRIN(uap->data), &flags, sizeof(flags));
 		if (error != 0)
 			return (error);
@@ -3680,6 +3678,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
 	case PROC_NO_NEW_PRIVS_STATUS:
+	case PROC_WXMAP_STATUS:
 		data = &flags;
 		break;
 	case PROC_PDEATHSIG_CTL:
@@ -3712,6 +3711,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
 	case PROC_NO_NEW_PRIVS_STATUS:
+	case PROC_WXMAP_STATUS:
 		if (error == 0)
 			error = copyout(&flags, uap->data, sizeof(flags));
 		break;

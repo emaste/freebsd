@@ -309,7 +309,7 @@ socket_init(void *tag)
 {
 
 	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	maxsockets = uma_zone_set_max(socket_zone, maxsockets);
 	uma_zone_set_warning(socket_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
@@ -1131,11 +1131,12 @@ void
 sofree(struct socket *so)
 {
 	struct protosw *pr = so->so_proto;
+	bool last __diagused;
 
 	SOCK_LOCK_ASSERT(so);
 
-	if ((so->so_state & SS_NOFDREF) == 0 || so->so_count != 0 ||
-	    (so->so_state & SS_PROTOREF) || (so->so_qstate == SQ_COMP)) {
+	if ((so->so_state & (SS_NOFDREF | SS_PROTOREF)) != SS_NOFDREF ||
+	    refcount_load(&so->so_count) != 0 || so->so_qstate == SQ_COMP) {
 		SOCK_UNLOCK(so);
 		return;
 	}
@@ -1171,8 +1172,9 @@ sofree(struct socket *so)
 			    __func__, so, sol));
 			TAILQ_REMOVE(&sol->sol_incomp, so, so_list);
 			sol->sol_incqlen--;
-			/* This is guarenteed not to be the last. */
-			refcount_release(&sol->so_count);
+			last = refcount_release(&sol->so_count);
+			KASSERT(!last, ("%s: released last reference for %p",
+			    __func__, sol));
 			so->so_qstate = SQ_NONE;
 			so->so_listen = NULL;
 		} else
@@ -1180,7 +1182,7 @@ sofree(struct socket *so)
 			    ("%s: so %p not on (in)comp with so_listen",
 			    __func__, so));
 		sorele(sol);
-		KASSERT(so->so_count == 1,
+		KASSERT(refcount_load(&so->so_count) == 1,
 		    ("%s: so %p count %u", __func__, so, so->so_count));
 		so->so_count = 0;
 	}
@@ -1234,7 +1236,9 @@ int
 soclose(struct socket *so)
 {
 	struct accept_queue lqueue;
+	struct socket *sp, *tsp;
 	int error = 0;
+	bool last __diagused;
 
 	KASSERT(!(so->so_state & SS_NOFDREF), ("soclose: SS_NOFDREF on enter"));
 
@@ -1268,11 +1272,9 @@ drop:
 	if (so->so_proto->pr_usrreqs->pru_close != NULL)
 		(*so->so_proto->pr_usrreqs->pru_close)(so);
 
+	TAILQ_INIT(&lqueue);
 	SOCK_LOCK(so);
 	if (SOLISTENING(so)) {
-		struct socket *sp;
-
-		TAILQ_INIT(&lqueue);
 		TAILQ_SWAP(&lqueue, &so->sol_incomp, socket, so_list);
 		TAILQ_CONCAT(&lqueue, &so->sol_comp, so_list);
 
@@ -1283,24 +1285,22 @@ drop:
 			sp->so_qstate = SQ_NONE;
 			sp->so_listen = NULL;
 			SOCK_UNLOCK(sp);
-			/* Guaranteed not to be the last. */
-			refcount_release(&so->so_count);
+			last = refcount_release(&so->so_count);
+			KASSERT(!last, ("%s: released last reference for %p",
+			    __func__, so));
 		}
 	}
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
 	so->so_state |= SS_NOFDREF;
 	sorele(so);
-	if (SOLISTENING(so)) {
-		struct socket *sp, *tsp;
-
-		TAILQ_FOREACH_SAFE(sp, &lqueue, so_list, tsp) {
-			SOCK_LOCK(sp);
-			if (sp->so_count == 0) {
-				SOCK_UNLOCK(sp);
-				soabort(sp);
-			} else
-				/* sp is now in sofree() */
-				SOCK_UNLOCK(sp);
+	TAILQ_FOREACH_SAFE(sp, &lqueue, so_list, tsp) {
+		SOCK_LOCK(sp);
+		if (refcount_load(&sp->so_count) == 0) {
+			SOCK_UNLOCK(sp);
+			soabort(sp);
+		} else {
+			/* See the handling of queued sockets in sofree(). */
+			SOCK_UNLOCK(sp);
 		}
 	}
 	CURVNET_RESTORE();
@@ -2858,13 +2858,14 @@ soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 int
 soshutdown(struct socket *so, int how)
 {
-	struct protosw *pr = so->so_proto;
+	struct protosw *pr;
 	int error, soerror_enotconn;
 
 	if (!(how == SHUT_RD || how == SHUT_WR || how == SHUT_RDWR))
 		return (EINVAL);
 
 	soerror_enotconn = 0;
+	SOCK_LOCK(so);
 	if ((so->so_state &
 	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
 		/*
@@ -2876,21 +2877,26 @@ soshutdown(struct socket *so, int how)
 		 * both backward-compatibility and POSIX requirements by forcing
 		 * ENOTCONN but still asking protocol to perform pru_shutdown().
 		 */
-		if (so->so_type != SOCK_DGRAM && !SOLISTENING(so))
+		if (so->so_type != SOCK_DGRAM && !SOLISTENING(so)) {
+			SOCK_UNLOCK(so);
 			return (ENOTCONN);
+		}
 		soerror_enotconn = 1;
 	}
 
 	if (SOLISTENING(so)) {
 		if (how != SHUT_WR) {
-			SOLISTEN_LOCK(so);
 			so->so_error = ECONNABORTED;
 			solisten_wakeup(so);	/* unlocks so */
+		} else {
+			SOCK_UNLOCK(so);
 		}
 		goto done;
 	}
+	SOCK_UNLOCK(so);
 
 	CURVNET_SET(so->so_vnet);
+	pr = so->so_proto;
 	if (pr->pr_usrreqs->pru_flush != NULL)
 		(*pr->pr_usrreqs->pru_flush)(so, how);
 	if (how != SHUT_WR)
@@ -2911,20 +2917,21 @@ done:
 void
 sorflush(struct socket *so)
 {
-	struct sockbuf *sb = &so->so_rcv;
-	struct protosw *pr = so->so_proto;
 	struct socket aso;
+	struct protosw *pr;
 	int error;
 
 	VNET_SO_ASSERT(so);
 
 	/*
 	 * In order to avoid calling dom_dispose with the socket buffer mutex
-	 * held, and in order to generally avoid holding the lock for a long
-	 * time, we make a copy of the socket buffer and clear the original
-	 * (except locks, state).  The new socket buffer copy won't have
-	 * initialized locks so we can only call routines that won't use or
-	 * assert those locks.
+	 * held, we make a partial copy of the socket buffer and clear the
+	 * original.  The new socket buffer copy won't have initialized locks so
+	 * we can only call routines that won't use or assert those locks.
+	 * Ideally calling socantrcvmore() would prevent data from being added
+	 * to the buffer, but currently it merely prevents buffered data from
+	 * being read by userspace.  We make this effort to free buffered data
+	 * nonetheless.
 	 *
 	 * Dislodge threads currently blocked in receive and wait to acquire
 	 * a lock against other simultaneous readers before clearing the
@@ -2932,28 +2939,31 @@ sorflush(struct socket *so)
 	 * despite any existing socket disposition on interruptable waiting.
 	 */
 	socantrcvmore(so);
-	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT | SBL_NOINTR);
-	KASSERT(error == 0, ("%s: cannot lock sock %p recv buffer",
-	    __func__, so));
 
-	/*
-	 * Invalidate/clear most of the sockbuf structure, but leave selinfo
-	 * and mutex data unchanged.
-	 */
-	SOCKBUF_LOCK(sb);
+	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT | SBL_NOINTR);
+	if (error != 0) {
+		KASSERT(SOLISTENING(so),
+		    ("%s: soiolock(%p) failed", __func__, so));
+		return;
+	}
+
+	SOCK_RECVBUF_LOCK(so);
 	bzero(&aso, sizeof(aso));
 	aso.so_pcb = so->so_pcb;
-	bcopy(&sb->sb_startzero, &aso.so_rcv.sb_startzero,
-	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
-	bzero(&sb->sb_startzero,
-	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
-	SOCKBUF_UNLOCK(sb);
+	bcopy(&so->so_rcv.sb_startzero, &aso.so_rcv.sb_startzero,
+	    offsetof(struct sockbuf, sb_endzero) -
+	    offsetof(struct sockbuf, sb_startzero));
+	bzero(&so->so_rcv.sb_startzero,
+	    offsetof(struct sockbuf, sb_endzero) -
+	    offsetof(struct sockbuf, sb_startzero));
+	SOCK_RECVBUF_UNLOCK(so);
 	SOCK_IO_RECV_UNLOCK(so);
 
 	/*
 	 * Dispose of special rights and flush the copied socket.  Don't call
 	 * any unsafe routines (that rely on locks being initialized) on aso.
 	 */
+	pr = so->so_proto;
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
 		(*pr->pr_domain->dom_dispose)(&aso);
 	sbrelease_internal(&aso.so_rcv, so);
@@ -4025,6 +4035,7 @@ soisconnecting(struct socket *so)
 void
 soisconnected(struct socket *so)
 {
+	bool last __diagused;
 
 	SOCK_LOCK(so);
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
@@ -4057,8 +4068,9 @@ soisconnected(struct socket *so)
 				sorele(head);
 				return;
 			}
-			/* Not the last one, as so holds a ref. */
-			refcount_release(&head->so_count);
+			last = refcount_release(&head->so_count);
+			KASSERT(!last, ("%s: released last reference for %p",
+			    __func__, head));
 		}
 again:
 		if ((so->so_options & SO_ACCEPTFILTER) == 0) {

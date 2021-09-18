@@ -329,7 +329,6 @@
 #define E1000_SVT_OFF_HWM_MASK		0x0000001F
 
 #define E1000_PCI_VENDOR_ID_REGISTER	0x00
-#define E1000_PCI_REVISION_ID_REG	0x08
 
 void e1000_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						 bool state);
@@ -338,7 +337,6 @@ void e1000_gig_downshift_workaround_ich8lan(struct e1000_hw *hw);
 void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw);
 u32 e1000_resume_workarounds_pchlan(struct e1000_hw *hw);
 s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable);
-s32 e1000_configure_k0s_lpt(struct e1000_hw *hw, u8 entry_latency, u8 min_time);
 void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw);
 s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable);
 s32 e1000_read_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 *data);
