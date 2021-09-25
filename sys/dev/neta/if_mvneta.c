@@ -68,10 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <dev/mdio/mdio.h>
 
 #include <arm/mv/mvvar.h>
@@ -414,39 +410,13 @@ mvneta_get_mac_address(struct mvneta_softc *sc, uint8_t *addr)
 }
 
 STATIC boolean_t
-mvneta_find_ethernet_prop_switch(phandle_t ethernet, phandle_t node)
-{
-	boolean_t ret;
-	phandle_t child, switch_eth_handle, switch_eth;
-
-	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if (OF_getencprop(child, "ethernet", (void*)&switch_eth_handle,
-		    sizeof(switch_eth_handle)) > 0) {
-			if (switch_eth_handle > 0) {
-				switch_eth = OF_node_from_xref(
-				    switch_eth_handle);
-
-				if (switch_eth == ethernet)
-					return (true);
-			}
-		}
-
-		ret = mvneta_find_ethernet_prop_switch(ethernet, child);
-		if (ret != 0)
-			return (ret);
-	}
-
-	return (false);
-}
-
-STATIC boolean_t
 mvneta_has_switch(device_t self)
 {
-	phandle_t node;
+#ifdef FDT
+	return (mvneta_has_switch_fdt(self));
+#endif
 
-	node = ofw_bus_get_node(self);
-
-	return mvneta_find_ethernet_prop_switch(node, OF_finddevice("/"));
+	return (false);
 }
 
 STATIC int
@@ -609,6 +579,16 @@ mvneta_attach(device_t self)
 	}
 #endif
 
+	error = bus_setup_intr(self, sc->res[1],
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, mvneta_intrs[0].handler, sc,
+	    &sc->ih_cookie[0]);
+	if (error) {
+		device_printf(self, "could not setup %s\n",
+		    mvneta_intrs[0].description);
+		mvneta_detach(self);
+		return (error);
+	}
+
 	/*
 	 * MAC address
 	 */
@@ -703,8 +683,6 @@ mvneta_attach(device_t self)
 			return (error);
 		}
 	}
-
-	ether_ifattach(ifp, sc->enaddr);
 
 	/*
 	 * Enable DMA engines and Initialize Device Registers.
@@ -835,20 +813,11 @@ mvneta_attach(device_t self)
 		mvneta_update_media(sc, ifm_target);
 	}
 
-	sysctl_mvneta_init(sc);
+	ether_ifattach(ifp, sc->enaddr);
 
 	callout_reset(&sc->tick_ch, 0, mvneta_tick, sc);
 
-	error = bus_setup_intr(self, sc->res[1],
-	    INTR_TYPE_NET | INTR_MPSAFE, NULL, mvneta_intrs[0].handler, sc,
-	    &sc->ih_cookie[0]);
-	if (error) {
-		device_printf(self, "could not setup %s\n",
-		    mvneta_intrs[0].description);
-		ether_ifdetach(sc->ifp);
-		mvneta_detach(self);
-		return (error);
-	}
+	sysctl_mvneta_init(sc);
 
 	return (0);
 }
@@ -857,19 +826,27 @@ STATIC int
 mvneta_detach(device_t dev)
 {
 	struct mvneta_softc *sc;
+	struct ifnet *ifp;
 	int q;
 
 	sc = device_get_softc(dev);
+	ifp = sc->ifp;
 
-	mvneta_stop(sc);
-	/* Detach network interface */
-	if (sc->ifp)
-		if_free(sc->ifp);
+	if (device_is_attached(dev)) {
+		mvneta_stop(sc);
+		callout_drain(&sc->tick_ch);
+		ether_ifdetach(sc->ifp);
+	}
 
 	for (q = 0; q < MVNETA_RX_QNUM_MAX; q++)
 		mvneta_ring_dealloc_rx_queue(sc, q);
 	for (q = 0; q < MVNETA_TX_QNUM_MAX; q++)
 		mvneta_ring_dealloc_tx_queue(sc, q);
+
+	device_delete_children(dev);
+
+	if (sc->ih_cookie[0] != NULL)
+		bus_teardown_intr(dev, sc->res[1], sc->ih_cookie[0]);
 
 	if (sc->tx_dtag != NULL)
 		bus_dma_tag_destroy(sc->tx_dtag);
@@ -881,6 +858,13 @@ mvneta_detach(device_t dev)
 		bus_dma_tag_destroy(sc->rxbuf_dtag);
 
 	bus_release_resources(dev, res_spec, sc->res);
+
+	if (sc->ifp)
+		if_free(sc->ifp);
+
+	if (mtx_initialized(&sc->mtx))
+		mtx_destroy(&sc->mtx);
+
 	return (0);
 }
 
@@ -1254,6 +1238,9 @@ mvneta_ring_alloc_rx_queue(struct mvneta_softc *sc, int q)
 
 	return (0);
 fail:
+	mvneta_rx_lockq(sc, q);
+	mvneta_ring_flush_rx_queue(sc, q);
+	mvneta_rx_unlockq(sc, q);
 	mvneta_ring_dealloc_rx_queue(sc, q);
 	device_printf(sc->dev, "DMA Ring buffer allocation failure.\n");
 	return (error);
@@ -1295,6 +1282,9 @@ mvneta_ring_alloc_tx_queue(struct mvneta_softc *sc, int q)
 
 	return (0);
 fail:
+	mvneta_tx_lockq(sc, q);
+	mvneta_ring_flush_tx_queue(sc, q);
+	mvneta_tx_unlockq(sc, q);
 	mvneta_ring_dealloc_tx_queue(sc, q);
 	device_printf(sc->dev, "DMA Ring buffer allocation failure.\n");
 	return (error);
@@ -1324,16 +1314,6 @@ mvneta_ring_dealloc_tx_queue(struct mvneta_softc *sc, int q)
 #endif
 
 	if (sc->txmbuf_dtag != NULL) {
-		if (mtx_name(&tx->ring_mtx) != NULL) {
-			/*
-			 * It is assumed that maps are being loaded after mutex
-			 * is initialized. Therefore we can skip unloading maps
-			 * when mutex is empty.
-			 */
-			mvneta_tx_lockq(sc, q);
-			mvneta_ring_flush_tx_queue(sc, q);
-			mvneta_tx_unlockq(sc, q);
-		}
 		for (i = 0; i < MVNETA_TX_RING_CNT; i++) {
 			txbuf = &tx->txbuf[i];
 			if (txbuf->dmap != NULL) {
@@ -1371,8 +1351,6 @@ mvneta_ring_dealloc_rx_queue(struct mvneta_softc *sc, int q)
 		return;
 
 	rx = MVNETA_RX_RING(sc, q);
-
-	mvneta_ring_flush_rx_queue(sc, q);
 
 	if (rx->desc_pa != 0)
 		bus_dmamap_unload(sc->rx_dtag, rx->desc_map);
@@ -2574,8 +2552,8 @@ mvneta_link_isr(struct mvneta_softc *sc)
 		mvneta_linkdown(sc);
 
 #ifdef DEBUG
-	log(LOG_DEBUG,
-	    "%s: link %s\n", device_xname(sc->dev), linkup ? "up" : "down");
+	device_printf(sc->dev,
+	    "%s: link %s\n", sc->ifp->if_xname, linkup ? "up" : "down");
 #endif
 }
 
@@ -2591,8 +2569,8 @@ mvneta_linkupdate(struct mvneta_softc *sc, boolean_t linkup)
 		mvneta_linkdown(sc);
 
 #ifdef DEBUG
-	log(LOG_DEBUG,
-	    "%s: link %s\n", device_xname(sc->dev), linkup ? "up" : "down");
+	device_printf(sc->dev,
+	    "%s: link %s\n", sc->ifp->if_xname, linkup ? "up" : "down");
 #endif
 }
 

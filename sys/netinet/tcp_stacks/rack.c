@@ -9176,6 +9176,7 @@ more:
 		if ((rsm->r_flags & RACK_TO_REXT) &&
 		    (tp->t_flags & TF_RCVD_TSTMP) &&
 		    (to->to_flags & TOF_TS) &&
+		    (to->to_tsecr != 0) &&
 		    (tp->t_flags & TF_PREVVALID)) {
 			/*
 			 * We can use the timestamp to see
@@ -13115,10 +13116,28 @@ rack_timer_audit(struct tcpcb *tp, struct tcp_rack *rack, struct sockbuf *sb)
 static void
 rack_do_win_updates(struct tcpcb *tp, struct tcp_rack *rack, uint32_t tiwin, uint32_t seq, uint32_t ack, uint32_t cts, uint32_t high_seq)
 {
-	tp->snd_wnd = tiwin;
-	rack_validate_fo_sendwin_up(tp, rack);
-	tp->snd_wl1 = seq;
-	tp->snd_wl2 = ack;
+	if ((SEQ_LT(tp->snd_wl1, seq) ||
+	    (tp->snd_wl1 == seq && (SEQ_LT(tp->snd_wl2, ack) ||
+	    (tp->snd_wl2 == ack && tiwin > tp->snd_wnd))))) {
+		/* keep track of pure window updates */
+		if ((tp->snd_wl2 == ack) && (tiwin > tp->snd_wnd))
+			KMOD_TCPSTAT_INC(tcps_rcvwinupd);
+		tp->snd_wnd = tiwin;
+		rack_validate_fo_sendwin_up(tp, rack);
+		tp->snd_wl1 = seq;
+		tp->snd_wl2 = ack;
+		if (tp->snd_wnd > tp->max_sndwnd)
+			tp->max_sndwnd = tp->snd_wnd;
+	    rack->r_wanted_output = 1;
+	} else if ((tp->snd_wl2 == ack) && (tiwin < tp->snd_wnd)) {
+		tp->snd_wnd = tiwin;
+		rack_validate_fo_sendwin_up(tp, rack);
+		tp->snd_wl1 = seq;
+		tp->snd_wl2 = ack;
+	} else {
+		/* Not a valid win update */
+		return;
+	}
 	if (tp->snd_wnd > tp->max_sndwnd)
 		tp->max_sndwnd = tp->snd_wnd;
 	if (tp->snd_wnd < (tp->snd_max - high_seq)) {
@@ -13321,10 +13340,10 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 	struct timespec ts;
 	struct tcp_rack *rack;
 	struct tcp_ackent *ae;
-	uint32_t tiwin, us_cts, cts, acked, acked_amount, high_seq, win_seq, the_win, win_upd_ack;
+	uint32_t tiwin, ms_cts, cts, acked, acked_amount, high_seq, win_seq, the_win, win_upd_ack;
 	int cnt, i, did_out, ourfinisacked = 0;
-	int win_up_req = 0;
 	struct tcpopt to_holder, *to = NULL;
+	int win_up_req = 0;
 	int nsegs = 0;
 	int under_pacing = 1;
 	int recovery = 0;
@@ -13381,13 +13400,14 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 	the_win = tp->snd_wnd;
 	win_seq = tp->snd_wl1;
 	win_upd_ack = tp->snd_wl2;
-	cts = us_cts = tcp_tv_to_usectick(tv);
+	cts = tcp_tv_to_usectick(tv);
+	ms_cts = tcp_tv_to_mssectick(tv);
 	segsiz = ctf_fixed_maxseg(tp);
 	if ((rack->rc_gp_dyn_mul) &&
 	    (rack->use_fixed_rate == 0) &&
 	    (rack->rc_always_pace)) {
 		/* Check in on probertt */
-		rack_check_probe_rtt(rack, us_cts);
+		rack_check_probe_rtt(rack, cts);
 	}
 	for (i = 0; i < cnt; i++) {
 #ifdef TCP_ACCOUNTING
@@ -13424,8 +13444,8 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			 * non RFC1323 RTT calculation.  Normalize timestamp if syncookies
 			 * were used when this connection was established.
 			 */
-			if (TSTMP_GT(ae->ts_echo, cts))
-				ae->ts_echo = 0;
+			if (TSTMP_GT(ae->ts_echo, ms_cts))
+				to->to_tsecr = 0;
 			if (tp->ts_recent &&
 			    TSTMP_LT(ae->ts_value, tp->ts_recent)) {
 				if (ctf_ts_check_ac(tp, (ae->flags & 0xff))) {
@@ -13517,14 +13537,13 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			rack_strike_dupack(rack);
 		} else if (ae->ack_val_set == ACK_RWND) {
 			/* Case C */
-
 			win_up_req = 1;
 			win_upd_ack = ae->ack;
 			win_seq = ae->seq;
 			the_win = tiwin;
+			rack_do_win_updates(tp, rack, the_win, win_seq, win_upd_ack, cts, high_seq);
 		} else {
 			/* Case A */
-
 			if (SEQ_GT(ae->ack, tp->snd_max)) {
 				/*
 				 * We just send an ack since the incoming
@@ -13539,10 +13558,10 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 				nsegs++;
 				/* If the window changed setup to update */
 				if (tiwin != tp->snd_wnd) {
-					win_up_req = 1;
 					win_upd_ack = ae->ack;
 					win_seq = ae->seq;
 					the_win = tiwin;
+					rack_do_win_updates(tp, rack, the_win, win_seq, win_upd_ack, cts, high_seq);
 				}
 #ifdef TCP_ACCOUNTING
 				/* Account for the acks */
@@ -13564,7 +13583,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 				}
 				rack_process_to_cumack(tp, rack, ae->ack, cts, to);
 				if (rack->rc_dsack_round_seen) {
-					/* Is the dsack roound over? */
+					/* Is the dsack round over? */
 					if (SEQ_GEQ(ae->ack, rack->r_ctl.dsack_round_end)) {
 						/* Yes it is */
 						rack->rc_dsack_round_seen = 0;
@@ -13591,9 +13610,6 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 	ts_val = get_cyclecount();
 #endif
 	acked_amount = acked = (high_seq - tp->snd_una);
-	if (win_up_req) {
-		rack_do_win_updates(tp, rack, the_win, win_seq, win_upd_ack, cts, high_seq);
-	}
 	if (acked) {
 		if (rack->sack_attack_disable == 0)
 			rack_do_decay(rack);
@@ -13687,7 +13703,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 
 			rack_ack_received(tp, rack, high_seq, nsegs, CC_ACK, recovery);
 			SOCKBUF_LOCK(&so->so_snd);
-			mfree = sbcut_locked(&so->so_snd, acked);
+			mfree = sbcut_locked(&so->so_snd, acked_amount);
 			tp->snd_una = high_seq;
 			/* Note we want to hold the sb lock through the sendmap adjust */
 			rack_adjust_sendmap(rack, &so->so_snd, tp->snd_una);
@@ -13962,7 +13978,12 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 #endif
 	int32_t thflags, retval, did_out = 0;
 	int32_t way_out = 0;
-	uint32_t cts;
+	/*
+	 * cts - is the current time from tv (caller gets ts) in microseconds.
+	 * ms_cts - is the current time from tv in milliseconds.
+	 * us_cts - is the time that LRO or hardware actually got the packet in microseconds.
+	 */
+	uint32_t cts, us_cts, ms_cts;
 	uint32_t tiwin;
 	struct timespec ts;
 	struct tcpopt to;
@@ -13973,19 +13994,19 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	int ack_val_set = 0xf;
 #endif
 	int nsegs;
-	uint32_t us_cts;
 	/*
 	 * tv passed from common code is from either M_TSTMP_LRO or
 	 * tcp_get_usecs() if no LRO m_pkthdr timestamp is present.
 	 */
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
-	cts = tcp_tv_to_usectick(tv);
 	if (m->m_flags & M_ACKCMP) {
 		return (rack_do_compressed_ack_processing(tp, so, m, nxt_pkt, tv));
 	}
 	if (m->m_flags & M_ACKCMP) {
 		panic("Impossible reach m has ackcmp? m:%p tp:%p", m, tp);
 	}
+	cts = tcp_tv_to_usectick(tv);
+	ms_cts =  tcp_tv_to_mssectick(tv);
 	nsegs = m->m_pkthdr.lro_nsegs;
 	counter_u64_add(rack_proc_non_comp_ack, 1);
 	thflags = th->th_flags;
@@ -14238,7 +14259,7 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((to.to_flags & TOF_TS) && (to.to_tsecr != 0)) {
 		to.to_tsecr -= tp->ts_offset;
-		if (TSTMP_GT(to.to_tsecr, cts))
+		if (TSTMP_GT(to.to_tsecr, ms_cts))
 			to.to_tsecr = 0;
 	}
 
@@ -15571,7 +15592,7 @@ rack_fo_m_copym(struct tcp_rack *rack, int32_t *plen,
 
 	soff = rack->r_ctl.fsb.off;
 	m = rack->r_ctl.fsb.m;
-	if (rack->r_ctl.fsb.o_m_len != m->m_len) {
+	if (rack->r_ctl.fsb.o_m_len > m->m_len) {
 		/*
 		 * The mbuf had the front of it chopped off by an ack
 		 * we need to adjust the soff/off by that difference.
@@ -15580,6 +15601,12 @@ rack_fo_m_copym(struct tcp_rack *rack, int32_t *plen,
 
 		delta = rack->r_ctl.fsb.o_m_len - m->m_len;
 		soff -= delta;
+	} else if (rack->r_ctl.fsb.o_m_len < m->m_len) {
+		/*
+		 * The mbuf was expanded probably by
+		 * a m_compress. Just update o_m_len.
+		 */
+		rack->r_ctl.fsb.o_m_len = m->m_len;
 	}
 	KASSERT(soff >= 0, ("%s, negative off %d", __FUNCTION__, soff));
 	KASSERT(*plen >= 0, ("%s, negative len %d", __FUNCTION__, *plen));

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <paths.h>
@@ -70,6 +71,7 @@ __FBSDID("$FreeBSD$");
 History *hist;	/* history cookie */
 EditLine *el;	/* editline cookie */
 int displayhist;
+static int savehist;
 static FILE *el_in, *el_out;
 
 static char *fc_replace(const char *, char *, char *);
@@ -103,7 +105,7 @@ histsave(void)
 	int fd;
 	FILE *f;
 
-	if ((histfile = get_histfile()) == NULL)
+	if (!savehist || (histfile = get_histfile()) == NULL)
 		return;
 	INTOFF;
 	asprintf(&histtmpname, "%s.XXXXXXXXXX", histfile);
@@ -134,7 +136,9 @@ histload(void)
 
 	if ((histfile = get_histfile()) == NULL)
 		return;
-	history(hist, &he, H_LOAD, histfile);
+	errno = 0;
+	if (history(hist, &he, H_LOAD, histfile) != -1 || errno == ENOENT)
+		savehist = 1;
 }
 
 /*
@@ -203,8 +207,6 @@ bad:
 				el_set(el, EL_EDITOR, "vi");
 			else if (Eflag) {
 				el_set(el, EL_EDITOR, "emacs");
-				el_set(el, EL_BIND, "^R", "em-inc-search-prev", NULL);
-				el_set(el, EL_BIND, "^W", "ed-delete-prev-word", NULL);
 			}
 			el_set(el, EL_BIND, "^I", "sh-complete", NULL);
 			el_source(el, NULL);
@@ -445,7 +447,7 @@ histcmd(int argc, char **argv __unused)
 		editcmd = stalloc(strlen(editor) + strlen(editfile) + 2);
 		sprintf(editcmd, "%s %s", editor, editfile);
 		evalstring(editcmd, 0);	/* XXX - should use no JC command */
-		readcmdfile(editfile);	/* XXX - should read back - quick tst */
+		readcmdfile(editfile, 0 /* verify */);	/* XXX - should read back - quick tst */
 		unlink(editfile);
 	}
 
@@ -561,6 +563,13 @@ bindcmd(int argc, char **argv)
 
 	fclose(out);
 
+	if (argc > 1 && argv[1][0] == '-' &&
+	    memchr("ve", argv[1][1], 2) != NULL) {
+		Vflag = argv[1][1] == 'v';
+		Eflag = !Vflag;
+		histedit();
+	}
+
 	INTON;
 
 	return ret;
@@ -591,7 +600,7 @@ static char
 	const char *dirname;
 	char **matches = NULL;
 	size_t i = 0, size = 16, uniq;
-	size_t curpos = end - start;
+	size_t curpos = end - start, lcstring = -1;
 
 	if (start > 0 || memchr("/.~", text[0], 3) != NULL)
 		return (NULL);
@@ -647,11 +656,20 @@ out:
 	if (i > 1) {
 		qsort_s(matches + 1, i, sizeof(matches[0]), comparator,
 			(void *)(intptr_t)curpos);
-		for (size_t k = 2; k <= i; k++)
-			if (strcmp(matches[uniq] + curpos, matches[k] + curpos) == 0)
+		for (size_t k = 2; k <= i; k++) {
+			const char *l = matches[uniq] + curpos;
+			const char *r = matches[k] + curpos;
+			size_t common = 0;
+
+			while (*l != '\0' && *r != '\0' && *l == *r)
+				(void)l++, r++, common++;
+			if (common < lcstring)
+				lcstring = common;
+			if (*l == *r)
 				free(matches[k]);
 			else
 				matches[++uniq] = matches[k];
+		}
 	}
 	matches[uniq + 1] = NULL;
 	/*
@@ -663,7 +681,12 @@ out:
 	 * string in matches[0] which is the reason to copy the full name of the
 	 * only match.
 	 */
-	matches[0] = strdup(uniq == 1 ? matches[1] : text);
+	if (uniq == 1)
+		matches[0] = strdup(matches[1]);
+	else if (lcstring != (size_t)-1)
+		matches[0] = strndup(matches[1], curpos + lcstring);
+	else
+		matches[0] = strdup(text);
 	if (matches[0] == NULL) {
 		for (size_t k = 1; k <= uniq; k++)
 			free(matches[k]);

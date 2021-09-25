@@ -47,6 +47,7 @@ MAN=	accept_filter.9 \
 	bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 \
 	BUS_GET_CPUS.9 \
+	BUS_GET_PROPERTY.9 \
 	bus_get_resource.9 \
 	bus_map_resource.9 \
 	BUS_NEW_PASS.9 \
@@ -108,6 +109,7 @@ MAN=	accept_filter.9 \
 	device_get_ivars.9 \
 	device_get_name.9 \
 	device_get_parent.9 \
+	device_get_property.9 \
 	device_get_softc.9 \
 	device_get_state.9 \
 	device_get_sysctl.9 \
@@ -621,6 +623,8 @@ MLINKS+=bitset.9 BITSET_DEFINE.9 \
 	bitset.9 BIT_FFS.9 \
 	bitset.9 BIT_FFS_AT.9 \
 	bitset.9 BIT_FLS.9 \
+	bitset.9 BIT_FOREACH_ISSET.9 \
+	bitset.9 BIT_FOREACH_ISCLR.9 \
 	bitset.9 BIT_COUNT.9 \
 	bitset.9 BIT_SUBSET.9 \
 	bitset.9 BIT_OVERLAP.9 \

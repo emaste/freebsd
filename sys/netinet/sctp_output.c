@@ -6337,7 +6337,6 @@ sctp_msg_append(struct sctp_tcb *stcb,
 		error = EINVAL;
 		goto out_now;
 	}
-	strm = &stcb->asoc.strmout[srcv->sinfo_stream];
 	/* Now can we send this? */
 	if ((SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_SENT) ||
 	    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_ACK_SENT) ||
@@ -6396,10 +6395,11 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	if (hold_stcb_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
+	strm = &stcb->asoc.strmout[srcv->sinfo_stream];
 	sctp_snd_sb_alloc(stcb, sp->length);
 	atomic_add_int(&stcb->asoc.stream_queue_cnt, 1);
 	TAILQ_INSERT_TAIL(&strm->outqueue, sp, next);
-	stcb->asoc.ss_functions.sctp_ss_add_to_stream(stcb, &stcb->asoc, strm, sp, 1);
+	stcb->asoc.ss_functions.sctp_ss_add_to_stream(stcb, &stcb->asoc, strm, sp);
 	m = NULL;
 	if (hold_stcb_lock == 0) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
@@ -7207,13 +7207,13 @@ one_more_time:
 				    sp->put_last_out,
 				    send_lock_up);
 			}
-			if ((TAILQ_NEXT(sp, next) == NULL) && (send_lock_up == 0)) {
+			if (send_lock_up == 0) {
 				SCTP_TCB_SEND_LOCK(stcb);
 				send_lock_up = 1;
 			}
 			atomic_subtract_int(&asoc->stream_queue_cnt, 1);
 			TAILQ_REMOVE(&strq->outqueue, sp, next);
-			stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp, send_lock_up);
+			stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp);
 			if ((strq->state == SCTP_STREAM_RESET_PENDING) &&
 			    (strq->chunks_on_queues == 0) &&
 			    TAILQ_EMPTY(&strq->outqueue)) {
@@ -7638,13 +7638,13 @@ dont_do_it:
 			    sp->put_last_out,
 			    send_lock_up);
 		}
-		if ((send_lock_up == 0) && (TAILQ_NEXT(sp, next) == NULL)) {
+		if (send_lock_up == 0) {
 			SCTP_TCB_SEND_LOCK(stcb);
 			send_lock_up = 1;
 		}
 		atomic_subtract_int(&asoc->stream_queue_cnt, 1);
 		TAILQ_REMOVE(&strq->outqueue, sp, next);
-		stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp, send_lock_up);
+		stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp);
 		if ((strq->state == SCTP_STREAM_RESET_PENDING) &&
 		    (strq->chunks_on_queues == 0) &&
 		    TAILQ_EMPTY(&strq->outqueue)) {
@@ -12176,7 +12176,7 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		 * initializing the new stuff.
 		 */
 		SCTP_TCB_SEND_LOCK(stcb);
-		stcb->asoc.ss_functions.sctp_ss_clear(stcb, &stcb->asoc, 0, 1);
+		stcb->asoc.ss_functions.sctp_ss_clear(stcb, &stcb->asoc, false);
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 			TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 			/* FIX ME FIX ME */
@@ -12207,7 +12207,7 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 			}
 		}
 		/* now the new streams */
-		stcb->asoc.ss_functions.sctp_ss_init(stcb, &stcb->asoc, 1);
+		stcb->asoc.ss_functions.sctp_ss_init(stcb, &stcb->asoc);
 		for (i = stcb->asoc.streamoutcnt; i < (stcb->asoc.streamoutcnt + adding_o); i++) {
 			TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 			stcb->asoc.strmout[i].chunks_on_queues = 0;
@@ -13137,6 +13137,8 @@ skip_preblock:
 				goto out;
 			}
 			SCTP_TCB_SEND_LOCK(stcb);
+			/* The out streams might be reallocated. */
+			strm = &stcb->asoc.strmout[srcv->sinfo_stream];
 			if (sp->msg_is_complete) {
 				strm->last_msg_incomplete = 0;
 				asoc->stream_locked = 0;
@@ -13159,7 +13161,7 @@ skip_preblock:
 			}
 			sp->processing = 1;
 			TAILQ_INSERT_TAIL(&strm->outqueue, sp, next);
-			stcb->asoc.ss_functions.sctp_ss_add_to_stream(stcb, asoc, strm, sp, 1);
+			stcb->asoc.ss_functions.sctp_ss_add_to_stream(stcb, asoc, strm, sp);
 		} else {
 			sp = TAILQ_LAST(&strm->outqueue, sctp_streamhead);
 			if (sp == NULL) {
