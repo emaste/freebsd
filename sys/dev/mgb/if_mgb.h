@@ -76,11 +76,14 @@
 /* etc. */
 
 /** Receive Filtering Engine **/
-#define MGB_RFE_CTL			0x508
-#define MGB_RFE_ALLOW_BROADCAST		(1 << 10)
-#define MGB_RFE_ALLOW_MULTICAST		(1 << 9)
-#define MGB_RFE_ALLOW_UNICAST		(1 << 8)
-#define MGB_RFE_ALLOW_PERFECT_FILTER	(1 << 1)
+#define RFE_CTL			0x508
+#define RFE_CTL_AB		(1 << 10) /* Accept all Broadcast */
+#define RFE_CTL_AM		(1 << 9)  /* Accept all Multicast */
+#define RFE_CTL_AU		(1 << 8)  /* Accept all Unicast */
+#define RFE_CTL_SPF		(1 << 4)  /* Source addr Perfect Filtering */
+#define RFE_CTL_MHF		(1 << 3)  /* Multicast addr Hash Filtering */
+#define RFE_CTL_DHF		(1 << 2)  /* Dest addr Hash Filtering */
+#define RFE_CTL_DPF		(1 << 1)  /* Dest addr Perfect Filtering */
 
 /** PHY Reset (via power management control) **/
 #define MGB_PMT_CTL			0x14 /** Power Management Control Register **/

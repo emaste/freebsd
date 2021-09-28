@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
  * LAN7431 https://www.microchip.com/en-us/product/LAN7431
  *   - RGMII Interface
  *
+ * Applicable Microchip documents:
+ * - AN2948 Configuration Registers of LAN743x
+ *
  * This driver uses the iflib interface and the default 'ukphy' PHY driver.
  *
  * UNIMPLEMENTED FEATURES
@@ -116,6 +119,8 @@ static ifdi_tx_queue_intr_enable_t	mgb_tx_queue_intr_enable;
 static ifdi_rx_queue_intr_enable_t	mgb_rx_queue_intr_enable;
 static ifdi_intr_enable_t		mgb_intr_enable_all;
 static ifdi_intr_disable_t		mgb_intr_disable_all;
+
+static ifdi_promisc_set_t		mgb_promisc_set;
 
 /* IFLIB_TXRX methods */
 static int				mgb_isc_txd_encap(void *,
@@ -247,7 +252,9 @@ static device_method_t mgb_iflib_methods[] = {
 	 */
 	DEVMETHOD(ifdi_multi_set, mgb_multi_set),
 	DEVMETHOD(ifdi_mtu_set, mgb_mtu_set),
+#endif
 	DEVMETHOD(ifdi_promisc_set, mgb_promisc_set),
+#if 0
 
 	/*
 	 * Needed for VLAN support
@@ -282,7 +289,7 @@ struct if_txrx mgb_txrx  = {
 	.ift_legacy_intr = mgb_legacy_intr
 };
 
-struct if_shared_ctx mgb_sctx_init = {
+static struct if_shared_ctx mgb_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
 
 	.isc_q_align = PAGE_SIZE,
@@ -603,22 +610,21 @@ mgb_init(if_ctx_t ctx)
 
 	sc = iflib_get_softc(ctx);
 	miid = device_get_softc(sc->miibus);
+#ifdef MGB_DEBUG
 	device_printf(sc->dev, "running init ...\n");
+#endif
 
 	mgb_dma_init(sc);
 
 	/* XXX: Turn off perfect filtering, turn on (broad|multi|uni)cast rx */
-	CSR_CLEAR_REG(sc, MGB_RFE_CTL, MGB_RFE_ALLOW_PERFECT_FILTER);
-	CSR_UPDATE_REG(sc, MGB_RFE_CTL,
-	    MGB_RFE_ALLOW_BROADCAST |
-	    MGB_RFE_ALLOW_MULTICAST |
-	    MGB_RFE_ALLOW_UNICAST);
+	CSR_CLEAR_REG(sc, RFE_CTL, RFE_CTL_DPF);
+	CSR_UPDATE_REG(sc, RFE_CTL, RFE_CTL_AB | RFE_CTL_AM | RFE_CTL_AU);
 
 	error = mii_mediachg(miid);
 	KASSERT(!error, ("mii_mediachg returned: %d", error));
 }
 
-#ifdef DEBUG
+#ifdef MGB_DEBUG
 static void
 mgb_dump_some_stats(struct mgb_softc *sc)
 {
@@ -966,6 +972,14 @@ mgb_intr_test(struct mgb_softc *sc)
 	CSR_WRITE_REG(sc, MGB_INTR_ENBL_CLR, MGB_INTR_STS_TEST);
 	CSR_WRITE_REG(sc, MGB_INTR_STS, MGB_INTR_STS_TEST);
 	return sc->isr_test_flag;
+}
+
+
+static int
+mgb_promisc_set(if_ctx_t ctx, int flags)
+{
+	/* XXX: mgb_init always enables all broadcast, multicast, and unicast */
+	return (0);
 }
 
 static int
