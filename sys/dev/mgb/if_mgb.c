@@ -136,8 +136,7 @@ static void				mgb_isc_rxd_flush(void *,
 /* Interrupts */
 static driver_filter_t			mgb_legacy_intr;
 static driver_filter_t			mgb_admin_intr;
-static driver_filter_t			mgb_rxq_intr;
-static bool				mgb_intr_test(struct mgb_softc *);
+static driver_filter_t			mgb_msix_intr;
 
 /* MII methods */
 static miibus_readreg_t			mgb_miibus_readreg;
@@ -459,13 +458,6 @@ fail:
 static int
 mgb_attach_post(if_ctx_t ctx)
 {
-	struct mgb_softc *sc;
-
-	sc = iflib_get_softc(ctx);
-
-	device_printf(sc->dev, "Interrupt test: %s\n",
-	    (mgb_intr_test(sc) ? "PASS" : "FAIL"));
-
 	return (0);
 }
 
@@ -564,21 +556,20 @@ mgb_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrxqs,
 {
 	struct mgb_softc *sc;
 	struct mgb_ring_data *rdata;
-	int q;
+	int q = 0;
 
 	sc = iflib_get_softc(ctx);
 	KASSERT(nrxqsets == 1, ("nrxqsets = %d", nrxqsets));
 	rdata = &sc->rx_ring_data;
-	for (q = 0; q < nrxqsets; q++) {
-		KASSERT(nrxqs == 2, ("nrxqs = %d", nrxqs));
-		/* Ring */
-		rdata->ring = (struct mgb_ring_desc *) vaddrs[q * nrxqs + 0];
-		rdata->ring_bus_addr = paddrs[q * nrxqs + 0];
+	KASSERT(nrxqs == 2, ("nrxqs = %d", nrxqs));
+	/* Ring */
+	rdata->ring = (struct mgb_ring_desc *) vaddrs[q * nrxqs + 0];
+	rdata->ring_bus_addr = paddrs[q * nrxqs + 0];
 
-		/* Head WB */
-		rdata->head_wb = (uint32_t *) vaddrs[q * nrxqs + 1];
-		rdata->head_wb_bus_addr = paddrs[q * nrxqs + 1];
-	}
+	/* Head WB */
+	rdata->head_wb = (uint32_t *) vaddrs[q * nrxqs + 1];
+	rdata->head_wb_bus_addr = paddrs[q * nrxqs + 1];
+
 	return (0);
 }
 
@@ -713,54 +704,52 @@ mgb_stop(if_ctx_t ctx)
 {
 	struct mgb_softc *sc ;
 	if_softc_ctx_t scctx;
-	int i;
+	int ch = 0;
 
 	sc = iflib_get_softc(ctx);
 	scctx = iflib_get_softc_ctx(ctx);
 
 	/* XXX: Could potentially timeout */
-	for (i = 0; i < scctx->isc_nrxqsets; i++) {
-		mgb_dmac_control(sc, MGB_DMAC_RX_START, 0, DMAC_STOP);
-		mgb_fct_control(sc, MGB_FCT_RX_CTL, 0, FCT_DISABLE);
-	}
-	for (i = 0; i < scctx->isc_ntxqsets; i++) {
-		mgb_dmac_control(sc, MGB_DMAC_TX_START, 0, DMAC_STOP);
-		mgb_fct_control(sc, MGB_FCT_TX_CTL, 0, FCT_DISABLE);
-	}
+	mgb_dmac_control(sc, MGB_DMAC_RX_START, ch, DMAC_STOP);
+	mgb_fct_control(sc, MGB_FCT_RX_CTL, ch, FCT_DISABLE);
+
+	mgb_dmac_control(sc, MGB_DMAC_TX_START, ch, DMAC_STOP);
+	mgb_fct_control(sc, MGB_FCT_TX_CTL, ch, FCT_DISABLE);
 }
 
 static int
 mgb_legacy_intr(void *xsc)
 {
 	struct mgb_softc *sc;
-
-	sc = xsc;
-	iflib_admin_intr_deferred(sc->ctx);
-	return (FILTER_HANDLED);
-}
-
-static int
-mgb_rxq_intr(void *xsc)
-{
-	struct mgb_softc *sc;
-	if_softc_ctx_t scctx;
 	uint32_t intr_sts, intr_en;
-	int qidx;
 
 	sc = xsc;
-	scctx = iflib_get_softc_ctx(sc->ctx);
 
 	intr_sts = CSR_READ_REG(sc, MGB_INTR_STS);
 	intr_en = CSR_READ_REG(sc, MGB_INTR_ENBL_SET);
 	intr_sts &= intr_en;
 
-	for (qidx = 0; qidx < scctx->isc_nrxqsets; qidx++) {
-		if ((intr_sts & MGB_INTR_STS_RX(qidx))){
-			CSR_WRITE_REG(sc, MGB_INTR_ENBL_CLR,
-			    MGB_INTR_STS_RX(qidx));
-			CSR_WRITE_REG(sc, MGB_INTR_STS, MGB_INTR_STS_RX(qidx));
-		}
-	}
+	if ((intr_sts & MGB_INTR_STS_ANY) == 0)
+		return (FILTER_STRAY);
+
+	return (FILTER_SCHEDULE_THREAD);
+}
+
+static int
+mgb_msix_intr(void *xsc)
+{
+	struct mgb_softc *sc;
+	uint32_t intr_sts, intr_en;
+
+	sc = xsc;
+
+	intr_sts = CSR_READ_REG(sc, MGB_INTR_STS);
+	intr_en = CSR_READ_REG(sc, MGB_INTR_ENBL_SET);
+	intr_sts &= intr_en;
+
+	if ((intr_sts & MGB_INTR_STS_ANY) == 0)
+		return (FILTER_STRAY);
+
 	return (FILTER_SCHEDULE_THREAD);
 }
 
@@ -768,12 +757,9 @@ static int
 mgb_admin_intr(void *xsc)
 {
 	struct mgb_softc *sc;
-	if_softc_ctx_t scctx;
 	uint32_t intr_sts, intr_en;
-	int qidx;
 
 	sc = xsc;
-	scctx = iflib_get_softc_ctx(sc->ctx);
 
 	intr_sts = CSR_READ_REG(sc, MGB_INTR_STS);
 	intr_en = CSR_READ_REG(sc, MGB_INTR_ENBL_SET);
@@ -782,33 +768,6 @@ mgb_admin_intr(void *xsc)
 	/* TODO: shouldn't continue if suspended */
 	if ((intr_sts & MGB_INTR_STS_ANY) == 0)
 		return (FILTER_STRAY);
-	if ((intr_sts &  MGB_INTR_STS_TEST) != 0) {
-		sc->isr_test_flag = true;
-		CSR_WRITE_REG(sc, MGB_INTR_STS, MGB_INTR_STS_TEST);
-		return (FILTER_HANDLED);
-	}
-	if ((intr_sts & MGB_INTR_STS_RX_ANY) != 0) {
-		for (qidx = 0; qidx < scctx->isc_nrxqsets; qidx++) {
-			if ((intr_sts & MGB_INTR_STS_RX(qidx))){
-				iflib_rx_intr_deferred(sc->ctx, qidx);
-			}
-		}
-		return (FILTER_HANDLED);
-	}
-	/* XXX: TX interrupts should not occur */
-	if ((intr_sts & MGB_INTR_STS_TX_ANY) != 0) {
-		for (qidx = 0; qidx < scctx->isc_ntxqsets; qidx++) {
-			if ((intr_sts & MGB_INTR_STS_RX(qidx))) {
-				/* clear the interrupt sts and run handler */
-				CSR_WRITE_REG(sc, MGB_INTR_ENBL_CLR,
-				    MGB_INTR_STS_TX(qidx));
-				CSR_WRITE_REG(sc, MGB_INTR_STS,
-				    MGB_INTR_STS_TX(qidx));
-				iflib_tx_intr_deferred(sc->ctx, qidx);
-			}
-		}
-		return (FILTER_HANDLED);
-	}
 
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -818,8 +777,7 @@ mgb_msix_intr_assign(if_ctx_t ctx, int msix)
 {
 	struct mgb_softc *sc;
 	if_softc_ctx_t scctx;
-	int error, i, vectorid;
-	char irq_name[16];
+	int error, vectorid, qid = 0;
 
 	sc = iflib_get_softc(ctx);
 	scctx = iflib_get_softc_ctx(ctx);
@@ -834,33 +792,26 @@ mgb_msix_intr_assign(if_ctx_t ctx, int msix)
 	 */
 	vectorid = 0;
 	error = iflib_irq_alloc_generic(ctx, &sc->admin_irq, vectorid + 1,
-	    IFLIB_INTR_ADMIN, mgb_admin_intr, sc, 0, "admin");
+	    IFLIB_INTR_ADMIN, mgb_admin_intr, sc, qid, "admin");
 	if (error) {
 		device_printf(sc->dev,
 		    "Failed to register admin interrupt handler\n");
 		return (error);
 	}
 
-	for (i = 0; i < scctx->isc_nrxqsets; i++) {
-		vectorid++;
-		snprintf(irq_name, sizeof(irq_name), "rxq%d", i);
-		error = iflib_irq_alloc_generic(ctx, &sc->rx_irq, vectorid + 1,
-		    IFLIB_INTR_RXTX, mgb_rxq_intr, sc, i, irq_name);
-		if (error) {
-			device_printf(sc->dev,
-			    "Failed to register rxq %d interrupt handler\n", i);
-			return (error);
-		}
-		CSR_UPDATE_REG(sc, MGB_INTR_VEC_RX_MAP,
-		    MGB_INTR_VEC_MAP(vectorid, i));
+	vectorid++;
+	error = iflib_irq_alloc_generic(ctx, &sc->rx_irq, vectorid + 1,
+	    IFLIB_INTR_RXTX, mgb_msix_intr, sc, qid, "rxq0");
+	if (error) {
+		device_printf(sc->dev,
+		    "Failed to register rxq0 interrupt handler\n");
+		return (error);
 	}
+	CSR_UPDATE_REG(sc, MGB_INTR_VEC_RX_MAP,
+	    MGB_INTR_VEC_MAP(vectorid, qid));
 
-	/* Not actually mapping hw TX interrupts ... */
-	for (i = 0; i < scctx->isc_ntxqsets; i++) {
-		snprintf(irq_name, sizeof(irq_name), "txq%d", i);
-		iflib_softirq_alloc_generic(ctx, NULL, IFLIB_INTR_TX, NULL, i,
-		    irq_name);
-	}
+	iflib_softirq_alloc_generic(ctx, &sc->rx_irq, IFLIB_INTR_TX, NULL, qid,
+	    "txq0");
 
 	return (0);
 }
@@ -870,20 +821,16 @@ mgb_intr_enable_all(if_ctx_t ctx)
 {
 	struct mgb_softc *sc;
 	if_softc_ctx_t scctx;
-	int i, dmac_enable = 0, intr_sts = 0, vec_en = 0;
+	int dmac_enable = 0, intr_sts = 0, vec_en = 0, qid = 0;
 
 	sc = iflib_get_softc(ctx);
 	scctx = iflib_get_softc_ctx(ctx);
 	intr_sts |= MGB_INTR_STS_ANY;
 	vec_en |= MGB_INTR_STS_ANY;
 
-	for (i = 0; i < scctx->isc_nrxqsets; i++) {
-		intr_sts |= MGB_INTR_STS_RX(i);
-		dmac_enable |= MGB_DMAC_RX_INTR_ENBL(i);
-		vec_en |= MGB_INTR_RX_VEC_STS(i);
-	}
-
-	/* TX interrupts aren't needed ... */
+	intr_sts |= MGB_INTR_STS_RX(qid);
+	dmac_enable |= MGB_DMAC_RX_INTR_ENBL(qid);
+	vec_en |= MGB_INTR_RX_VEC_STS(qid);
 
 	CSR_WRITE_REG(sc, MGB_INTR_ENBL_SET, intr_sts);
 	CSR_WRITE_REG(sc, MGB_INTR_VEC_ENBL_SET, vec_en);
@@ -933,29 +880,6 @@ mgb_tx_queue_intr_enable(if_ctx_t ctx, uint16_t qid)
 	CSR_WRITE_REG(sc, MGB_DMAC_INTR_STS, MGB_DMAC_TX_INTR_ENBL(qid));
 	CSR_WRITE_REG(sc, MGB_DMAC_INTR_ENBL_SET, MGB_DMAC_TX_INTR_ENBL(qid));
 	return (0);
-}
-
-static bool
-mgb_intr_test(struct mgb_softc *sc)
-{
-	int i;
-
-	sc->isr_test_flag = false;
-	CSR_WRITE_REG(sc, MGB_INTR_STS, MGB_INTR_STS_TEST);
-	CSR_WRITE_REG(sc, MGB_INTR_VEC_ENBL_SET, MGB_INTR_STS_ANY);
-	CSR_WRITE_REG(sc, MGB_INTR_ENBL_SET,
-	    MGB_INTR_STS_ANY | MGB_INTR_STS_TEST);
-	CSR_WRITE_REG(sc, MGB_INTR_SET, MGB_INTR_STS_TEST);
-	if (sc->isr_test_flag)
-		return (true);
-	for (i = 0; i < MGB_TIMEOUT; i++) {
-		DELAY(10);
-		if (sc->isr_test_flag)
-			break;
-	}
-	CSR_WRITE_REG(sc, MGB_INTR_ENBL_CLR, MGB_INTR_STS_TEST);
-	CSR_WRITE_REG(sc, MGB_INTR_STS, MGB_INTR_STS_TEST);
-	return (sc->isr_test_flag);
 }
 
 static int
@@ -1237,17 +1161,15 @@ static int
 mgb_dma_init(struct mgb_softc *sc)
 {
 	if_softc_ctx_t scctx;
-	int ch, error = 0;
+	int ch = 0, error = 0;
 
 	scctx = iflib_get_softc_ctx(sc->ctx);
 
-	for (ch = 0; ch < scctx->isc_nrxqsets; ch++)
-		if ((error = mgb_dma_rx_ring_init(sc, ch)))
-			goto fail;
+	if ((error = mgb_dma_rx_ring_init(sc, ch)))
+		goto fail;
 
-	for (ch = 0; ch < scctx->isc_nrxqsets; ch++)
-		if ((error = mgb_dma_tx_ring_init(sc, ch)))
-			goto fail;
+	if ((error = mgb_dma_tx_ring_init(sc, ch)))
+		goto fail;
 
 fail:
 	return (error);
