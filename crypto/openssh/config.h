@@ -137,7 +137,7 @@
 #define ENABLE_SK /**/
 
 /* Enable for built-in U2F/FIDO support */
-/* #undef ENABLE_SK_INTERNAL */
+#define ENABLE_SK_INTERNAL 1
 
 /* define if fflush(NULL) does not work */
 /* #undef FFLUSH_NULL_BUG */
