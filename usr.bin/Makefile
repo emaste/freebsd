@@ -82,7 +82,6 @@ SUBDIR=	alias \
 	logins \
 	logname \
 	look \
-	lorder \
 	lsvfs \
 	lzmainfo \
 	m4 \
