@@ -301,8 +301,7 @@ soo_poll(struct file *fp, int events, struct ucred *active_cred,
 }
 
 static int
-soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
-    struct thread *td)
+soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred)
 {
 	struct socket *so = fp->f_data;
 	int error;
@@ -584,8 +583,6 @@ soaio_init(void)
 	mtx_init(&soaio_jobs_lock, "soaio jobs", NULL, MTX_DEF);
 	soaio_kproc_unr = new_unrhdr(1, INT_MAX, NULL);
 	TASK_INIT(&soaio_kproc_task, 0, soaio_kproc_create, NULL);
-	if (soaio_target_procs > 0)
-		taskqueue_enqueue(taskqueue_thread, &soaio_kproc_task);
 }
 SYSINIT(soaio, SI_SUB_VFS, SI_ORDER_ANY, soaio_init, NULL);
 

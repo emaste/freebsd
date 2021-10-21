@@ -130,7 +130,6 @@ static vop_strategy_t	ufs_strategy;
 static vop_symlink_t	ufs_symlink;
 static vop_whiteout_t	ufs_whiteout;
 static vop_close_t	ufsfifo_close;
-static vop_kqfilter_t	ufsfifo_kqfilter;
 
 SYSCTL_NODE(_vfs, OID_AUTO, ufs, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "UFS filesystem");
@@ -1240,7 +1239,7 @@ ufs_rename(ap)
 	struct vnode *nvp;
 	struct componentname *tcnp = ap->a_tcnp;
 	struct componentname *fcnp = ap->a_fcnp;
-	struct thread *td = fcnp->cn_thread;
+	struct thread *td = curthread;
 	struct inode *fip, *tip, *tdp, *fdp;
 	struct direct newdir;
 	off_t endoff;
@@ -1450,7 +1449,7 @@ relock:
 	 * as to be able to change "..".
 	 */
 	if (doingdirectory && newparent) {
-		error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_thread);
+		error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, curthread);
 		if (error)
 			goto unlockout;
 
@@ -2092,12 +2091,12 @@ ufs_mkdir(ap)
 #ifdef UFS_ACL
 	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
 		error = ufs_do_posix1e_acl_inheritance_dir(dvp, tvp, dmode,
-		    cnp->cn_cred, cnp->cn_thread);
+		    cnp->cn_cred, curthread);
 		if (error)
 			goto bad;
 	} else if (dvp->v_mount->mnt_flag & MNT_NFS4ACLS) {
 		error = ufs_do_nfs4_acl_inheritance(dvp, tvp, dmode,
-		    cnp->cn_cred, cnp->cn_thread);
+		    cnp->cn_cred, curthread);
 		if (error)
 			goto bad;
 	}
@@ -2579,23 +2578,6 @@ ufsfifo_close(ap)
 }
 
 /*
- * Kqfilter wrapper for fifos.
- *
- * Fall through to ufs kqfilter routines if needed 
- */
-static int
-ufsfifo_kqfilter(ap)
-	struct vop_kqfilter_args *ap;
-{
-	int error;
-
-	error = fifo_specops.vop_kqfilter(ap);
-	if (error)
-		error = vfs_kqfilter(ap);
-	return (error);
-}
-
-/*
  * Return POSIX pathconf information applicable to ufs filesystems.
  */
 static int
@@ -2876,12 +2858,12 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 #ifdef UFS_ACL
 	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
 		error = ufs_do_posix1e_acl_inheritance_file(dvp, tvp, mode,
-		    cnp->cn_cred, cnp->cn_thread);
+		    cnp->cn_cred, curthread);
 		if (error)
 			goto bad;
 	} else if (dvp->v_mount->mnt_flag & MNT_NFS4ACLS) {
 		error = ufs_do_nfs4_acl_inheritance(dvp, tvp, mode,
-		    cnp->cn_cred, cnp->cn_thread);
+		    cnp->cn_cred, curthread);
 		if (error)
 			goto bad;
 	}
@@ -3013,7 +2995,6 @@ struct vop_vector ufs_fifoops = {
 	.vop_close =		ufsfifo_close,
 	.vop_getattr =		ufs_getattr,
 	.vop_inactive =		ufs_inactive,
-	.vop_kqfilter =		ufsfifo_kqfilter,
 	.vop_pathconf = 	ufs_pathconf,
 	.vop_print =		ufs_print,
 	.vop_read =		VOP_PANIC,

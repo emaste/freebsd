@@ -40,13 +40,24 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20210921: remove couldabi
+# 20210929:
+OLD_FILES+=usr/sbin/hcseriald
+OLD_FILES+=usr/share/man/man8/hcseriald.8.gz
+
+# 20210929: Remove ng_h4
+OLD_FILES+=usr/share/man/man4/ng_h4.4.gz
+
+# 20210923: rename boot(9) to kern_reboot(9)
+OLD_FILES+=usr/share/man/man9/boot.9.gz
+
+# 20210921: remove cloudabi
 OLD_FILES+=usr/share/man/man4/cloudabi.4.gz
 
 # 20210906: stop installing {llvm,clang,lldb}-tblgen
 OLD_FILES+=usr/bin/llvm-tblgen
 OLD_FILES+=usr/bin/clang-tblgen
 OLD_FILES+=usr/bin/lldb-tblgen
+OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 
 # 20210810: remove Pentium-related man pages and references
 OLD_FILES+=usr/share/man/man3/pmc.p4.3.gz
@@ -14830,8 +14841,6 @@ OLD_FILES+=usr/share/man/man3/isnanf.3.gz
 OLD_FILES+=usr/share/man/man3/libautofs.3.gz
 OLD_FILES+=usr/share/man/man3/pthread_attr_setsstack.3.gz
 OLD_FILES+=usr/share/man/man3/pthread_getcancelstate.3.gz
-OLD_FILES+=usr/share/man/man3/pthread_mutexattr_getpshared.3.gz
-OLD_FILES+=usr/share/man/man3/pthread_mutexattr_setpshared.3.gz
 OLD_FILES+=usr/share/man/man3/set_assertion_failure_callback.3.gz
 OLD_FILES+=usr/share/man/man3/setkey.3.gz
 OLD_FILES+=usr/share/man/man3/setvfsent.3.gz

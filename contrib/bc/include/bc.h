@@ -73,7 +73,7 @@ typedef struct BcLexKeyword {
 	uchar data;
 
 	/// The keyword text.
-	const char name[9];
+	const char name[14];
 } BcLexKeyword;
 
 /// Sets the most significant bit. Used for setting the POSIX bit in
@@ -94,13 +94,13 @@ typedef struct BcLexKeyword {
 
 /// A macro for the number of keywords bc has. This has to be updated if any are
 /// added. This is for the redefined_kws field of the BcVm struct.
-#define BC_LEX_NKWS (32)
+#define BC_LEX_NKWS (35)
 
 #else // BC_ENABLE_EXTRA_MATH
 
 /// A macro for the number of keywords bc has. This has to be updated if any are
 /// added. This is for the redefined_kws field of the BcVm struct.
-#define BC_LEX_NKWS (28)
+#define BC_LEX_NKWS (31)
 
 #endif // BC_ENABLE_EXTRA_MATH
 
@@ -395,6 +395,15 @@ void bc_parse_expr(BcParse *p, uint8_t flags);
  * @param p  The parser.
  */
 void bc_parse_parse(BcParse *p);
+
+/**
+ * Ends a series of if statements. This is to ensure that full parses happen
+ * when a file finishes or before defining a function. Without this, bc thinks
+ * that it cannot parse any further. But if we reach the end of a file or a
+ * function definition, we know we can add an empty else clause.
+ * @param p  The parser.
+ */
+void bc_parse_endif(BcParse *p);
 
 /// References to the signal message and its length.
 extern const char bc_sig_msg[];

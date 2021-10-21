@@ -34,6 +34,8 @@ testdir=$(dirname "$script")
 
 . "$testdir/../scripts/functions.sh"
 
+outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
+
 # Command-line processing.
 if [ "$#" -eq 0 ]; then
 	printf 'usage: %s dir [exec args...]\n' "$script"
@@ -56,7 +58,7 @@ unset BC_LINE_LENGTH
 unset DC_ENV_ARGS
 unset DC_LINE_LENGTH
 
-out="$testdir/${d}_outputs/errors_results.txt"
+out="$outputdir/${d}_outputs/errors_results.txt"
 outdir=$(dirname "$out")
 
 # Make sure the directory exists.
@@ -141,53 +143,6 @@ for testfile in $testdir/$d/*errors.txt; do
 		checkerrtest "$d" "$err" "$line" "$out" "$exebase"
 
 	done < "$testfile"
-
-	printf 'pass\n'
-
-done
-
-# I need to skip a test here on FreeBSD.
-os=$(uname)
-
-# The list of files we need to skip.
-skip_files="
-33.txt
-"
-
-# Test all the files in the errors directory. While the loop above does one test
-# for every line, this does one test per file, but it runs the file through
-# stdin and as a file on the command-line.
-for testfile in $testdir/$d/errors/*.txt; do
-
-	# If we are on FreeBSD...
-	if [ "$os" = "FreeBSD" ] && [ "$d" = "dc" ]; then
-
-		b=$(basename "$testfile")
-
-		# If the file is one of the skip files...
-		if [ -z "${skip_files##*$b*}" ]; then
-
-			printf 'On FreeBSD; skipping %s...\n' "$testfile"
-			continue
-
-		fi
-	fi
-
-	printf 'Running %s error file %s...' "$d" "$testfile"
-
-	printf '%s\n' "$halt" | "$exe" "$@" $opts "$testfile" 2> "$out" > /dev/null
-	err="$?"
-
-	checkerrtest "$d" "$err" "$testfile" "$out" "$exebase"
-
-	printf 'pass\n'
-
-	printf 'Running %s error file %s through cat...' "$d" "$testfile"
-
-	cat "$testfile" | "$exe" "$@" $opts 2> "$out" > /dev/null
-	err="$?"
-
-	checkcrash "$d" "$err" "$testfile"
 
 	printf 'pass\n'
 

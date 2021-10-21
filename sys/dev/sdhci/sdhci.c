@@ -264,7 +264,11 @@ sdhci_dumpregs(struct sdhci_slot *slot)
 {
 	struct sbuf s;
 
-	sbuf_new(&s, NULL, 1024, SBUF_AUTOEXTEND);
+	if (sbuf_new(&s, NULL, 1024, SBUF_NOWAIT | SBUF_AUTOEXTEND) == NULL) {
+		slot_printf(slot, "sdhci_dumpregs: Failed to allocate memory for sbuf\n");
+		return;
+	}
+
 	sbuf_set_drain(&s, &sbuf_printf_drain, NULL);
 	sdhci_dumpregs_buf(slot, &s);
 	sbuf_finish(&s);
@@ -340,7 +344,11 @@ sdhci_dumpcaps(struct sdhci_slot *slot)
 {
 	struct sbuf s;
 
-	sbuf_new(&s, NULL, 1024, SBUF_AUTOEXTEND);
+	if (sbuf_new(&s, NULL, 1024, SBUF_NOWAIT | SBUF_AUTOEXTEND) == NULL) {
+		slot_printf(slot, "sdhci_dumpcaps: Failed to allocate memory for sbuf\n");
+		return;
+	}
+
 	sbuf_set_drain(&s, &sbuf_printf_drain, NULL);
 	sdhci_dumpcaps_buf(slot, &s);
 	sbuf_finish(&s);
@@ -1758,7 +1766,7 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	    slot->power == 0 ||
 	    slot->clock == 0) {
 		slot_printf(slot,
-			    "Cannot issue a command (power=%d clock=%d)",
+			    "Cannot issue a command (power=%d clock=%d)\n",
 			    slot->power, slot->clock);
 		cmd->error = MMC_ERR_FAILED;
 		sdhci_req_done(slot);

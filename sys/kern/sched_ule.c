@@ -207,7 +207,7 @@ _Static_assert(sizeof(struct thread) + sizeof(struct td_sched) <=
  * sched_slice:		Runtime of each thread before rescheduling.
  * preempt_thresh:	Priority threshold for preemption and remote IPIs.
  */
-static int __read_mostly sched_interact = SCHED_INTERACT_THRESH;
+static u_int __read_mostly sched_interact = SCHED_INTERACT_THRESH;
 static int __read_mostly tickincr = 8 << SCHED_TICK_SHIFT;
 static int __read_mostly realstathz = 127;	/* reset during boot. */
 static int __read_mostly sched_slice = 10;	/* reset during boot. */
@@ -638,12 +638,13 @@ struct cpu_search {
 	int	cs_prefer;	/* Prefer this CPU and groups including it. */
 	int	cs_running;	/* The thread is now running at cs_prefer. */
 	int	cs_pri;		/* Min priority for low. */
-	int	cs_limit;	/* Max load for low, min load for high. */
+	int	cs_load;	/* Max load for low, min load for high. */
+	int	cs_trans;	/* Min transferable load for high. */
 };
 
 struct cpu_search_res {
-	int	cs_cpu;		/* The best CPU found. */
-	int	cs_load;	/* The load of cs_cpu. */
+	int	csr_cpu;	/* The best CPU found. */
+	int	csr_load;	/* The load of cs_cpu. */
 };
 
 /*
@@ -663,7 +664,7 @@ cpu_search_lowest(const struct cpu_group *cg, const struct cpu_search *s,
 
 	total = 0;
 	bload = INT_MAX;
-	r->cs_cpu = -1;
+	r->csr_cpu = -1;
 
 	/* Loop through children CPU groups if there are any. */
 	if (cg->cg_children > 0) {
@@ -681,11 +682,11 @@ cpu_search_lowest(const struct cpu_group *cg, const struct cpu_search *s,
 			    load >= 128 && (load & 128) != 0)
 				load += 128;
 
-			if (lr.cs_cpu >= 0 && (load < bload ||
-			    (load == bload && lr.cs_load < r->cs_load))) {
+			if (lr.csr_cpu >= 0 && (load < bload ||
+			    (load == bload && lr.csr_load < r->csr_load))) {
 				bload = load;
-				r->cs_cpu = lr.cs_cpu;
-				r->cs_load = lr.cs_load;
+				r->csr_cpu = lr.csr_cpu;
+				r->csr_load = lr.csr_load;
 			}
 		}
 		return (total);
@@ -711,7 +712,7 @@ cpu_search_lowest(const struct cpu_group *cg, const struct cpu_search *s,
 		 * If the threads is already on the CPU, don't look on the TDQ
 		 * priority, since it can be the priority of the thread itself.
 		 */
-		if (l > s->cs_limit || (tdq->tdq_lowpri <= s->cs_pri &&
+		if (l > s->cs_load || (tdq->tdq_lowpri <= s->cs_pri &&
 		     (!s->cs_running || c != s->cs_prefer)) ||
 		    !CPU_ISSET(c, s->cs_mask))
 			continue;
@@ -727,8 +728,8 @@ cpu_search_lowest(const struct cpu_group *cg, const struct cpu_search *s,
 		load -= sched_random() % 128;
 		if (bload > load - p) {
 			bload = load - p;
-			r->cs_cpu = c;
-			r->cs_load = load;
+			r->csr_cpu = c;
+			r->csr_load = load;
 		}
 	}
 	return (total);
@@ -744,18 +745,18 @@ cpu_search_highest(const struct cpu_group *cg, const struct cpu_search *s,
 
 	total = 0;
 	bload = INT_MIN;
-	r->cs_cpu = -1;
+	r->csr_cpu = -1;
 
 	/* Loop through children CPU groups if there are any. */
 	if (cg->cg_children > 0) {
 		for (c = cg->cg_children - 1; c >= 0; c--) {
 			load = cpu_search_highest(&cg->cg_child[c], s, &lr);
 			total += load;
-			if (lr.cs_cpu >= 0 && (load > bload ||
-			    (load == bload && lr.cs_load > r->cs_load))) {
+			if (lr.csr_cpu >= 0 && (load > bload ||
+			    (load == bload && lr.csr_load > r->csr_load))) {
 				bload = load;
-				r->cs_cpu = lr.cs_cpu;
-				r->cs_load = lr.cs_load;
+				r->csr_cpu = lr.csr_cpu;
+				r->csr_load = lr.csr_load;
 			}
 		}
 		return (total);
@@ -772,21 +773,18 @@ cpu_search_highest(const struct cpu_group *cg, const struct cpu_search *s,
 
 		/*
 		 * Check this CPU is acceptable.
-		 * If requested minimum load is 1, then caller must know how
-		 * to handle running threads, not counted in tdq_transferable.
 		 */
-		if (l < s->cs_limit || (tdq->tdq_transferable == 0 &&
-		    (s->cs_limit > 1 || l > 1)) ||
+		if (l < s->cs_load || (tdq->tdq_transferable < s->cs_trans) ||
 		    !CPU_ISSET(c, s->cs_mask))
 			continue;
 
 		load -= sched_random() % 256;
 		if (load > bload) {
 			bload = load;
-			r->cs_cpu = c;
+			r->csr_cpu = c;
 		}
 	}
-	r->cs_load = bload;
+	r->csr_load = bload;
 	return (total);
 }
 
@@ -806,24 +804,26 @@ sched_lowest(const struct cpu_group *cg, cpuset_t *mask, int pri, int maxload,
 	s.cs_running = running;
 	s.cs_mask = mask;
 	s.cs_pri = pri;
-	s.cs_limit = maxload;
+	s.cs_load = maxload;
 	cpu_search_lowest(cg, &s, &r);
-	return (r.cs_cpu);
+	return (r.csr_cpu);
 }
 
 /*
  * Find the cpu with the highest load via the highest loaded path.
  */
 static inline int
-sched_highest(const struct cpu_group *cg, cpuset_t *mask, int minload)
+sched_highest(const struct cpu_group *cg, cpuset_t *mask, int minload,
+    int mintrans)
 {
 	struct cpu_search s;
 	struct cpu_search_res r;
 
 	s.cs_mask = mask;
-	s.cs_limit = minload;
+	s.cs_load = minload;
+	s.cs_trans = mintrans;
 	cpu_search_highest(cg, &s, &r);
-	return (r.cs_cpu);
+	return (r.csr_cpu);
 }
 
 static void
@@ -836,7 +836,7 @@ sched_balance_group(struct cpu_group *cg)
 
 	CPU_FILL(&hmask);
 	for (;;) {
-		high = sched_highest(cg, &hmask, 1);
+		high = sched_highest(cg, &hmask, 1, 0);
 		/* Stop if there is no more CPU with transferrable threads. */
 		if (high == -1)
 			break;
@@ -1008,7 +1008,7 @@ tdq_idled(struct tdq *tdq)
     restart:
 	switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
 	for (cg = tdq->tdq_cg, goup = 0; ; ) {
-		cpu = sched_highest(cg, &mask, steal_thresh);
+		cpu = sched_highest(cg, &mask, steal_thresh, 1);
 		/*
 		 * We were assigned a thread but not preempted.  Returning
 		 * 0 here will cause our caller to switch to it.
@@ -1616,8 +1616,7 @@ sched_interact_score(struct thread *td)
 static void
 sched_priority(struct thread *td)
 {
-	int score;
-	int pri;
+	u_int pri, score;
 
 	if (PRI_BASE(td->td_pri_class) != PRI_TIMESHARE)
 		return;
@@ -1637,10 +1636,10 @@ sched_priority(struct thread *td)
 	score = imax(0, sched_interact_score(td) + td->td_proc->p_nice);
 	if (score < sched_interact) {
 		pri = PRI_MIN_INTERACT;
-		pri += ((PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) /
-		    sched_interact) * score;
+		pri += (PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) * score /
+		    sched_interact;
 		KASSERT(pri >= PRI_MIN_INTERACT && pri <= PRI_MAX_INTERACT,
-		    ("sched_priority: invalid interactive priority %d score %d",
+		    ("sched_priority: invalid interactive priority %u score %u",
 		    pri, score));
 	} else {
 		pri = SCHED_PRI_MIN;
@@ -1649,7 +1648,7 @@ sched_priority(struct thread *td)
 			    SCHED_PRI_RANGE - 1);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
 		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
-		    ("sched_priority: invalid priority %d: nice %d, " 
+		    ("sched_priority: invalid priority %u: nice %d, "
 		    "ticks %d ftick %d ltick %d tick pri %d",
 		    pri, td->td_proc->p_nice, td_get_sched(td)->ts_ticks,
 		    td_get_sched(td)->ts_ftick, td_get_sched(td)->ts_ltick,
@@ -1968,7 +1967,8 @@ tdq_trysteal(struct tdq *tdq)
 	cpuset_t mask;
 	int cpu, i, goup;
 
-	if (smp_started == 0 || trysteal_limit == 0 || tdq->tdq_cg == NULL)
+	if (smp_started == 0 || steal_idle == 0 || trysteal_limit == 0 ||
+	    tdq->tdq_cg == NULL)
 		return;
 	CPU_FILL(&mask);
 	CPU_CLR(PCPU_GET(cpuid), &mask);
@@ -1976,7 +1976,7 @@ tdq_trysteal(struct tdq *tdq)
 	spinlock_enter();
 	TDQ_UNLOCK(tdq);
 	for (i = 1, cg = tdq->tdq_cg, goup = 0; ; ) {
-		cpu = sched_highest(cg, &mask, steal_thresh);
+		cpu = sched_highest(cg, &mask, steal_thresh, 1);
 		/*
 		 * If a thread was added while interrupts were disabled don't
 		 * steal one here.
@@ -2019,7 +2019,9 @@ tdq_trysteal(struct tdq *tdq)
 		steal = TDQ_CPU(cpu);
 		/*
 		 * The data returned by sched_highest() is stale and
-                 * the chosen CPU no longer has an eligible thread.
+		 * the chosen CPU no longer has an eligible thread.
+		 * At this point unconditonally exit the loop to bound
+		 * the time spent in the critcal section.
 		 */
 		if (steal->tdq_load < steal_thresh ||
 		    steal->tdq_transferable == 0)
@@ -2028,8 +2030,7 @@ tdq_trysteal(struct tdq *tdq)
 		 * Try to lock both queues. If we are assigned a thread while
 		 * waited for the lock, switch to it now instead of stealing.
 		 * If we can't get the lock, then somebody likely got there
-		 * first.  At this point unconditonally exit the loop to
-		 * bound the time spent in the critcal section.
+		 * first.
 		 */
 		TDQ_LOCK(tdq);
 		if (tdq->tdq_load > 0)
@@ -3172,7 +3173,7 @@ SYSCTL_PROC(_kern_sched, OID_AUTO, quantum,
     "Quantum for timeshare threads in microseconds");
 SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
     "Quantum for timeshare threads in stathz ticks");
-SYSCTL_INT(_kern_sched, OID_AUTO, interact, CTLFLAG_RW, &sched_interact, 0,
+SYSCTL_UINT(_kern_sched, OID_AUTO, interact, CTLFLAG_RW, &sched_interact, 0,
     "Interactivity score threshold");
 SYSCTL_INT(_kern_sched, OID_AUTO, preempt_thresh, CTLFLAG_RW,
     &preempt_thresh, 0,

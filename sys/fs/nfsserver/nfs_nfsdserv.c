@@ -91,6 +91,14 @@ SYSCTL_STRING(_vfs_nfsd, OID_AUTO, owner_major, CTLFLAG_RWTUN,
 static uint64_t nfsrv_owner_minor;
 SYSCTL_U64(_vfs_nfsd, OID_AUTO, owner_minor, CTLFLAG_RWTUN,
     &nfsrv_owner_minor, 0, "Server owner minor");
+/*
+ * Only enable this if all your exported file systems
+ * (or pNFS DSs for the pNFS case) support VOP_ALLOCATE.
+ */
+static bool	nfsrv_doallocate = false;
+SYSCTL_BOOL(_vfs_nfsd, OID_AUTO, enable_v42allocate, CTLFLAG_RW,
+    &nfsrv_doallocate, 0,
+    "Enable NFSv4.2 Allocate operation");
 
 /*
  * This list defines the GSS mechanisms supported.
@@ -612,7 +620,7 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	}
 	if (!nd->nd_repstat) {
-		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, p, &dirp);
+		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, &dirp);
 	} else {
 		vrele(dp);
 		nfsvno_relpathbuf(&named);
@@ -1214,7 +1222,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	}
 
-	nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, p, &dirp);
+	nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, &dirp);
 	if (dirp) {
 		if (nd->nd_flag & ND_NFSV2) {
 			vrele(dirp);
@@ -1420,7 +1428,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 
 	if (vtyp == VDIR)
 		named.ni_cnd.cn_flags |= WILLBEDIR;
-	nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, p, &dirp);
+	nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, &dirp);
 	if (nd->nd_repstat) {
 		if (dirp) {
 			if (nd->nd_flag & ND_NFSV3)
@@ -1543,7 +1551,7 @@ nfsrvd_remove(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	}
 	if (!nd->nd_repstat) {
-		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, p, &dirp);
+		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, &dirp);
 	} else {
 		vput(dp);
 		nfsvno_relpathbuf(&named);
@@ -1717,7 +1725,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	/*
 	 * Done parsing, now down to business.
 	 */
-	nd->nd_repstat = nfsvno_namei(nd, &fromnd, dp, 0, exp, p, &fdirp);
+	nd->nd_repstat = nfsvno_namei(nd, &fromnd, dp, 0, exp, &fdirp);
 	if (nd->nd_repstat) {
 		if (nd->nd_flag & ND_NFSV3) {
 			nfsrv_wcc(nd, fdirfor_ret, &fdirfor, fdiraft_ret,
@@ -1734,7 +1742,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	}
 	if (vnode_vtype(fromnd.ni_vp) == VDIR)
 		tond.ni_cnd.cn_flags |= WILLBEDIR;
-	nd->nd_repstat = nfsvno_namei(nd, &tond, tdp, 0, &tnes, p, &tdirp);
+	nd->nd_repstat = nfsvno_namei(nd, &tond, tdp, 0, &tnes, &tdirp);
 	nd->nd_repstat = nfsvno_rename(&fromnd, &tond, nd->nd_repstat,
 	    nd->nd_flag, nd->nd_cred, p);
 	if (fdirp)
@@ -1829,7 +1837,7 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 		}
 		if (!nd->nd_repstat) {
 			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, &tnes,
-			    p, &dirp);
+			    &dirp);
 		} else {
 			if (dp)
 				vrele(dp);
@@ -1904,7 +1912,7 @@ nfsrvd_symlink(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	}
 	if (!nd->nd_repstat) {
-		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, p, &dirp);
+		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, &dirp);
 	} else {
 		vrele(dp);
 		nfsvno_relpathbuf(&named);
@@ -2028,7 +2036,7 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 	}
 	if (!nd->nd_repstat) {
-		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, p, &dirp);
+		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, &dirp);
 	} else {
 		vrele(dp);
 		nfsvno_relpathbuf(&named);
@@ -3030,7 +3038,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 		if (!nd->nd_repstat) {
 			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp,
-			    p, &dirp);
+			    &dirp);
 		} else {
 			vrele(dp);
 			nfsvno_relpathbuf(&named);
@@ -3688,7 +3696,7 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 		goto out;
 	}
 	if (!nd->nd_repstat) {
-		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, p, &dirp);
+		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, &dirp);
 	} else {
 		vput(dp);
 		nfsvno_relpathbuf(&named);
@@ -3822,7 +3830,7 @@ nfsrvd_secinfononame(struct nfsrv_descript *nd, int isdgram,
 			goto nfsmout;
 		}
 		if (nd->nd_repstat == 0)
-			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, p, &dirp);
+			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, &dirp);
 		else
 			vput(dp);
 		if (dirp != NULL)
@@ -5324,6 +5332,16 @@ nfsrvd_allocate(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	nfsattrbit_t attrbits;
 
+	if (!nfsrv_doallocate) {
+		/*
+		 * If any exported file system, such as a ZFS one, cannot
+		 * do VOP_ALLOCATE(), this operation cannot be supported
+		 * for NFSv4.2.  This cannot be done 'per filesystem', but
+		 * must be for the entire nfsd NFSv4.2 service.
+		 */
+		nd->nd_repstat = NFSERR_NOTSUPP;
+		goto nfsmout;
+	}
 	gotproxystateid = 0;
 	NFSM_DISSECT(tl, uint32_t *, NFSX_STATEID + 2 * NFSX_HYPER);
 	stp->ls_flags = (NFSLCK_CHECK | NFSLCK_WRITEACCESS);
@@ -5390,9 +5408,13 @@ nfsrvd_allocate(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = nfsrv_lockctrl(vp, &stp, &lop, NULL, clientid,
 		    &stateid, exp, nd, curthread);
 
+	NFSD_DEBUG(4, "nfsrvd_allocate: off=%jd len=%jd stat=%d\n",
+	    (intmax_t)off, (intmax_t)len, nd->nd_repstat);
 	if (nd->nd_repstat == 0)
 		nd->nd_repstat = nfsvno_allocate(vp, off, len, nd->nd_cred,
 		    curthread);
+	NFSD_DEBUG(4, "nfsrvd_allocate: aft nfsvno_allocate=%d\n",
+	    nd->nd_repstat);
 	vput(vp);
 	NFSEXITCODE2(0, nd);
 	return (0);

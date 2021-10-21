@@ -110,9 +110,48 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_pcb_var.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/in6_fib.h>
 #include <netinet6/scope6_var.h>
+
+int
+in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
+{
+	struct socket *so = inp->inp_socket;
+	u_int16_t lport = 0;
+	int error, lookupflags = 0;
+#ifdef INVARIANTS
+	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
+#endif
+
+	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(pcbinfo);
+
+	error = prison_local_ip6(cred, laddr,
+	    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0));
+	if (error)
+		return(error);
+
+	/* XXX: this is redundant when called from in6_pcbbind */
+	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT|SO_REUSEPORT_LB)) == 0)
+		lookupflags = INPLOOKUP_WILDCARD;
+
+	inp->inp_flags |= INP_ANONPORT;
+
+	error = in_pcb_lport(inp, NULL, &lport, cred, lookupflags);
+	if (error != 0)
+		return (error);
+
+	inp->inp_lport = lport;
+	if (in_pcbinshash(inp) != 0) {
+		inp->in6p_laddr = in6addr_any;
+		inp->inp_lport = 0;
+		return (EAGAIN);
+	}
+
+	return (0);
+}
 
 int
 in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
@@ -134,8 +173,6 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
-	if (CK_STAILQ_EMPTY(&V_in6_ifaddrhead))	/* XXX broken! */
-		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT|SO_REUSEPORT_LB)) == 0)

@@ -1219,18 +1219,34 @@ OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
 OLD_FILES+=usr/share/man/man8/zpool.8.gz
 .endif
 
+.if ${MK_CLANG} == no && ${MK_LLVM_BINUTILS} == no
+OLD_FILES+=usr/bin/llvm-addr2line
+OLD_FILES+=usr/bin/llvm-ar
+OLD_FILES+=usr/bin/llvm-nm
+OLD_FILES+=usr/bin/llvm-objcopy
+OLD_FILES+=usr/bin/llvm-objdump
+OLD_FILES+=usr/bin/llvm-ranlib
+OLD_FILES+=usr/bin/llvm-readelf
+OLD_FILES+=usr/bin/llvm-readobj
+OLD_FILES+=usr/bin/llvm-size
+OLD_FILES+=usr/bin/llvm-strings
+OLD_FILES+=usr/bin/llvm-symbolizer
+OLD_FILES+=usr/share/man/man1/llvm-addr2line.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-ar.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-objcopy.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-readelf.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-readobj.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-size.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-strings.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-symbolizer.1.gz
+.endif
+
 .if ${MK_CLANG} == no
 OLD_FILES+=usr/bin/clang
 OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/clang-cpp
-OLD_FILES+=usr/bin/clang-tblgen
-OLD_FILES+=usr/bin/llvm-addr2line
-OLD_FILES+=usr/bin/llvm-ar
-OLD_FILES+=usr/bin/llvm-nm
-OLD_FILES+=usr/bin/llvm-objdump
-OLD_FILES+=usr/bin/llvm-ranlib
-OLD_FILES+=usr/bin/llvm-symbolizer
-OLD_FILES+=usr/bin/llvm-tblgen
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/new
@@ -1529,12 +1545,6 @@ OLD_DIRS+=usr/share/doc/llvm
 OLD_FILES+=usr/share/man/man1/clang.1.gz
 OLD_FILES+=usr/share/man/man1/clang++.1.gz
 OLD_FILES+=usr/share/man/man1/clang-cpp.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-addr2line.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-ar.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-symbolizer.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 .endif
 
 .if ${MK_CLANG_EXTRAS} == no
@@ -1555,11 +1565,8 @@ OLD_FILES+=usr/bin/llvm-lto2
 OLD_FILES+=usr/bin/llvm-mc
 OLD_FILES+=usr/bin/llvm-mca
 OLD_FILES+=usr/bin/llvm-modextract
-OLD_FILES+=usr/bin/llvm-objcopy
 OLD_FILES+=usr/bin/llvm-pdbutil
 OLD_FILES+=usr/bin/llvm-rtdyld
-OLD_FILES+=usr/bin/llvm-size
-OLD_FILES+=usr/bin/llvm-strings
 OLD_FILES+=usr/bin/llvm-xray
 OLD_FILES+=usr/bin/opt
 OLD_FILES+=usr/share/man/man1/bugpoint.1.gz
@@ -1572,10 +1579,7 @@ OLD_FILES+=usr/share/man/man1/llvm-dis.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-dwarfdump.1
 OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-objcopy.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-pdbutil.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-size.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-strings.1.gz
 OLD_FILES+=usr/share/man/man1/opt.1.gz
 .endif
 
@@ -2246,6 +2250,7 @@ OLD_FILES+=usr/tests/lib/googletest/gtest/gtest-death-test_ex_nocatch_test
 OLD_FILES+=usr/tests/lib/googletest/gtest/gtest-unittest-api_test
 OLD_FILES+=usr/tests/lib/googletest/gtest/Kyuafile
 OLD_DIRS+=usr/tests/lib/googletest/gtest
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/Kyuafile
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-death-test-test
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-filepath-test
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-linked-ptr-test
@@ -2255,16 +2260,17 @@ OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-options-test
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-port-test
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-printers-test
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-test-part-test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest-typed-test_test
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_help_test_
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_main_unittest
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_pred_impl_unittest
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_prod_test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_skip_in_environment_setup_test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_skip_test
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_sole_header_test
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_unittest
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_xml_outfile1_test_
 OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_xml_outfile2_test_
-OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest-typed-test_test
-OLD_FILES+=usr/tests/lib/googletest/gtest_main/Kyuafile
 OLD_DIRS+=usr/tests/lib/googletest/gtest_main
 OLD_FILES+=usr/tests/lib/googletest/Kyuafile
 OLD_DIRS+=usr/tests/lib/googletest/
@@ -2900,14 +2906,14 @@ OLD_FILES+=usr/lib/pam_krb5.so
 OLD_LIBS+=usr/lib/pam_krb5.so.6
 OLD_FILES+=usr/lib/pam_ksu.so
 OLD_LIBS+=usr/lib/pam_ksu.so.6
-OLD_FILES+=usr/lib/private/libheimipcc.a
-OLD_FILES+=usr/lib/private/libheimipcc.so
-OLD_LIBS+=usr/lib/private/libheimipcc.so.11
-OLD_FILES+=usr/lib/private/libheimipcc_p.a
-OLD_FILES+=usr/lib/private/libheimipcs.a
-OLD_FILES+=usr/lib/private/libheimipcs.so
-OLD_LIBS+=usr/lib/private/libheimipcs.so.11
-OLD_FILES+=usr/lib/private/libheimipcs_p.a
+OLD_FILES+=usr/lib/libprivateheimipcc.a
+OLD_FILES+=usr/lib/libprivateheimipcc.so
+OLD_LIBS+=usr/lib/libprivateheimipcc.so.11
+OLD_FILES+=usr/lib/libprivateheimipcc_p.a
+OLD_FILES+=usr/lib/libprivateheimipcs.a
+OLD_FILES+=usr/lib/libprivateheimipcs.so
+OLD_LIBS+=usr/lib/libprivateheimipcs.so.11
+OLD_FILES+=usr/lib/libprivateheimipcs_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libasn1.a
 OLD_FILES+=usr/lib32/libasn1.so
@@ -2977,14 +2983,14 @@ OLD_FILES+=usr/lib32/pam_krb5.so
 OLD_LIBS+=usr/lib32/pam_krb5.so.6
 OLD_FILES+=usr/lib32/pam_ksu.so
 OLD_LIBS+=usr/lib32/pam_ksu.so.6
-OLD_FILES+=usr/lib32/private/libheimipcc.a
-OLD_FILES+=usr/lib32/private/libheimipcc.so
-OLD_LIBS+=usr/lib32/private/libheimipcc.so.11
-OLD_FILES+=usr/lib32/private/libheimipcc_p.a
-OLD_FILES+=usr/lib32/private/libheimipcs.a
-OLD_FILES+=usr/lib32/private/libheimipcs.so
-OLD_LIBS+=usr/lib32/private/libheimipcs.so.11
-OLD_FILES+=usr/lib32/private/libheimipcs_p.a
+OLD_FILES+=usr/lib32/libprivateheimipcc.a
+OLD_FILES+=usr/lib32/libprivateheimipcc.so
+OLD_LIBS+=usr/lib32/libprivateheimipcc.so.11
+OLD_FILES+=usr/lib32/libprivateheimipcc_p.a
+OLD_FILES+=usr/lib32/libprivateheimipcs.a
+OLD_FILES+=usr/lib32/libprivateheimipcs.so
+OLD_LIBS+=usr/lib32/libprivateheimipcs.so.11
+OLD_FILES+=usr/lib32/libprivateheimipcs_p.a
 .endif
 OLD_FILES+=usr/libexec/digest-service
 OLD_FILES+=usr/libexec/hprop
@@ -3736,15 +3742,15 @@ OLD_FILES+=usr/share/man/man3/com_err.3.gz
 .endif
 
 .if ${MK_LDNS} == no
-OLD_FILES+=usr/lib/private/libldns.a
-OLD_FILES+=usr/lib/private/libldns.so
-OLD_LIBS+=usr/lib/private/libldns.so.5
-OLD_FILES+=usr/lib/private/libldns_p.a
+OLD_FILES+=usr/lib/libprivateldns.a
+OLD_FILES+=usr/lib/libprivateldns.so
+OLD_LIBS+=usr/lib/libprivateldns.so.5
+OLD_FILES+=usr/lib/libprivateldns_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
-OLD_FILES+=usr/lib32/private/libldns.a
-OLD_FILES+=usr/lib32/private/libldns.so
-OLD_LIBS+=usr/lib32/private/libldns.so.5
-OLD_FILES+=usr/lib32/private/libldns_p.a
+OLD_FILES+=usr/lib32/libprivateldns.a
+OLD_FILES+=usr/lib32/libprivateldns.so
+OLD_LIBS+=usr/lib32/libprivateldns.so.5
+OLD_FILES+=usr/lib32/libprivateldns_p.a
 .endif
 .endif
 
@@ -7115,19 +7121,22 @@ OLD_FILES+=usr/bin/ssh-agent
 OLD_FILES+=usr/bin/ssh-copy-id
 OLD_FILES+=usr/bin/ssh-keygen
 OLD_FILES+=usr/bin/ssh-keyscan
+OLD_FILES+=usr/lib/libprivatecbor.a
+OLD_FILES+=usr/lib/libprivatecbor.so
+OLD_LIBS+=usr/lib/libprivatecbor.so.5
 OLD_FILES+=usr/lib/pam_ssh.so
 OLD_LIBS+=usr/lib/pam_ssh.so.6
-OLD_FILES+=usr/lib/private/libssh.a
-OLD_FILES+=usr/lib/private/libssh.so
-OLD_LIBS+=usr/lib/private/libssh.so.5
-OLD_FILES+=usr/lib/private/libssh_p.a
+OLD_FILES+=usr/lib/libprivatessh.a
+OLD_FILES+=usr/lib/libprivatessh.so
+OLD_LIBS+=usr/lib/libprivatessh.so.5
+OLD_FILES+=usr/lib/libprivatessh_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/pam_ssh.so
 OLD_LIBS+=usr/lib32/pam_ssh.so.6
-OLD_FILES+=usr/lib32/private/libssh.a
-OLD_FILES+=usr/lib32/private/libssh.so
-OLD_LIBS+=usr/lib32/private/libssh.so.5
-OLD_FILES+=usr/lib32/private/libssh_p.a
+OLD_FILES+=usr/lib32/libprivatessh.a
+OLD_FILES+=usr/lib32/libprivatessh.so
+OLD_LIBS+=usr/lib32/libprivatessh.so.5
+OLD_FILES+=usr/lib32/libprivatessh_p.a
 .endif
 OLD_FILES+=usr/libexec/sftp-server
 OLD_FILES+=usr/libexec/ssh-keysign
@@ -7537,8 +7546,8 @@ OLD_FILES+=usr/lib/libypclnt_p.a
 OLD_FILES+=usr/lib/libz_p.a
 OLD_FILES+=usr/lib/libzfs_core_p.a
 OLD_FILES+=usr/lib/libzfs_p.a
-OLD_FILES+=usr/lib/private/libldns_p.a
-OLD_FILES+=usr/lib/private/libssh_p.a
+OLD_FILES+=usr/lib/libprivateldns_p.a
+OLD_FILES+=usr/lib/libprivatessh_p.a
 
 .if ${MK_QUOTAS} == no
 OLD_FILES+=sbin/quotacheck
@@ -8170,8 +8179,8 @@ OLD_LIBS+=usr/lib/libatf-c.a
 OLD_LIBS+=usr/lib/libatf-c.so
 OLD_LIBS+=usr/lib/libatf-c.so.1
 OLD_LIBS+=usr/lib/libatf-c_p.a
-OLD_LIBS+=usr/lib/private/libatf-c.so.0
-OLD_LIBS+=usr/lib/private/libatf-c++.so.1
+OLD_LIBS+=usr/lib/libprivateatf-c.so.0
+OLD_LIBS+=usr/lib/libprivateatf-c++.so.1
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/libatf-c++.a
 OLD_LIBS+=usr/lib32/libatf-c++.so
@@ -8182,8 +8191,8 @@ OLD_LIBS+=usr/lib32/libatf-c.a
 OLD_LIBS+=usr/lib32/libatf-c.so
 OLD_LIBS+=usr/lib32/libatf-c.so.1
 OLD_LIBS+=usr/lib32/libatf-c_p.a
-OLD_LIBS+=usr/lib32/private/libatf-c.so.0
-OLD_LIBS+=usr/lib32/private/libatf-c++.so.1
+OLD_LIBS+=usr/lib32/libprivateatf-c.so.0
+OLD_LIBS+=usr/lib32/libprivateatf-c++.so.1
 .endif
 OLD_FILES+=usr/libdata/pkgconfig/atf-c++.pc
 OLD_FILES+=usr/libdata/pkgconfig/atf-c.pc
@@ -8712,8 +8721,8 @@ OLD_FILES+=usr/include/atf-c/tc.h
 OLD_FILES+=usr/include/atf-c/tp.h
 OLD_FILES+=usr/include/atf-c/utils.h
 OLD_FILES+=usr/lib/debug/usr/bin/kyua.debug
-OLD_LIBS+=usr/lib/private/libatf-c++.so.2
-OLD_LIBS+=usr/lib/private/libatf-c.so.1
+OLD_LIBS+=usr/lib/libprivateatf-c++.so.2
+OLD_LIBS+=usr/lib/libprivateatf-c.so.1
 OLD_FILES+=usr/share/examples/kyua/kyua.conf
 OLD_FILES+=usr/share/examples/kyua/Kyuafile.top
 OLD_FILES+=usr/share/kyua/misc/context.html
@@ -9205,15 +9214,15 @@ OLD_DIRS+=usr/tests/usr.bin/yacc
 .if ${MK_UNBOUND} == no
 OLD_FILES+=etc/rc.d/local_unbound
 OLD_FILES+=etc/unbound
-OLD_FILES+=usr/lib/private/libunbound.a
-OLD_FILES+=usr/lib/private/libunbound.so
-OLD_LIBS+=usr/lib/private/libunbound.so.5
-OLD_FILES+=usr/lib/private/libunbound_p.a
+OLD_FILES+=usr/lib/libprivateunbound.a
+OLD_FILES+=usr/lib/libprivateunbound.so
+OLD_LIBS+=usr/lib/libprivateunbound.so.5
+OLD_FILES+=usr/lib/libprivateunbound_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
-OLD_FILES+=usr/lib32/private/libunbound.a
-OLD_FILES+=usr/lib32/private/libunbound.so
-OLD_LIBS+=usr/lib32/private/libunbound.so.5
-OLD_FILES+=usr/lib32/private/libunbound_p.a
+OLD_FILES+=usr/lib32/libprivateunbound.a
+OLD_FILES+=usr/lib32/libprivateunbound.so
+OLD_LIBS+=usr/lib32/libprivateunbound.so.5
+OLD_FILES+=usr/lib32/libprivateunbound_p.a
 OLD_FILES+=usr/share/man/man5/local-unbound.conf.5.gz
 OLD_FILES+=usr/share/man/man8/local-unbound-anchor.8.gz
 OLD_FILES+=usr/share/man/man8/local-unbound-checkconf.8.gz

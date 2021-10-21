@@ -536,15 +536,32 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	int done = 0;
 	bool in_panic = dumping || SCHEDULER_STOPPED();
 
-	qpair->num_intr_handler_calls++;
-
 	/*
 	 * qpair is not enabled, likely because a controller reset is is in
 	 * progress.  Ignore the interrupt - any I/O that was associated with
-	 * this interrupt will get retried when the reset is complete.
+	 * this interrupt will get retried when the reset is complete. Any
+	 * pending completions for when we're in startup will be completed
+	 * as soon as initialization is complete and we start sending commands
+	 * to the device.
 	 */
-	if (qpair->recovery_state != RECOVERY_NONE)
+	if (qpair->recovery_state != RECOVERY_NONE) {
+		qpair->num_ignored++;
 		return (false);
+	}
+
+	/*
+	 * Sanity check initialization. After we reset the hardware, the phase
+	 * is defined to be 1. So if we get here with zero prior calls and the
+	 * phase is 0, it means that we've lost a race between the
+	 * initialization and the ISR running. With the phase wrong, we'll
+	 * process a bunch of completions that aren't really completions leading
+	 * to a KASSERT below.
+	 */
+	KASSERT(!(qpair->num_intr_handler_calls == 0 && qpair->phase == 0),
+	    ("%s: Phase wrong for first interrupt call.",
+		device_get_nameunit(qpair->ctrlr->dev)));
+
+	qpair->num_intr_handler_calls++;
 
 	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -607,12 +624,15 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		    NVME_STATUS_GET_P(status) == NVME_STATUS_GET_P(cpl.status),
 		    ("Phase unexpectedly inconsistent"));
 
-		tr = qpair->act_tr[cpl.cid];
+		if (cpl.cid < qpair->num_trackers)
+			tr = qpair->act_tr[cpl.cid];
+		else
+			tr = NULL;
 
+		done++;
 		if (tr != NULL) {
 			nvme_qpair_complete_tracker(tr, &cpl, ERROR_PRINT_ALL);
 			qpair->sq_head = cpl.sqhd;
-			done++;
 		} else if (!in_panic) {
 			/*
 			 * A missing tracker is normally an error.  However, a
@@ -627,7 +647,8 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			 * ignore this condition because it's not unexpected.
 			 */
 			nvme_printf(qpair->ctrlr,
-			    "cpl does not map to outstanding cmd\n");
+			    "cpl (cid = %u) does not map to outstanding cmd\n",
+				cpl.cid);
 			/* nvme_dump_completion expects device endianess */
 			nvme_dump_completion(&qpair->cpl[qpair->cq_head]);
 			KASSERT(0, ("received completion for unknown cmd"));
@@ -643,10 +664,13 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			atomic_store_rel_int(&qpair->cq_head, 0);	/* 2 */
 			qpair->phase = !qpair->phase;			/* 3 */
 		}
+	}
 
+	if (done != 0) {
 		bus_space_write_4(qpair->ctrlr->bus_tag, qpair->ctrlr->bus_handle,
 		    qpair->cq_hdbl_off, qpair->cq_head);
 	}
+
 	return (done != 0);
 }
 
@@ -731,6 +755,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	qpair->num_intr_handler_calls = 0;
 	qpair->num_retries = 0;
 	qpair->num_failures = 0;
+	qpair->num_ignored = 0;
 	qpair->cmd = (struct nvme_command *)queuemem;
 	qpair->cpl = (struct nvme_completion *)(queuemem + cmdsz);
 	prpmem = (uint8_t *)(queuemem + cmdsz + cplsz);
@@ -740,7 +765,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 
 	callout_init(&qpair->timer, 1);
 	qpair->timer_armed = false;
-	qpair->recovery_state = RECOVERY_NONE;
+	qpair->recovery_state = RECOVERY_WAITING;
 
 	/*
 	 * Calcuate the stride of the doorbell register. Many emulators set this
@@ -988,7 +1013,8 @@ again:
 		 * controller.
 		 */
 		nvme_printf(ctrlr, "Resetting controller due to a timeout%s.\n",
-		    cfs ? " and fatal error status" : "");
+		    (csts == 0xffffffff) ? " and possible hot unplug" :
+		    (cfs ? " and fatal error status" : ""));
 		nvme_printf(ctrlr, "RECOVERY_WAITING\n");
 		qpair->recovery_state = RECOVERY_WAITING;
 		nvme_ctrlr_reset(ctrlr);

@@ -1057,7 +1057,6 @@ struct pf_kanchor {
 	char			 path[MAXPATHLEN];
 	struct pf_kruleset	 ruleset;
 	int			 refcnt;	/* anchor rules */
-	int			 match;	/* XXX: used for pfctl black magic */
 };
 RB_PROTOTYPE(pf_kanchor_global, pf_kanchor, entry_global, pf_anchor_compare);
 RB_PROTOTYPE(pf_kanchor_node, pf_kanchor, entry_node, pf_kanchor_compare);
@@ -1382,8 +1381,12 @@ struct pf_pdesc {
 enum pf_syncookies_mode {
 	PF_SYNCOOKIES_NEVER = 0,
 	PF_SYNCOOKIES_ALWAYS = 1,
-	PF_SYNCOOKIES_MODE_MAX = PF_SYNCOOKIES_ALWAYS
+	PF_SYNCOOKIES_ADAPTIVE = 2,
+	PF_SYNCOOKIES_MODE_MAX = PF_SYNCOOKIES_ADAPTIVE
 };
+
+#define	PF_SYNCOOKIES_HIWATPCT	25
+#define	PF_SYNCOOKIES_LOWATPCT	(PF_SYNCOOKIES_HIWATPCT / 2)
 
 #ifdef _KERNEL
 struct pf_kstatus {
@@ -1402,6 +1405,8 @@ struct pf_kstatus {
 	bool		keep_counters;
 	enum pf_syncookies_mode	syncookies_mode;
 	bool		syncookies_active;
+	uint64_t	syncookies_inflight[2];
+	uint32_t	states_halfopen;
 };
 #endif
 

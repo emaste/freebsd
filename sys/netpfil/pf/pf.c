@@ -500,6 +500,15 @@ pf_set_protostate(struct pf_kstate *s, int which, u_int8_t newstate)
 		s->dst.state = newstate;
 	if (which == PF_PEER_DST)
 		return;
+	if (s->src.state == newstate)
+		return;
+	if (s->creatorid == V_pf_status.hostid &&
+	    s->key[PF_SK_STACK] != NULL &&
+	    s->key[PF_SK_STACK]->proto == IPPROTO_TCP &&
+	    !(TCPS_HAVEESTABLISHED(s->src.state) ||
+	    s->src.state == TCPS_CLOSED) &&
+	    (TCPS_HAVEESTABLISHED(newstate) || newstate == TCPS_CLOSED))
+		atomic_add_32(&V_pf_status.states_halfopen, -1);
 
 	s->src.state = newstate;
 }
@@ -1930,6 +1939,11 @@ pf_unlink_state(struct pf_kstate *s, u_int flags)
 	STATE_DEC_COUNTERS(s);
 
 	s->timeout = PFTM_UNLINKED;
+
+	/* Ensure we remove it from the list of halfopen states, if needed. */
+	if (s->key[PF_SK_STACK] != NULL &&
+	    s->key[PF_SK_STACK]->proto == IPPROTO_TCP)
+		pf_set_protostate(s, PF_PEER_BOTH, TCPS_CLOSED);
 
 	PF_HASHROW_UNLOCK(ih);
 
@@ -4035,6 +4049,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		pf_set_protostate(s, PF_PEER_SRC, TCPS_SYN_SENT);
 		pf_set_protostate(s, PF_PEER_DST, TCPS_CLOSED);
 		s->timeout = PFTM_TCP_FIRST_PACKET;
+		atomic_add_32(&V_pf_status.states_halfopen, 1);
 		break;
 	case IPPROTO_UDP:
 		pf_set_protostate(s, PF_PEER_SRC, PFUDPS_SINGLE);
@@ -5841,12 +5856,12 @@ pf_route(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 
 	bzero(&naddr, sizeof(naddr));
 
-	if (TAILQ_EMPTY(&r->rpool.list)) {
-		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("%s: TAILQ_EMPTY(&r->rpool.list)\n", __func__));
-		goto bad_locked;
-	}
 	if (s == NULL) {
+		if (TAILQ_EMPTY(&r->rpool.list)) {
+			DPFPRINTF(PF_DEBUG_URGENT,
+			    ("%s: TAILQ_EMPTY(&r->rpool.list)\n", __func__));
+			goto bad_locked;
+		}
 		pf_map_addr(AF_INET, r, (struct pf_addr *)&ip->ip_src,
 		    &naddr, NULL, &sn);
 		if (!PF_AZERO(&naddr, AF_INET))
@@ -6027,12 +6042,12 @@ pf_route6(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 
 	bzero(&naddr, sizeof(naddr));
 
-	if (TAILQ_EMPTY(&r->rpool.list)) {
-		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("%s: TAILQ_EMPTY(&r->rpool.list)\n", __func__));
-		goto bad_locked;
-	}
 	if (s == NULL) {
+		if (TAILQ_EMPTY(&r->rpool.list)) {
+			DPFPRINTF(PF_DEBUG_URGENT,
+			    ("%s: TAILQ_EMPTY(&r->rpool.list)\n", __func__));
+			goto bad_locked;
+		}
 		pf_map_addr(AF_INET6, r, (struct pf_addr *)&ip6->ip6_src,
 		    &naddr, NULL, &sn);
 		if (!PF_AZERO(&naddr, AF_INET6))

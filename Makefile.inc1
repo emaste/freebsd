@@ -2497,7 +2497,6 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_cat} \
     ${_kbdcontrol} \
     ${_elftoolchain_libs} \
-    usr.bin/lorder \
     lib/libopenbsd \
     usr.bin/mandoc \
     usr.bin/rpcgen \
@@ -2573,7 +2572,7 @@ _bt_clean=	${CLEANDIR}
     bin/sh \
     ${LOCAL_TOOL_DIRS} \
     ${_jevents} \
-    lib/ncurses/ncurses \
+    lib/ncurses/tinfo \
     ${_rescue} \
     ${_share} \
     usr.bin/awk \
@@ -2729,7 +2728,6 @@ NXBDIRS+= \
     usr.bin/id \
     usr.bin/lex \
     usr.bin/limits \
-    usr.bin/lorder \
     usr.bin/mandoc \
     usr.bin/mktemp \
     usr.bin/mt \
@@ -2792,6 +2790,10 @@ NXBMAKEARGS+= \
 NXBMAKEENV+= \
 	MAKEOBJDIRPREFIX=
 
+# This should match all of the knobs in lib/Makefile that it takes to avoid
+# descending into lib/clang!
+NXBTNOTOOLS=	MK_CLANG=no MK_LLD=no MK_LLDB=no MK_LLVM_BINUTILS=no
+
 .if make(native-xtools*) && \
     (!defined(NXB_TARGET) || !defined(NXB_TARGET_ARCH))
 .error Missing NXB_TARGET / NXB_TARGET_ARCH
@@ -2831,11 +2833,11 @@ native-xtools: .PHONY
 	# Populate includes/libraries sysroot that produce native binaries.
 	# This is split out from 'toolchain' above mostly so that target LLVM
 	# libraries have a proper LLVM_DEFAULT_TARGET_TRIPLE without
-	# polluting the cross-compiler build.  The LLVM/GCC libs are skipped
+	# polluting the cross-compiler build.  The LLVM libs are skipped
 	# here to avoid the problem but are kept in 'toolchain' so that
 	# needed build tools are built.
-	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _includes MK_CLANG=no
-	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _libraries MK_CLANG=no
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _includes ${NXBTNOTOOLS}
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _libraries ${NXBTNOTOOLS}
 .if !defined(NO_OBJWALK)
 	${_+_}cd ${.CURDIR}; ${NXBMAKE} _obj
 .endif
@@ -2929,6 +2931,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
 		lib/libzstd \
 		${_lib_casper} \
+		lib/ncurses/tinfo \
 		lib/ncurses/ncurses \
 		lib/libopie lib/libpam/libpam lib/libthr \
 		${_lib_libradius} lib/libsbuf lib/libtacplus \
@@ -2950,7 +2953,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 
 .if ${MK_DIALOG} != "no"
 _prebuild_libs+= gnu/lib/libdialog
-gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncurses__L
+gnu/lib/libdialog__L: lib/msun__L lib/ncurses/tinfo__L lib/ncurses/ncurses__L
 .endif
 
 .if ${MK_GOOGLETEST} != "no"
@@ -2967,6 +2970,8 @@ lib/libkvm__L: lib/libelf__L
 .if ${MK_RADIUS_SUPPORT} != "no"
 _lib_libradius=	lib/libradius
 .endif
+
+lib/ncurses/ncurses__L:	lib/ncurses/tinfo__L
 
 .if ${MK_OFED} != "no"
 _prebuild_libs+= \

@@ -109,6 +109,9 @@ static struct proc *ktls_proc;
 static uma_zone_t ktls_session_zone;
 static uma_zone_t ktls_buffer_zone;
 static uint16_t ktls_cpuid_lookup[MAXCPU];
+static int ktls_init_state;
+static struct sx ktls_init_lock;
+SX_SYSINIT(ktls_init_lock, &ktls_init_lock, "ktls init");
 
 SYSCTL_NODE(_kern_ipc, OID_AUTO, tls, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Kernel TLS offload");
@@ -161,6 +164,11 @@ SYSCTL_INT(_kern_ipc_tls, OID_AUTO, max_alloc, CTLFLAG_RWTUN,
 static COUNTER_U64_DEFINE_EARLY(ktls_tasks_active);
 SYSCTL_COUNTER_U64(_kern_ipc_tls, OID_AUTO, tasks_active, CTLFLAG_RD,
     &ktls_tasks_active, "Number of active tasks");
+
+static COUNTER_U64_DEFINE_EARLY(ktls_cnt_tx_pending);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, sw_tx_pending, CTLFLAG_RD,
+    &ktls_cnt_tx_pending,
+    "Number of TLS 1.0 records waiting for earlier TLS records");
 
 static COUNTER_U64_DEFINE_EARLY(ktls_cnt_tx_queued);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, sw_tx_inqueue, CTLFLAG_RD,
@@ -333,16 +341,15 @@ static int
 ktls_buffer_import(void *arg, void **store, int count, int domain, int flags)
 {
 	vm_page_t m;
-	int i;
+	int i, req;
 
 	KASSERT((ktls_maxlen & PAGE_MASK) == 0,
 	    ("%s: ktls max length %d is not page size-aligned",
 	    __func__, ktls_maxlen));
 
+	req = VM_ALLOC_WIRED | VM_ALLOC_NODUMP | malloc2vm_flags(flags);
 	for (i = 0; i < count; i++) {
-		m = vm_page_alloc_contig_domain(NULL, 0, domain,
-		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-		    VM_ALLOC_NODUMP | malloc2vm_flags(flags),
+		m = vm_page_alloc_noobj_contig_domain(domain, req,
 		    atop(ktls_maxlen), 0, ~0ul, PAGE_SIZE, 0,
 		    VM_MEMATTR_DEFAULT);
 		if (m == NULL)
@@ -374,12 +381,11 @@ ktls_free_mext_contig(struct mbuf *m)
 	uma_zfree(ktls_buffer_zone, (void *)PHYS_TO_DMAP(m->m_epg_pa[0]));
 }
 
-static void
-ktls_init(void *dummy __unused)
+static int
+ktls_init(void)
 {
 	struct thread *td;
 	struct pcpu *pc;
-	cpuset_t mask;
 	int count, domain, error, i;
 
 	ktls_wq = malloc(sizeof(*ktls_wq) * (mp_maxid + 1), M_KTLS,
@@ -405,34 +411,38 @@ ktls_init(void *dummy __unused)
 		STAILQ_INIT(&ktls_wq[i].m_head);
 		STAILQ_INIT(&ktls_wq[i].so_head);
 		mtx_init(&ktls_wq[i].mtx, "ktls work queue", NULL, MTX_DEF);
-		error = kproc_kthread_add(ktls_work_thread, &ktls_wq[i],
-		    &ktls_proc, &td, 0, 0, "KTLS", "thr_%d", i);
-		if (error)
-			panic("Can't add KTLS thread %d error %d", i, error);
-
-		/*
-		 * Bind threads to cores.  If ktls_bind_threads is >
-		 * 1, then we bind to the NUMA domain.
-		 */
-		if (ktls_bind_threads) {
-			if (ktls_bind_threads > 1) {
-				pc = pcpu_find(i);
-				domain = pc->pc_domain;
-				CPU_COPY(&cpuset_domain[domain], &mask);
-				count = ktls_domains[domain].count;
-				ktls_domains[domain].cpu[count] = i;
-				ktls_domains[domain].count++;
-			} else {
-				CPU_SETOF(i, &mask);
-			}
-			error = cpuset_setthread(td->td_tid, &mask);
-			if (error)
-				panic(
-			    "Unable to bind KTLS thread for CPU %d error %d",
-				     i, error);
+		if (ktls_bind_threads > 1) {
+			pc = pcpu_find(i);
+			domain = pc->pc_domain;
+			count = ktls_domains[domain].count;
+			ktls_domains[domain].cpu[count] = i;
+			ktls_domains[domain].count++;
 		}
 		ktls_cpuid_lookup[ktls_number_threads] = i;
 		ktls_number_threads++;
+	}
+
+	/*
+	 * If we somehow have an empty domain, fall back to choosing
+	 * among all KTLS threads.
+	 */
+	if (ktls_bind_threads > 1) {
+		for (i = 0; i < vm_ndomains; i++) {
+			if (ktls_domains[i].count == 0) {
+				ktls_bind_threads = 1;
+				break;
+			}
+		}
+	}
+
+	/* Start kthreads for each workqueue. */
+	CPU_FOREACH(i) {
+		error = kproc_kthread_add(ktls_work_thread, &ktls_wq[i],
+		    &ktls_proc, &td, 0, 0, "KTLS", "thr_%d", i);
+		if (error) {
+			printf("Can't add KTLS thread %d error %d\n", i, error);
+			return (error);
+		}
 	}
 
 	/*
@@ -449,35 +459,46 @@ ktls_init(void *dummy __unused)
 			    &ktls_domains[domain], &ktls_proc,
 			    &ktls_domains[domain].alloc_td.td,
 			    0, 0, "KTLS", "alloc_%d", domain);
-			if (error)
-				panic("Can't add KTLS alloc thread %d error %d",
+			if (error) {
+				printf("Can't add KTLS alloc thread %d error %d\n",
 				    domain, error);
-			CPU_COPY(&cpuset_domain[domain], &mask);
-			error = cpuset_setthread(ktls_domains[domain].alloc_td.td->td_tid,
-			    &mask);
-			if (error)
-				panic("Unable to bind KTLS alloc %d error %d",
-				    domain, error);
-		}
-	}
-
-	/*
-	 * If we somehow have an empty domain, fall back to choosing
-	 * among all KTLS threads.
-	 */
-	if (ktls_bind_threads > 1) {
-		for (i = 0; i < vm_ndomains; i++) {
-			if (ktls_domains[i].count == 0) {
-				ktls_bind_threads = 1;
-				break;
+				return (error);
 			}
 		}
 	}
 
 	if (bootverbose)
 		printf("KTLS: Initialized %d threads\n", ktls_number_threads);
+	return (0);
 }
-SYSINIT(ktls, SI_SUB_SMP + 1, SI_ORDER_ANY, ktls_init, NULL);
+
+static int
+ktls_start_kthreads(void)
+{
+	int error, state;
+
+start:
+	state = atomic_load_acq_int(&ktls_init_state);
+	if (__predict_true(state > 0))
+		return (0);
+	if (state < 0)
+		return (ENXIO);
+
+	sx_xlock(&ktls_init_lock);
+	if (ktls_init_state != 0) {
+		sx_xunlock(&ktls_init_lock);
+		goto start;
+	}
+
+	error = ktls_init();
+	if (error == 0)
+		state = 1;
+	else
+		state = -1;
+	atomic_store_rel_int(&ktls_init_state, state);
+	sx_xunlock(&ktls_init_lock);
+	return (error);
+}
 
 #if defined(INET) || defined(INET6)
 static int
@@ -560,6 +581,10 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		}
 		if (en->auth_key_len == 0)
 			return (EINVAL);
+		if (en->tls_vminor != TLS_MINOR_VER_ZERO &&
+		    en->tls_vminor != TLS_MINOR_VER_ONE &&
+		    en->tls_vminor != TLS_MINOR_VER_TWO)
+			return (EINVAL);
 		break;
 	case CRYPTO_CHACHA20_POLY1305:
 		if (en->auth_algorithm != 0 || en->auth_key_len != 0)
@@ -573,6 +598,10 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 	default:
 		return (EINVAL);
 	}
+
+	error = ktls_start_kthreads();
+	if (error != 0)
+		return (error);
 
 	tls = uma_zalloc(ktls_session_zone, M_WAITOK | M_ZERO);
 
@@ -608,6 +637,9 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		case CRYPTO_SHA1_HMAC:
 			if (en->tls_vminor == TLS_MINOR_VER_ZERO) {
 				/* Implicit IV, no nonce. */
+				tls->sequential_records = true;
+				tls->next_seqno = be64dec(en->rec_seq);
+				STAILQ_INIT(&tls->pending_records);
 			} else {
 				tls->params.tls_hlen += AES_BLOCK_LEN;
 			}
@@ -1486,6 +1518,20 @@ void
 ktls_destroy(struct ktls_session *tls)
 {
 
+	if (tls->sequential_records) {
+		struct mbuf *m, *n;
+		int page_count;
+
+		STAILQ_FOREACH_SAFE(m, &tls->pending_records, m_epg_stailq, n) {
+			page_count = m->m_epg_enc_cnt;
+			while (page_count > 0) {
+				KASSERT(page_count >= m->m_epg_nrdy,
+				    ("%s: too few pages", __func__));
+				page_count -= m->m_epg_nrdy;
+				m = m_free(m);
+			}
+		}
+	}
 	ktls_cleanup(tls);
 	uma_zfree(ktls_session_zone, tls);
 }
@@ -2054,12 +2100,8 @@ ktls_encrypt_record(struct ktls_wq *wq, struct mbuf *m,
 	} else {
 		off = m->m_epg_1st_off;
 		for (i = 0; i < m->m_epg_npgs; i++, off = 0) {
-			do {
-				pg = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-				    VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP |
-				    VM_ALLOC_WIRED | VM_ALLOC_WAITFAIL);
-			} while (pg == NULL);
-
+			pg = vm_page_alloc_noobj(VM_ALLOC_NODUMP |
+			    VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
 			len = m_epg_pagelen(m, i, off);
 			state->parray[i] = VM_PAGE_TO_PHYS(pg);
 			state->dst_iov[i].iov_base =
@@ -2088,10 +2130,29 @@ ktls_encrypt_record(struct ktls_wq *wq, struct mbuf *m,
 	return (error);
 }
 
+/* Number of TLS records in a batch passed to ktls_enqueue(). */
+static u_int
+ktls_batched_records(struct mbuf *m)
+{
+	int page_count, records;
+
+	records = 0;
+	page_count = m->m_epg_enc_cnt;
+	while (page_count > 0) {
+		records++;
+		page_count -= m->m_epg_nrdy;
+		m = m->m_next;
+	}
+	KASSERT(page_count == 0, ("%s: mismatched page count", __func__));
+	return (records);
+}
+
 void
 ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 {
+	struct ktls_session *tls;
 	struct ktls_wq *wq;
+	int queued;
 	bool running;
 
 	KASSERT(((m->m_flags & (M_EXTPG | M_NOTREADY)) ==
@@ -2109,14 +2170,80 @@ ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 	 */
 	m->m_epg_so = so;
 
-	wq = &ktls_wq[m->m_epg_tls->wq_index];
+	queued = 1;
+	tls = m->m_epg_tls;
+	wq = &ktls_wq[tls->wq_index];
 	mtx_lock(&wq->mtx);
-	STAILQ_INSERT_TAIL(&wq->m_head, m, m_epg_stailq);
+	if (__predict_false(tls->sequential_records)) {
+		/*
+		 * For TLS 1.0, records must be encrypted
+		 * sequentially.  For a given connection, all records
+		 * queued to the associated work queue are processed
+		 * sequentially.  However, sendfile(2) might complete
+		 * I/O requests spanning multiple TLS records out of
+		 * order.  Here we ensure TLS records are enqueued to
+		 * the work queue in FIFO order.
+		 *
+		 * tls->next_seqno holds the sequence number of the
+		 * next TLS record that should be enqueued to the work
+		 * queue.  If this next record is not tls->next_seqno,
+		 * it must be a future record, so insert it, sorted by
+		 * TLS sequence number, into tls->pending_records and
+		 * return.
+		 *
+		 * If this TLS record matches tls->next_seqno, place
+		 * it in the work queue and then check
+		 * tls->pending_records to see if any
+		 * previously-queued records are now ready for
+		 * encryption.
+		 */
+		if (m->m_epg_seqno != tls->next_seqno) {
+			struct mbuf *n, *p;
+
+			p = NULL;
+			STAILQ_FOREACH(n, &tls->pending_records, m_epg_stailq) {
+				if (n->m_epg_seqno > m->m_epg_seqno)
+					break;
+				p = n;
+			}
+			if (n == NULL)
+				STAILQ_INSERT_TAIL(&tls->pending_records, m,
+				    m_epg_stailq);
+			else if (p == NULL)
+				STAILQ_INSERT_HEAD(&tls->pending_records, m,
+				    m_epg_stailq);
+			else
+				STAILQ_INSERT_AFTER(&tls->pending_records, p, m,
+				    m_epg_stailq);
+			mtx_unlock(&wq->mtx);
+			counter_u64_add(ktls_cnt_tx_pending, 1);
+			return;
+		}
+
+		tls->next_seqno += ktls_batched_records(m);
+		STAILQ_INSERT_TAIL(&wq->m_head, m, m_epg_stailq);
+
+		while (!STAILQ_EMPTY(&tls->pending_records)) {
+			struct mbuf *n;
+
+			n = STAILQ_FIRST(&tls->pending_records);
+			if (n->m_epg_seqno != tls->next_seqno)
+				break;
+
+			queued++;
+			STAILQ_REMOVE_HEAD(&tls->pending_records, m_epg_stailq);
+			tls->next_seqno += ktls_batched_records(n);
+			STAILQ_INSERT_TAIL(&wq->m_head, n, m_epg_stailq);
+		}
+		counter_u64_add(ktls_cnt_tx_pending, -(queued - 1));
+	} else
+		STAILQ_INSERT_TAIL(&wq->m_head, m, m_epg_stailq);
+
 	running = wq->running;
 	mtx_unlock(&wq->mtx);
 	if (!running)
 		wakeup(wq);
-	counter_u64_add(ktls_cnt_tx_queued, 1);
+	counter_u64_add(ktls_cnt_tx_queued, queued);
 }
 
 /*
@@ -2346,6 +2473,18 @@ ktls_encrypt_async(struct ktls_wq *wq, struct mbuf *top)
 	CURVNET_RESTORE();
 }
 
+static int
+ktls_bind_domain(int domain)
+{
+	int error;
+
+	error = cpuset_setthread(curthread->td_tid, &cpuset_domain[domain]);
+	if (error != 0)
+		return (error);
+	curthread->td_domain.dr_policy = DOMAINSET_PREF(domain);
+	return (0);
+}
+
 static void
 ktls_alloc_thread(void *ctx)
 {
@@ -2354,14 +2493,16 @@ ktls_alloc_thread(void *ctx)
 	void **buf;
 	struct sysctl_oid *oid;
 	char name[80];
-	int i, nbufs;
+	int domain, error, i, nbufs;
 
-	curthread->td_domain.dr_policy =
-	    DOMAINSET_PREF(PCPU_GET(domain));
-	snprintf(name, sizeof(name), "domain%d", PCPU_GET(domain));
+	domain = ktls_domain - ktls_domains;
 	if (bootverbose)
-		printf("Starting KTLS alloc thread for domain %d\n",
-		    PCPU_GET(domain));
+		printf("Starting KTLS alloc thread for domain %d\n", domain);
+	error = ktls_bind_domain(domain);
+	if (error)
+		printf("Unable to bind KTLS alloc thread for domain %d: error %d\n",
+		    domain, error);
+	snprintf(name, sizeof(name), "domain%d", domain);
 	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_kern_ipc_tls), OID_AUTO,
 	    name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, "allocs",
@@ -2416,10 +2557,32 @@ ktls_work_thread(void *ctx)
 	struct socket *so, *son;
 	STAILQ_HEAD(, mbuf) local_m_head;
 	STAILQ_HEAD(, socket) local_so_head;
+	int cpu;
 
-	if (ktls_bind_threads > 1) {
-		curthread->td_domain.dr_policy =
-			DOMAINSET_PREF(PCPU_GET(domain));
+	cpu = wq - ktls_wq;
+	if (bootverbose)
+		printf("Starting KTLS worker thread for CPU %d\n", cpu);
+
+	/*
+	 * Bind to a core.  If ktls_bind_threads is > 1, then
+	 * we bind to the NUMA domain instead.
+	 */
+	if (ktls_bind_threads) {
+		int error;
+
+		if (ktls_bind_threads > 1) {
+			struct pcpu *pc = pcpu_find(cpu);
+
+			error = ktls_bind_domain(pc->pc_domain);
+		} else {
+			cpuset_t mask;
+
+			CPU_SETOF(cpu, &mask);
+			error = cpuset_setthread(curthread->td_tid, &mask);
+		}
+		if (error)
+			printf("Unable to bind KTLS worker thread for CPU %d: error %d\n",
+				cpu, error);
 	}
 #if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 	fpu_kern_thread(0);

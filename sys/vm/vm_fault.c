@@ -125,7 +125,8 @@ struct faultstate {
 	vm_prot_t	fault_type;
 	vm_prot_t	prot;
 	int		fault_flags;
-	int		oom;
+	struct timeval	oom_start_time;
+	bool		oom_started;
 	boolean_t	wired;
 
 	/* Page reference for cow. */
@@ -1074,13 +1075,44 @@ vm_fault_zerofill(struct faultstate *fs)
 }
 
 /*
+ * Initiate page fault after timeout.  Returns true if caller should
+ * do vm_waitpfault() after the call.
+ */
+static bool
+vm_fault_allocate_oom(struct faultstate *fs)
+{
+	struct timeval now;
+
+	unlock_and_deallocate(fs);
+	if (vm_pfault_oom_attempts < 0)
+		return (true);
+	if (!fs->oom_started) {
+		fs->oom_started = true;
+		getmicrotime(&fs->oom_start_time);
+		return (true);
+	}
+
+	getmicrotime(&now);
+	timevalsub(&now, &fs->oom_start_time);
+	if (now.tv_sec < vm_pfault_oom_attempts * vm_pfault_oom_wait)
+		return (true);
+
+	if (bootverbose)
+		printf(
+	    "proc %d (%s) failed to alloc page on fault, starting OOM\n",
+		    curproc->p_pid, curproc->p_comm);
+	vm_pageout_oom(VM_OOM_MEM_PF);
+	fs->oom_started = false;
+	return (false);
+}
+
+/*
  * Allocate a page directly or via the object populate method.
  */
 static int
 vm_fault_allocate(struct faultstate *fs)
 {
 	struct domainset *dset;
-	int alloc_req;
 	int rv;
 
 	if ((fs->object->flags & OBJ_SIZEVNLOCK) != 0) {
@@ -1117,9 +1149,14 @@ vm_fault_allocate(struct faultstate *fs)
 	/*
 	 * Allocate a new page for this object/offset pair.
 	 *
-	 * Unlocked read of the p_flag is harmless. At worst, the P_KILLED
-	 * might be not observed there, and allocation can fail, causing
-	 * restart and new reading of the p_flag.
+	 * If the process has a fatal signal pending, prioritize the allocation
+	 * with the expectation that the process will exit shortly and free some
+	 * pages.  In particular, the signal may have been posted by the page
+	 * daemon in an attempt to resolve an out-of-memory condition.
+	 *
+	 * The unlocked read of the p_flag is harmless.  At worst, the P_KILLED
+	 * might be not observed here, and allocation fails, causing a restart
+	 * and new reading of the p_flag.
 	 */
 	dset = fs->object->domain.dr_policy;
 	if (dset == NULL)
@@ -1128,30 +1165,15 @@ vm_fault_allocate(struct faultstate *fs)
 #if VM_NRESERVLEVEL > 0
 		vm_object_color(fs->object, atop(fs->vaddr) - fs->pindex);
 #endif
-		alloc_req = P_KILLED(curproc) ?
-		    VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL;
-		if (fs->object->type != OBJT_VNODE &&
-		    fs->object->backing_object == NULL)
-			alloc_req |= VM_ALLOC_ZERO;
-		fs->m = vm_page_alloc(fs->object, fs->pindex, alloc_req);
+		fs->m = vm_page_alloc(fs->object, fs->pindex,
+		    P_KILLED(curproc) ? VM_ALLOC_SYSTEM : 0);
 	}
 	if (fs->m == NULL) {
-		unlock_and_deallocate(fs);
-		if (vm_pfault_oom_attempts < 0 ||
-		    fs->oom < vm_pfault_oom_attempts) {
-			fs->oom++;
+		if (vm_fault_allocate_oom(fs))
 			vm_waitpfault(dset, vm_pfault_oom_wait * hz);
-		} else 	{
-			if (bootverbose)
-				printf(
-		"proc %d (%s) failed to alloc page on fault, starting OOM\n",
-				    curproc->p_pid, curproc->p_comm);
-			vm_pageout_oom(VM_OOM_MEM_PF);
-			fs->oom = 0;
-		}
 		return (KERN_RESOURCE_SHORTAGE);
 	}
-	fs->oom = 0;
+	fs->oom_started = false;
 
 	return (KERN_NOT_RECEIVER);
 }
@@ -1300,7 +1322,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	fs.fault_flags = fault_flags;
 	fs.map = map;
 	fs.lookup_still_valid = false;
-	fs.oom = 0;
+	fs.oom_started = false;
 	faultcount = 0;
 	nera = -1;
 	hardfault = false;

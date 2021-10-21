@@ -1924,7 +1924,7 @@ restart:
 	if (vp->v_type == VDIR && oldinum == 0) {
 		error = EPERM;		/* POSIX */
 	} else if (oldinum != 0 &&
-	    ((error = VOP_STAT(vp, &sb, td->td_ucred, NOCRED, td)) == 0) &&
+	    ((error = VOP_STAT(vp, &sb, td->td_ucred, NOCRED)) == 0) &&
 	    sb.st_ino != oldinum) {
 		error = EIDRM;	/* Identifier removed */
 	} else if (fp != NULL && fp->f_vnode != vp) {
@@ -2444,7 +2444,7 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
 			error = kern_fstat(td, fd, sbp);
 		return (error);
 	}
-	error = VOP_STAT(nd.ni_vp, sbp, td->td_ucred, NOCRED, td);
+	error = VOP_STAT(nd.ni_vp, sbp, td->td_ucred, NOCRED);
 	if (error == 0) {
 		if (__predict_false(hook != NULL))
 			hook(nd.ni_vp, sbp);
@@ -2640,8 +2640,8 @@ kern_readlinkat(struct thread *td, int fd, const char *path,
 	if (count > IOSIZE_MAX)
 		return (EINVAL);
 
-	NDINIT_AT(&nd, LOOKUP, NOFOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
-	    pathseg, path, fd, td);
+	NDINIT_AT(&nd, LOOKUP, NOFOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1 |
+	    EMPTYPATH, pathseg, path, fd, td);
 
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -4316,7 +4316,7 @@ getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
 	 * other thread to dereference it. Guard against the race by
 	 * checking f_ops.
 	 */
-	if (fp->f_vnode == NULL || fp->f_ops == &badfileops) {
+	if (__predict_false(fp->f_vnode == NULL || fp->f_ops == &badfileops)) {
 		fdrop(fp, td);
 		return (EINVAL);
 	}
@@ -4336,12 +4336,14 @@ getvnode(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 	int error;
 
 	error = getvnode_path(td, fd, rightsp, fpp);
+	if (__predict_false(error != 0))
+		return (error);
 
 	/*
 	 * Filter out O_PATH file descriptors, most getvnode() callers
 	 * do not call fo_ methods.
 	 */
-	if (error == 0 && (*fpp)->f_ops == &path_fileops) {
+	if (__predict_false((*fpp)->f_ops == &path_fileops)) {
 		fdrop(*fpp, td);
 		error = EBADF;
 	}
@@ -4661,7 +4663,7 @@ kern_fhstat(struct thread *td, struct fhandle fh, struct stat *sb)
 	vfs_unbusy(mp);
 	if (error != 0)
 		return (error);
-	error = VOP_STAT(vp, sb, td->td_ucred, NOCRED, td);
+	error = VOP_STAT(vp, sb, td->td_ucred, NOCRED);
 	vput(vp);
 	return (error);
 }

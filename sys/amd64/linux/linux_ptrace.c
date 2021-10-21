@@ -84,7 +84,8 @@ __FBSDID("$FreeBSD$");
 #define	LINUX_PTRACE_O_EXITKILL		1048576
 #define	LINUX_PTRACE_O_SUSPEND_SECCOMP	2097152
 
-#define	LINUX_NT_PRSTATUS		1
+#define	LINUX_NT_PRSTATUS		0x1
+#define	LINUX_NT_X86_XSTATE		0x202
 
 #define	LINUX_PTRACE_O_MASK	(LINUX_PTRACE_O_TRACESYSGOOD |	\
     LINUX_PTRACE_O_TRACEFORK | LINUX_PTRACE_O_TRACEVFORK |	\
@@ -96,6 +97,11 @@ __FBSDID("$FreeBSD$");
 #define	LINUX_PTRACE_SYSCALL_INFO_NONE	0
 #define	LINUX_PTRACE_SYSCALL_INFO_ENTRY	1
 #define	LINUX_PTRACE_SYSCALL_INFO_EXIT	2
+
+#define LINUX_PTRACE_PEEKUSER_ORIG_RAX	120
+#define LINUX_PTRACE_PEEKUSER_RIP	128
+#define LINUX_PTRACE_PEEKUSER_CS	136
+#define LINUX_PTRACE_PEEKUSER_DS	184
 
 #define	LINUX_ARCH_AMD64		0xc000003e
 
@@ -286,9 +292,37 @@ linux_ptrace_peek(struct thread *td, pid_t pid, void *addr, void *data)
 static int
 linux_ptrace_peekuser(struct thread *td, pid_t pid, void *addr, void *data)
 {
+	struct reg b_reg;
+	uint64_t val;
+	int error;
 
-	linux_msg(td, "PTRACE_PEEKUSER not implemented; returning EINVAL");
-	return (EINVAL);
+	error = kern_ptrace(td, PT_GETREGS, pid, &b_reg, 0);
+	if (error != 0)
+		return (error);
+
+	switch ((uintptr_t)addr) {
+	case LINUX_PTRACE_PEEKUSER_ORIG_RAX:
+		val = b_reg.r_rax;
+		break;
+	case LINUX_PTRACE_PEEKUSER_RIP:
+		val = b_reg.r_rip;
+		break;
+	case LINUX_PTRACE_PEEKUSER_CS:
+		val = b_reg.r_cs;
+		break;
+	case LINUX_PTRACE_PEEKUSER_DS:
+		val = b_reg.r_ds;
+		break;
+	default:
+		linux_msg(td, "PTRACE_PEEKUSER offset %ld not implemented; "
+		    "returning EINVAL", (uintptr_t)addr);
+		return (EINVAL);
+	}
+
+	error = copyout(&val, data, sizeof(val));
+	td->td_retval[0] = error;
+
+	return (error);
 }
 
 static int
@@ -507,8 +541,12 @@ linux_ptrace_getregset(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 	switch (addr) {
 	case LINUX_NT_PRSTATUS:
 		return (linux_ptrace_getregset_prstatus(td, pid, data));
+	case LINUX_NT_X86_XSTATE:
+		linux_msg(td, "PTRAGE_GETREGSET NT_X86_XSTATE not implemented; "
+		    "returning EINVAL");
+		return (EINVAL);
 	default:
-		linux_msg(td, "PTRACE_GETREGSET request %ld not implemented; "
+		linux_msg(td, "PTRACE_GETREGSET request %#lx not implemented; "
 		    "returning EINVAL", addr);
 		return (EINVAL);
 	}
@@ -524,7 +562,7 @@ linux_ptrace_seize(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 
 static int
 linux_ptrace_get_syscall_info(struct thread *td, pid_t pid,
-    l_ulong addr, l_ulong data)
+    l_ulong len, l_ulong data)
 {
 	struct ptrace_lwpinfo lwpinfo;
 	struct ptrace_sc_ret sr;
@@ -589,7 +627,8 @@ linux_ptrace_get_syscall_info(struct thread *td, pid_t pid,
 	si.instruction_pointer = b_reg.r_rip;
 	si.stack_pointer = b_reg.r_rsp;
 
-	error = copyout(&si, (void *)data, sizeof(si));
+	len = MIN(len, sizeof(si));
+	error = copyout(&si, (void *)data, len);
 	if (error == 0)
 		td->td_retval[0] = sizeof(si);
 

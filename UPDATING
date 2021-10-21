@@ -27,6 +27,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20211020:
+	sh(1) is now the default shell for the root user.  To force root to use
+	the csh shell, please run the following command as root:
+
+	# chsh -s csh
+
+20211004:
+	Ncurses distribution has been split between libtinfow and libncurses
+	with libncurses.so becoming a linker (ld) script to seamlessly link
+	to libtinfow as needed. Bump _FreeBSD_version to 1400035 to reflect
+	this change.
+
 20210923:
 	As of commit 8160a0f62be6, the dummynet module no longer depends on the
 	ipfw module. Dummynet can now be used by pf as well as ipfw. As such
@@ -36,7 +48,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 20210922:
 	As of commit 903873ce1560, the mixer(8) utility has got a slightly
 	new syntax. Please refer to the mixer(8) manual page for more
-	information.
+	information. The old mixer utility can be installed from ports:
+	audio/freebsd-13-mixer
 
 20210911:
 	As of commit 55089ef4f8bb, the global variable nfs_maxcopyrange has
