@@ -2340,7 +2340,8 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 # llvm-tblgen is also needed for various llvm binutils (e.g. objcopy).
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
     ${MK_LLD_BOOTSTRAP} != "no" || ${MK_LLD} != "no" || \
-    ${MK_LLDB} != "no" || ${MK_LLVM_BINUTILS} != "no"
+    ${MK_LLDB} != "no" || ${MK_LLVM_BINUTILS} != "no" || \
+    ${MK_OPENMP} != "no"
 _clang_tblgen= \
 	lib/clang/libllvmminimal \
 	usr.bin/clang/llvm-tblgen
