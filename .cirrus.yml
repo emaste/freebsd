@@ -8,7 +8,7 @@ compute_engine_instance:
   image: freebsd-13-0-release-amd64
   cpu: 8
   memory: 8G
-  disk: 40
+  disk: 100
 
 task:
   matrix:
