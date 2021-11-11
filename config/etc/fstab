@@ -1,0 +1,5 @@
+# Device	        Mountpoint	FStype	Options			Dump	Pass#
+/dev/ufs/FreeBSD_root	/		ufs	rw			0	0
+#/dev/gpt/efiboot0	/boot/efi	msdosfs	rw,late,longnames	2	2
+#/dev/gpt/swap		none		swap	sw			0	0
+tmpfs		        /tmp		tmpfs	rw,mode=01777,size=4g	0	0
