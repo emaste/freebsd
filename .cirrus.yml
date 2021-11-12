@@ -11,17 +11,7 @@ compute_engine_instance:
   disk: 40
 
 task:
-  matrix:
-  - name: World and kernel amd64 build and boot smoke test
-    env:
-      TARGET: amd64
-      TARGET_ARCH: amd64
       TOOLCHAIN_PKG: llvm13
-  - name: World and kernel arm64 build and boot smoke test
-    trigger_type: manual
-    env:
-      TARGET: arm64
-      TARGET_ARCH: aarch64
       TOOLCHAIN_PKG: llvm13
   - name: World and kernel gcc9 amd64 build and boot smoke test
     trigger_type: manual
@@ -36,11 +26,8 @@ task:
   - uname -a
   - df -m
   - pkg --version
-  - pw useradd user
-  - mkdir -p /usr/obj/$(pwd -P)
-  - chown user:user /usr/obj/$(pwd -P)
   script:
-  - su user -c "sh build.sh"
+  - sh build.sh
   post_script:
   - df -m
   - du -m -s /usr/obj
