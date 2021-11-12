@@ -45,8 +45,7 @@ do_stage_files()
 	stage_file /boot/loader.conf
 	stage_file /etc/fstab
 	stage_file /etc/rc.conf
-	stage_file -m 0544 /etc/rc.d/firstboot-pkgs
-	stage_file /firstboot
+	stage_file -m 0544 /etc/rc.d/oci-setup
 }
 
 
