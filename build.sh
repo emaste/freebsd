@@ -1,7 +1,7 @@
 #!/bin/sh
 
-dashj="-j$(($(sysctl -n hw.ncpu) - 2))"
-datestr=$($(date +%Y%m%d_%H%M%S)
+dashj="-j$(sysctl -n hw.ncpu)"
+datestr=$(date +%Y%m%d_%H%M%S)
 log=build.$datestr.log
 stagedir=$(pwd)/stage
 
