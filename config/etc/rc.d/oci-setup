@@ -26,15 +26,6 @@ oci_setup_run()
                     cat
         done
 
-        # Count rc.d scripts again
-        nscriptsn=`ls /usr/local/etc/rc.d | wc -l`
-
-        # If we have more scripts, request a reboot
-        if [ $nscriptsn -ne $nscriptso ]; then
-                echo "Requesting reboot after installing packages with rc.d scripts."
-                touch ${firstboot_sentinel}-reboot
-        fi
-
 	touch /firstboot
 	rm /etc/rc.d/oci-setup
 	echo "OK Packages Installed"
