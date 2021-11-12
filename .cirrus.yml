@@ -8,47 +8,27 @@ compute_engine_instance:
   image: freebsd-13-1-release-amd64
   cpu: 8
   memory: 8G
-  disk: 40
+  disk: 80
 
 env:
   CIRRUS_CLONE_DEPTH: 1
 
 task:
-  matrix:
-  - name: World and kernel amd64 build and boot smoke test
-    env:
-      TARGET: amd64
-      TARGET_ARCH: amd64
-      TOOLCHAIN_PKG: llvm13
-  - name: World and kernel arm64 build and boot smoke test
-    trigger_type: manual
-    env:
-      TARGET: arm64
-      TARGET_ARCH: aarch64
-      TOOLCHAIN_PKG: llvm13
-  - name: World and kernel gcc9 amd64 build and boot smoke test
-    trigger_type: manual
-    env:
-      TARGET: amd64
-      TARGET_ARCH: amd64
-      TOOLCHAIN_PKG: amd64-gcc9
+  name: OCI image build
   timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh qemu-nox11 ${TOOLCHAIN_PKG}
+  - sh .cirrus-ci/pkg-install.sh qemu-nox11
   setup_script:
   - uname -a
   - gpart show
   - df -m
   - pkg --version
-  - pw useradd user
-  - mkdir -p /usr/obj/$(pwd -P)
-  - chown user:user /usr/obj/$(pwd -P)
-  script:
-  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
-  package_script:
-  - su user -c "make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
-  test_script:
-  - sh tools/boot/ci-qemu-test.sh
+  build_script:
+  - make -s -j$(sysctl -n hw.ncpu) buildworld
+  - make -s -j$(sysctl -n hw.ncpu) buildkernel
+  release_script:
+  - cd release
+  - make -s -DNOPORTS -DNOSRC KERNCONF=GENERIC WITH_CLOUDWARE=yes CLOUDWARE=OCI cloudware-release
   post_script:
   - df -m
   - du -m -s /usr/obj
