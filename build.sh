@@ -85,11 +85,11 @@ do_image()
 }
 
 set -e
-do_build
-do_stage
+#do_build
+#do_stage
 do_stage_files
 do_ufs_part
-do_efi_part
+#do_efi_part
 do_image
 
 qemulog=qemu.$datestr.log
