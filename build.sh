@@ -92,9 +92,12 @@ do_efi_part
 do_image
 
 qemulog=qemu.$datestr.log
+qemucfg="-cpu cortex-a57 -M virt -bios edk2-aarch64-code.fd -m 256M -nodefaults -serial stdio -vga none -nographic -monitor none -netdev user,id=n1 -device virtio-net-pci,netdev=n1"
 # boot in qemu to install packages
-qemu-system-aarch64 -cpu cortex-a57 -M virt -bios edk2-aarch64-code.fd -m 256M -nodefaults -serial stdio -vga none -nographic -monitor none -netdev user,id=n1 -device virtio-net-pci,netdev=n1 -hda $image_file 2>&1 | tee $qemulog
+qemu-system-aarch64 $qemucfg -hda $image_file 2>&1 | tee $qemulog
 if ! grep -q 'OK Packages Installed' $qemulog; then
 	echo 'Pkg install failed' >&2
 	exit 1
 fi
+
+echo "qemu-system-aarch64 $qemucfg -snapshot -hda $image_file"
