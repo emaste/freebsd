@@ -49,6 +49,7 @@ firstboot_pkgs_run()
                 touch ${firstboot_sentinel}-reboot
         fi
 
+	rm ${firstboot_sentinel}
 	echo "OK Packages Installed"
 	shutdown -p now
 }
