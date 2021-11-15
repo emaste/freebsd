@@ -2147,10 +2147,12 @@ key_getnewspid(void)
 {
 	struct secpolicy *sp;
 	uint32_t newid = 0;
-	int count = V_key_spi_trycnt;	/* XXX */
+	int tries, limit;
 
 	SPTREE_WLOCK_ASSERT();
-	while (count--) {
+
+	limit = atomic_load_int(&V_key_spi_trycnt);
+	for (tries = 0; tries < limit; tries++) {
 		if (V_policy_id == ~0) /* overflowed */
 			newid = V_policy_id = 1;
 		else
@@ -2162,7 +2164,7 @@ key_getnewspid(void)
 		if (sp == NULL)
 			break;
 	}
-	if (count == 0 || newid == 0) {
+	if (tries == limit || newid == 0) {
 		ipseclog((LOG_DEBUG, "%s: failed to allocate policy id.\n",
 		    __func__));
 		return (0);
@@ -2959,8 +2961,8 @@ key_newsav(const struct sadb_msghdr *mhp, struct secasindex *saidx,
 		*errp = ENOBUFS;
 		goto done;
 	}
-	sav->lock = malloc(sizeof(struct mtx), M_IPSEC_MISC,
-	    M_NOWAIT | M_ZERO);
+	sav->lock = malloc_aligned(max(sizeof(struct mtx), CACHE_LINE_SIZE),
+	    CACHE_LINE_SIZE, M_IPSEC_MISC, M_NOWAIT | M_ZERO);
 	if (sav->lock == NULL) {
 		*errp = ENOBUFS;
 		goto done;

@@ -3827,15 +3827,6 @@ static uint16_t fwcaps32_to_caps16(uint32_t caps32)
 	return caps16;
 }
 
-static bool
-is_bt(struct port_info *pi)
-{
-
-	return (pi->port_type == FW_PORT_TYPE_BT_SGMII ||
-	    pi->port_type == FW_PORT_TYPE_BT_XFI ||
-	    pi->port_type == FW_PORT_TYPE_BT_XAUI);
-}
-
 static int8_t fwcap_to_fec(uint32_t caps, bool unset_means_none)
 {
 	int8_t fec = 0;
@@ -3959,10 +3950,18 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 			if (lc->requested_fec & FEC_MODULE)
 				fec |= fec_to_fwcap(lc->fec_hint);
 		}
+
+		/*
+		 * This is for compatibility with old firmwares. The original
+		 * way to request NO_FEC was to not set any of the FEC bits. New
+		 * firmwares understand this too.
+		 */
+		if (fec == FW_PORT_CAP32_FEC_NO_FEC)
+			fec = 0;
 	}
 
 	/* Force AN on for BT cards. */
-	if (is_bt(adap->port[adap->chan_map[port]]))
+	if (isset(&adap->bt_map, port))
 		aneg = lc->pcaps & FW_PORT_CAP32_ANEG;
 
 	rcap = aneg | speed | fc | fec;
@@ -9406,9 +9405,11 @@ int t4_prep_adapter(struct adapter *adapter, u32 *buf)
 int t4_shutdown_adapter(struct adapter *adapter)
 {
 	int port;
+	const bool bt = adapter->bt_map != 0;
 
 	t4_intr_disable(adapter);
-	t4_write_reg(adapter, A_DBG_GPIO_EN, 0);
+	if (bt)
+		t4_write_reg(adapter, A_DBG_GPIO_EN, 0xffff0000);
 	for_each_port(adapter, port) {
 		u32 a_port_cfg = is_t4(adapter) ?
 				 PORT_REG(port, A_XGMAC_PORT_CFG) :
@@ -9417,6 +9418,15 @@ int t4_shutdown_adapter(struct adapter *adapter)
 		t4_write_reg(adapter, a_port_cfg,
 			     t4_read_reg(adapter, a_port_cfg)
 			     & ~V_SIGNAL_DET(1));
+		if (!bt) {
+			u32 hss_cfg0 = is_t4(adapter) ?
+					 PORT_REG(port, A_XGMAC_PORT_HSS_CFG0) :
+					 T5_PORT_REG(port, A_MAC_PORT_HSS_CFG0);
+			t4_set_reg_field(adapter, hss_cfg0, F_HSSPDWNPLLB |
+			    F_HSSPDWNPLLA | F_HSSPLLBYPB | F_HSSPLLBYPA,
+			    F_HSSPDWNPLLB | F_HSSPDWNPLLA | F_HSSPLLBYPB |
+			    F_HSSPLLBYPA);
+		}
 	}
 	t4_set_reg_field(adapter, A_SGE_CONTROL, F_GLOBALENABLE, 0);
 
