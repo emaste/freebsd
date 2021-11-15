@@ -160,7 +160,6 @@ SYMLINKS+=	libncursesw.so ${LIBDIR}/libcursesw.so
 SYMLINKS+=	libncursesw.so ${LIBDIR}/libncurses.so
 SYMLINKS+=	libncursesw.so ${LIBDIR}/libcurses.so
 .endif
-.endif
 
 LIBADD+=	tinfow
 SHLIB_LDSCRIPT=	libncursesw.ldscript
