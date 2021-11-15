@@ -1069,7 +1069,7 @@
 /* #undef HAVE_PRIV_H */
 
 /* Define to 1 if you have the `procctl' function. */
-#undef HAVE_PROCCTL
+#define HAVE_PROCCTL 1
 
 /* Define if you have /proc/$pid/fd */
 /* #undef HAVE_PROC_PID */
@@ -1496,7 +1496,7 @@
 /* #undef HAVE_SYS_PRCTL_H */
 
 /* Define to 1 if you have the <sys/procctl.h> header file. */
-#undef HAVE_SYS_PROCCTL_H
+#define HAVE_SYS_PROCCTL_H 1
 
 /* Define to 1 if you have the <sys/pstat.h> header file. */
 /* #undef HAVE_SYS_PSTAT_H */
@@ -2046,7 +2046,7 @@
 #endif
 
 /* Define if xauth is found in your path */
-#define XAUTH_PATH "/usr/local/bin/xauth"
+/* #undef XAUTH_PATH */
 
 /* Enable large inode numbers on Mac OS X 10.5.  */
 #ifndef _DARWIN_USE_64_BIT_INODE
