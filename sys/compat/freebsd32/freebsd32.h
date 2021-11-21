@@ -35,6 +35,7 @@
 #include <sys/procfs.h>
 #include <sys/socket.h>
 #include <sys/user.h>
+#include <sys/_ffcounter.h>
 
 /*
  * i386 is the only arch with a 32-bit time_t
@@ -65,6 +66,28 @@ struct bintime32 {
 	uint32_t frac[2];
 };
 
+struct ffclock_estimate32 {
+	struct bintime32 update_time;
+	ffcounter update_ffcount;
+	ffcounter leapsec_next;
+	uint64_t period;
+	uint32_t errb_abs;
+	uint32_t errb_rate;
+	uint32_t status;
+	int16_t leapsec_total;
+	int8_t leapsec;
+	int8_t _pad;
+}
+#if defined(__amd64__)
+__attribute__((packed))
+#endif
+;
+#if defined(__amd64__)
+_Static_assert(sizeof(struct ffclock_estimate32) == 52, "ffclock_estimate32 size");
+#else
+_Static_assert(sizeof(struct ffclock_estimate32) == 56, "ffclock_estimate32 size");
+#endif
+
 struct rusage32 {
 	struct timeval32 ru_utime;
 	struct timeval32 ru_stime;
@@ -84,7 +107,7 @@ struct rusage32 {
 	int32_t	ru_nivcsw;
 };
 
-struct wrusage32 {
+struct __wrusage32 {
 	struct rusage32	wru_self;
 	struct rusage32 wru_children;
 };
@@ -115,11 +138,11 @@ struct umutex32 {
 	__uint32_t		m_spare[2];
 };
 
-#define FREEBSD4_MFSNAMELEN	16
-#define FREEBSD4_MNAMELEN	(88 - 2 * sizeof(int32_t))
+#define FREEBSD4_OMFSNAMELEN	16
+#define FREEBSD4_OMNAMELEN	(88 - 2 * sizeof(int32_t))
 
 /* 4.x version */
-struct statfs32 {
+struct ostatfs32 {
 	int32_t	f_spare2;
 	int32_t	f_bsize;
 	int32_t	f_iosize;
@@ -134,12 +157,12 @@ struct statfs32 {
 	int32_t	f_flags;
 	int32_t	f_syncwrites;
 	int32_t	f_asyncwrites;
-	char	f_fstypename[FREEBSD4_MFSNAMELEN];
-	char	f_mntonname[FREEBSD4_MNAMELEN];
+	char	f_fstypename[FREEBSD4_OMFSNAMELEN];
+	char	f_mntonname[FREEBSD4_OMNAMELEN];
 	int32_t	f_syncreads;
 	int32_t	f_asyncreads;
 	int16_t	f_spares1;
-	char	f_mntfromname[FREEBSD4_MNAMELEN];
+	char	f_mntfromname[FREEBSD4_OMNAMELEN];
 	int16_t	f_spares2 __packed;
 	int32_t f_spare[2];
 };
@@ -384,7 +407,7 @@ struct kinfo_sigtramp32 {
 	uint32_t ksigtramp_spare[4];
 };
 
-struct kld32_file_stat_1 {
+struct kld_file_stat_1_32 {
 	int	version;	/* set to sizeof(struct kld_file_stat_1) */
 	char	name[MAXPATHLEN];
 	int	refs;
@@ -393,7 +416,7 @@ struct kld32_file_stat_1 {
 	uint32_t size;		/* size in bytes */
 };
 
-struct kld32_file_stat {
+struct kld_file_stat32 {
 	int	version;	/* set to sizeof(struct kld_file_stat) */
 	char	name[MAXPATHLEN];
 	int	refs;
@@ -433,11 +456,6 @@ struct ptrace_coredump32 {
 	int		pc_fd;
 	uint32_t	pc_flags;
 	uint32_t	pc_limit1, pc_limit2;
-};
-
-struct spacectl_range32 {
-	uint32_t	r_offset1, r_offset2;
-	uint32_t	r_len1, r_len2;
 };
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */

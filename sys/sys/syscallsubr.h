@@ -81,6 +81,8 @@ struct mmap_req {
 
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    size_t buflen, size_t path_max);
+int	kern_abort2(struct thread *td, const char *why, int nargs,
+	    void **uargs);
 int	kern_accept(struct thread *td, int s, struct sockaddr **name,
 	    socklen_t *namelen, struct file **fp);
 int	kern_accept4(struct thread *td, int s, struct sockaddr **name,
@@ -143,13 +145,15 @@ int	kern_fhopen(struct thread *td, const struct fhandle *u_fhp, int flags);
 int	kern_fhstat(struct thread *td, fhandle_t fh, struct stat *buf);
 int	kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf);
 int	kern_fpathconf(struct thread *td, int fd, int name, long *valuep);
+int	kern_freebsd11_getfsstat(struct thread *td,
+	    struct freebsd11_statfs *ubuf, long bufsize, int mode);
 int	kern_fstat(struct thread *td, int fd, struct stat *sbp);
 int	kern_fstatfs(struct thread *td, int fd, struct statfs *buf);
 int	kern_fsync(struct thread *td, int fd, bool fullsync);
 int	kern_ftruncate(struct thread *td, int fd, off_t length);
-int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
+int	kern_futimes(struct thread *td, int fd, const struct timeval *tptr,
 	    enum uio_seg tptrseg);
-int	kern_futimens(struct thread *td, int fd, struct timespec *tptr,
+int	kern_futimens(struct thread *td, int fd, const struct timespec *tptr,
 	    enum uio_seg tptrseg);
 int	kern_getdirentries(struct thread *td, int fd, char *buf, size_t count,
 	    off_t *basep, ssize_t *residp, enum uio_seg bufseg);
@@ -189,7 +193,7 @@ int	kern_linkat(struct thread *td, int fd1, int fd2, const char *path1,
 int	kern_listen(struct thread *td, int s, int backlog);
 int	kern_lseek(struct thread *td, int fd, off_t offset, int whence);
 int	kern_lutimes(struct thread *td, const char *path, enum uio_seg pathseg,
-	    struct timeval *tptr, enum uio_seg tptrseg);
+	    const struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_madvise(struct thread *td, uintptr_t addr, size_t len, int behav);
 int	kern_mincore(struct thread *td, uintptr_t addr, size_t len, char *vec);
 int	kern_minherit(struct thread *td, uintptr_t addr, size_t len,
@@ -333,10 +337,11 @@ int	kern_truncate(struct thread *td, const char *path,
 int	kern_funlinkat(struct thread *td, int dfd, const char *path, int fd,
 	    enum uio_seg pathseg, int flag, ino_t oldinum);
 int	kern_utimesat(struct thread *td, int fd, const char *path,
-	    enum uio_seg pathseg, struct timeval *tptr, enum uio_seg tptrseg);
+	    enum uio_seg pathseg, const struct timeval *tptr,
+	    enum uio_seg tptrseg);
 int	kern_utimensat(struct thread *td, int fd, const char *path,
-	    enum uio_seg pathseg, struct timespec *tptr, enum uio_seg tptrseg,
-	    int flag);
+	    enum uio_seg pathseg, const struct timespec *tptr,
+	    enum uio_seg tptrseg, int flag);
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
 int	kern_wait6(struct thread *td, enum idtype idtype, id_t id, int *status,

@@ -282,9 +282,6 @@ linux_name_to_handle_at(struct thread *td,
 
 	if (args->flags & ~valid_flags)
 		return (EINVAL);
-	if (args->flags & LINUX_AT_EMPTY_PATH)
-		/* XXX: not supported yet */
-		return (EOPNOTSUPP);
 
 	fd = args->dirfd;
 	if (fd == LINUX_AT_FDCWD)
@@ -293,6 +290,8 @@ linux_name_to_handle_at(struct thread *td,
 	bsd_flags = 0;
 	if (!(args->flags & LINUX_AT_SYMLINK_FOLLOW))
 		bsd_flags |= AT_SYMLINK_NOFOLLOW;
+	if ((args->flags & LINUX_AT_EMPTY_PATH) != 0)
+		bsd_flags |= AT_EMPTY_PATH;
 
 	if (!LUSECONVPATH(td)) {
 		error = kern_getfhat(td, bsd_flags, fd, args->name,
@@ -1170,9 +1169,9 @@ linux_linkat(struct thread *td, struct linux_linkat_args *args)
 	if (args->flag & ~(LINUX_AT_SYMLINK_FOLLOW | LINUX_AT_EMPTY_PATH))
 		return (EINVAL);
 
-	flag = (args->flag & LINUX_AT_SYMLINK_FOLLOW) == 0 ? AT_SYMLINK_FOLLOW :
+	flag = (args->flag & LINUX_AT_SYMLINK_FOLLOW) != 0 ? AT_SYMLINK_FOLLOW :
 	    0;
-	flag |= (args->flag & LINUX_AT_EMPTY_PATH) == 0 ? AT_EMPTY_PATH : 0;
+	flag |= (args->flag & LINUX_AT_EMPTY_PATH) != 0 ? AT_EMPTY_PATH : 0;
 
 	olddfd = (args->olddfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->olddfd;
 	newdfd = (args->newdfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->newdfd;

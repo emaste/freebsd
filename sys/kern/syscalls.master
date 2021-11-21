@@ -244,7 +244,7 @@
 28	AUE_SENDMSG	STD|CAPENABLED {
 		int sendmsg(
 		    int s,
-		    _In_ struct msghdr *msg,
+		    _In_ const struct msghdr *msg,
 		    int flags
 		);
 	}
@@ -388,7 +388,7 @@
 	}
 53	AUE_SIGALTSTACK	STD|CAPENABLED {
 		int sigaltstack(
-		    _In_opt_ stack_t *ss,
+		    _In_opt_ const stack_t *ss,
 		    _Out_opt_ stack_t *oss
 		);
 	}
@@ -501,7 +501,7 @@
 	}
 74	AUE_MPROTECT	STD|CAPENABLED {
 		int mprotect(
-		    _In_ void *addr,
+		    _In_ const void *addr,
 		    size_t len,
 		    int prot
 		);
@@ -531,7 +531,7 @@
 80	AUE_SETGROUPS	STD {
 		int setgroups(
 		    int gidsetsize,
-		    _In_reads_(gidsetsize) gid_t *gidset
+		    _In_reads_(gidsetsize) const gid_t *gidset
 		);
 	}
 81	AUE_GETPGRP	STD|CAPENABLED {
@@ -545,8 +545,8 @@
 	}
 83	AUE_SETITIMER	STD|CAPENABLED {
 		int setitimer(
-		    u_int which,
-		    _In_ struct itimerval *itv,
+		    int which,
+		    _In_ const struct itimerval *itv,
 		    _Out_opt_ struct itimerval *oitv
 		);
 	}
@@ -560,7 +560,7 @@
 	}
 86	AUE_GETITIMER	STD|CAPENABLED {
 		int getitimer(
-		    u_int which,
+		    int which,
 		    _Out_ struct itimerval *itv
 		);
 	}
@@ -628,14 +628,14 @@
 		int connect(
 		    int s,
 		    _In_reads_bytes_(namelen) const struct sockaddr *name,
-		    int namelen
+		    __socklen_t namelen
 		);
 	}
 99	AUE_ACCEPT	COMPAT|CAPENABLED {
 		int accept(
 		    int s,
 		    _Out_writes_bytes_opt_(*anamelen) struct sockaddr *name,
-		    int *anamelen
+		    __socklen_t *anamelen
 		);
 	}
 100	AUE_GETPRIORITY	STD|CAPENABLED {
@@ -669,7 +669,7 @@
 		int bind(
 		    int s,
 		    _In_reads_bytes_(namelen) const struct sockaddr *name,
-		    int namelen
+		    __socklen_t namelen
 		);
 	}
 105	AUE_SETSOCKOPT	STD|CAPENABLED {
@@ -678,7 +678,7 @@
 		    int level,
 		    int name,
 		    _In_reads_bytes_opt_(valsize) const void *val,
-		    int valsize
+		    __socklen_t valsize
 		);
 	}
 106	AUE_LISTEN	STD|CAPENABLED {
@@ -728,7 +728,7 @@
 114	AUE_SENDMSG	COMPAT|CAPENABLED {
 		int sendmsg(
 		    int s,
-		    _In_ const void *msg,
+		    _In_ const struct omsghdr *msg,
 		    int flags
 		);
 	}
@@ -751,7 +751,7 @@
 		    int level,
 		    int name,
 		    _Out_writes_bytes_opt_(*avalsize) void *val,
-		    _Inout_  int *avalsize
+		    _Inout_ __socklen_t *avalsize
 		);
 	}
 119	AUE_NULL	RESERVED
@@ -771,8 +771,8 @@
 	}
 122	AUE_SETTIMEOFDAY	STD {
 		int settimeofday(
-		    _In_ struct timeval *tv,
-		    _In_opt_ struct timezone *tzp
+		    _In_ const struct timeval *tv,
+		    _In_opt_ const struct timezone *tzp
 		);
 	}
 123	AUE_FCHOWN	STD|CAPENABLED {
@@ -795,7 +795,7 @@
 		    size_t len,
 		    int flags,
 		    _Out_writes_bytes_(*fromlenaddr) struct sockaddr *from,
-		    _Inout_ int *fromlenaddr
+		    _Inout_ __socklen_t *fromlenaddr
 		);
 	} recvfrom recvfrom_args int
 126	AUE_SETREUID	STD|CAPENABLED {
@@ -847,7 +847,7 @@
 		    size_t len,
 		    int flags,
 		    _In_reads_bytes_opt_(tolen) const struct sockaddr *to,
-		    int tolen
+		    __socklen_t tolen
 		);
 	}
 134	AUE_SHUTDOWN	STD|CAPENABLED {
@@ -878,13 +878,13 @@
 138	AUE_UTIMES	STD {
 		int utimes(
 		    _In_z_ const char *path,
-		    _In_ struct timeval *tptr
+		    _In_ const struct timeval *tptr
 		);
 	}
 139	AUE_NULL	OBSOL	4.2 sigreturn
 140	AUE_ADJTIME	STD {
 		int adjtime(
-		    _In_ struct timeval *delta,
+		    _In_ const struct timeval *delta,
 		    _Out_opt_ struct timeval *olddelta
 		);
 	}
@@ -892,7 +892,7 @@
 		int getpeername(
 		    int fdes,
 		    _Out_writes_bytes_(*alen) struct sockaddr *asa,
-		    _Inout_opt_ int *alen
+		    _Inout_opt_ __socklen_t *alen
 		);
 	}
 142	AUE_SYSCTL	COMPAT|CAPENABLED {
@@ -939,7 +939,7 @@
 		int getsockname(
 		    int fdec,
 		    _Out_writes_bytes_(*alen) struct sockaddr *asa,
-		    _Inout_ int *alen
+		    _Inout_ __socklen_t *alen
 		);
 	} getsockname getsockname_args int
 151-153	AUE_NULL	RESERVED
@@ -1219,7 +1219,7 @@
 206	AUE_FUTIMES	STD|CAPENABLED {
 		int futimes(
 		    int fd,
-		    _In_reads_(2) struct timeval *tptr
+		    _In_reads_(2) const struct timeval *tptr
 		);
 	}
 207	AUE_GETPGID	STD|CAPENABLED {
@@ -1480,7 +1480,7 @@
 276	AUE_LUTIMES	STD {
 		int lutimes(
 		    _In_z_ const char *path,
-		    _In_ struct timeval *tptr
+		    _In_ const struct timeval *tptr
 		);
 	}
 277	AUE_NULL	OBSOL	netbsd_msync
@@ -1783,14 +1783,14 @@
 345	AUE_SIGWAIT	STD|CAPENABLED {
 		int sigtimedwait(
 		    _In_ const sigset_t *set,
-		    _Out_opt_ siginfo_t *info,
+		    _Out_opt_ struct siginfo *info,
 		    _In_opt_ const struct timespec *timeout
 		);
 	}
 346	AUE_NULL	STD|CAPENABLED {
 		int sigwaitinfo(
 		    _In_ const sigset_t *set,
-		    _Out_opt_ siginfo_t *info
+		    _Out_opt_ struct siginfo *info
 		);
 	}
 347	AUE_ACL_GET_FILE	STD {
@@ -2492,7 +2492,7 @@
 		    int sd,
 		    _In_reads_bytes_(mlen) void *msg,
 		    int mlen,
-		    _In_reads_bytes_(tolen) struct sockaddr *to,
+		    _In_reads_bytes_(tolen) const struct sockaddr *to,
 		    __socklen_t tolen,
 		    _In_opt_ struct sctp_sndrcvinfo *sinfo,
 		    int flags
@@ -2503,7 +2503,7 @@
 		    int sd,
 		    _In_reads_(iovlen) struct iovec *iov,
 		    int iovlen,
-		    _In_reads_bytes_(tolen) struct sockaddr *to,
+		    _In_reads_bytes_(tolen) const struct sockaddr *to,
 		    __socklen_t tolen,
 		    _In_opt_ struct sctp_sndrcvinfo *sinfo,
 		    int flags
@@ -2666,7 +2666,7 @@
 		int futimesat(
 		    int fd,
 		    _In_z_ const char *path,
-		    _In_reads_(2) struct timeval *times
+		    _In_reads_(2) const struct timeval *times
 		);
 	}
 495	AUE_LINKAT	STD|CAPENABLED {
@@ -2920,7 +2920,7 @@
 		    _Out_opt_ int *status,
 		    int options,
 		    _Out_opt_ struct __wrusage *wrusage,
-		    _Out_opt_ siginfo_t *info
+		    _Out_opt_ struct siginfo *info
 		);
 	}
 533	AUE_CAP_RIGHTS_LIMIT	STD|CAPENABLED {
@@ -2960,7 +2960,7 @@
 		    int fd,
 		    int s,
 		    _In_reads_bytes_(namelen) const struct sockaddr *name,
-		    int namelen
+		    __socklen_t namelen
 		);
 	}
 539	AUE_CONNECTAT	STD|CAPENABLED {
@@ -2968,7 +2968,7 @@
 		    int fd,
 		    int s,
 		    _In_reads_bytes_(namelen) const struct sockaddr *name,
-		    int namelen
+		    __socklen_t namelen
 		);
 	}
 540	AUE_CHFLAGSAT	STD|CAPENABLED {
@@ -3017,14 +3017,14 @@
 546	AUE_FUTIMES	STD|CAPENABLED {
 		int futimens(
 		    int fd,
-		    _In_reads_(2) struct timespec *times
+		    _In_reads_(2) const struct timespec *times
 		);
 	}
 547	AUE_FUTIMESAT	STD|CAPENABLED {
 		int utimensat(
 		    int fd,
 		    _In_z_ const char *path,
-		    _In_reads_(2) struct timespec *times,
+		    _In_reads_(2) const struct timespec *times,
 		    int flag
 		);
 	}
