@@ -60,7 +60,22 @@ local config = {
 	abi_type_suffix = "",
 	abi_flags = "",
 	abi_flags_mask = 0,
+	abi_headers = "",
+	abi_intptr_t = "intptr_t",
+	abi_size_t = "size_t",
+	abi_u_long = "u_long",
+	abi_long = "long",
+	abi_semid_t = "semid_t",
+	abi_ptr_array_t = "",
 	ptr_intptr_t_cast = "intptr_t",
+	syscall_abi_change = "",
+	sys_abi_change = {},
+	syscall_no_abi_change = "",
+	sys_no_abi_change = {},
+	obsol = "",
+	obsol_dict = {},
+	unimpl = "",
+	unimpl_dict = {},
 }
 
 local config_modified = {}
@@ -130,18 +145,43 @@ end
 local known_abi_flags = {
 	long_size = {
 		value	= 0x00000001,
-		expr	= "_Contains[a-z_]*_long_",
+		exprs	= {
+			"_Contains[a-z_]*_long_",
+			"^long [a-z0-9_]+$",
+			"long [*]",
+			"size_t [*]",
+			-- semid_t is not included because it is only used
+			-- as an argument or written out individually and
+			-- said writes are handled by the ksem framework.
+			-- Technically a sign-extension issue exists for
+			-- arguments, but because semid_t is actually a file
+			-- descriptor negative 32-bit values are invalid
+			-- regardless of sign-extension.
+		},
 	},
 	time_t_size = {
 		value	= 0x00000002,
-		expr	= "_Contains[a-z_]*_timet_/",
+		exprs	= {
+			"_Contains[a-z_]*_timet_",
+		},
 	},
 	pointer_args = {
 		value	= 0x00000004,
 	},
 	pointer_size = {
 		value	= 0x00000008,
-		expr	= "_Contains[a-z_]*_ptr_",
+		exprs	= {
+			"_Contains[a-z_]*_ptr_",
+			"[*][*]",
+		},
+	},
+	pair_64bit = {
+		value	= 0x00000010,
+		exprs	= {
+			"^dev_t[ ]*$",
+			"^id_t[ ]*$",
+			"^off_t[ ]*$",
+		},
 	},
 }
 
@@ -341,6 +381,32 @@ local function process_abi_flags()
 	config["abi_flags_mask"] = mask
 end
 
+local function process_obsol()
+	local obsol = config["obsol"]
+	for syscall in obsol:gmatch("([^ ]+)") do
+		config["obsol_dict"][syscall] = true
+	end
+end
+
+local function process_unimpl()
+	local unimpl = config["unimpl"]
+	for syscall in unimpl:gmatch("([^ ]+)") do
+		config["unimpl_dict"][syscall] = true
+	end
+end
+
+local function process_syscall_abi_change()
+	local changes_abi = config["syscall_abi_change"]
+	for syscall in changes_abi:gmatch("([^ ]+)") do
+		config["sys_abi_change"][syscall] = true
+	end
+
+	local no_changes = config["syscall_no_abi_change"]
+	for syscall in no_changes:gmatch("([^ ]+)") do
+		config["sys_no_abi_change"][syscall] = true
+	end
+end
+
 local function abi_changes(name)
 	if known_abi_flags[name] == nil then
 		abort(1, "abi_changes: unknown flag: " .. name)
@@ -391,9 +457,20 @@ local function write_line_pfile(tmppat, line)
 	end
 end
 
+-- Check both literal intptr_t and the abi version because this needs
+-- to work both before and after the substitution
 local function isptrtype(type)
-	return type:find("*") or type:find("caddr_t")
-	    -- XXX NOTYET: or type:find("intptr_t")
+	return type:find("*") or type:find("caddr_t") or
+	    type:find("intptr_t") or type:find(config['abi_intptr_t'])
+end
+
+local function isptrarraytype(type)
+	return type:find("[*][*]") or type:find("[*][ ]*const[ ]*[*]")
+end
+
+-- Find types that are always 64-bits wide
+local function is64bittype(type)
+	return type:find("^dev_t[ ]*$") or type:find("^id_t[ ]*$") or type:find("^off_t[ ]*$")
 end
 
 local process_syscall_def
@@ -430,6 +507,16 @@ local pattern_table = {
 			write_line_pfile('syscompat[0-9]*$', line)
 			write_line('sysnames', line)
 			write_line_pfile('systrace.*', line)
+		end,
+	},
+	{
+		dump_prevline = true,
+		pattern = "%%ABI_HEADERS%%",
+		process = function()
+			if config['abi_headers'] ~= "" then
+				line = config['abi_headers'] .. "\n"
+				write_line('sysinc', line)
+			end
 		end,
 	},
 	{
@@ -545,6 +632,7 @@ local function align_sysent_comment(col)
 end
 
 local function strip_arg_annotations(arg)
+	arg = arg:gsub("_Contains_[^ ]*[_)] ?", "")
 	arg = arg:gsub("_In[^ ]*[_)] ?", "")
 	arg = arg:gsub("_Out[^ ]*[_)] ?", "")
 	return trim(arg)
@@ -552,9 +640,13 @@ end
 
 local function check_abi_changes(arg)
 	for k, v in pairs(known_abi_flags) do
-		local expr = v["expr"]
-		if abi_changes(k) and expr ~= nil and arg:find(expr) then
-			return true
+		local exprs = v["exprs"]
+		if abi_changes(k) and exprs ~= nil then
+			for _, e in pairs(exprs) do
+				if arg:find(e) then
+					return true
+				end
+			end
 		end
 	end
 
@@ -563,9 +655,11 @@ end
 
 local function process_args(args)
 	local funcargs = {}
+	local changes_abi = false
 
 	for arg in args:gmatch("([^,]+)") do
-		local abi_change = not isptrtype(arg) or check_abi_changes(arg)
+		local arg_abi_change = check_abi_changes(arg)
+		changes_abi = changes_abi or arg_abi_change
 
 		arg = strip_arg_annotations(arg)
 
@@ -578,24 +672,61 @@ local function process_args(args)
 			goto out
 		end
 
+		-- is64bittype() needs a bare type so check it after argname
+		-- is removed
+		changes_abi = changes_abi or (abi_changes("pair_64bit") and is64bittype(argtype))
+
+		argtype = argtype:gsub("intptr_t", config["abi_intptr_t"])
+		argtype = argtype:gsub("semid_t", config["abi_semid_t"])
+		if isptrtype(argtype) then
+			argtype = argtype:gsub("size_t", config["abi_size_t"])
+			argtype = argtype:gsub("^long", config["abi_long"]);
+			argtype = argtype:gsub("^u_long", config["abi_u_long"]);
+			argtype = argtype:gsub("^const u_long", "const " .. config["abi_u_long"]);
+		elseif argtype:find("^long$") then
+			argtype = config["abi_long"]
+		end
+		if isptrarraytype(argtype) and config["abi_ptr_array_t"] ~= "" then
+			-- `* const *` -> `**`
+			argtype = argtype:gsub("[*][ ]*const[ ]*[*]", "**")
+			-- e.g., `struct aiocb **` -> `uint32_t *`
+			argtype = argtype:gsub("[^*]*[*]", config["abi_ptr_array_t"] .. " ", 1)
+		end
+
 		-- XX TODO: Forward declarations? See: sysstubfwd in CheriBSD
-		if abi_change then
+		if arg_abi_change then
 			local abi_type_suffix = config["abi_type_suffix"]
-			argtype = argtype:gsub("_native ", "")
 			argtype = argtype:gsub("(struct [^ ]*)", "%1" ..
 			    abi_type_suffix)
 			argtype = argtype:gsub("(union [^ ]*)", "%1" ..
 			    abi_type_suffix)
 		end
 
-		funcargs[#funcargs + 1] = {
-			type = argtype,
-			name = argname,
-		}
+		if abi_changes("pair_64bit") and is64bittype(argtype) then
+			if #funcargs % 2 == 1 then
+				funcargs[#funcargs + 1] = {
+					type = "int",
+					name = "_pad",
+				}
+			end
+			funcargs[#funcargs + 1] = {
+				type = "uint32_t",
+				name = argname .. "1",
+			}
+			funcargs[#funcargs + 1] = {
+				type = "uint32_t",
+				name = argname .. "2",
+			}
+		else
+			funcargs[#funcargs + 1] = {
+				type = argtype,
+				name = argname,
+			}
+		end
 	end
 
 	::out::
-	return funcargs
+	return funcargs, changes_abi
 end
 
 local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
@@ -626,45 +757,62 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		write_line("systrace", string.format(
 		    "\t\tstruct %s *p = params;\n", argalias))
 
-		local argtype, argname
+
+		local argtype, argname, desc, padding
+		padding = ""
 		for idx, arg in ipairs(funcargs) do
 			argtype = arg["type"]
 			argname = arg["name"]
 
 			argtype = trim(argtype:gsub("__restrict$", ""), nil)
+			if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+				write_line("systracetmp", "#ifdef PAD64_REQUIRED\n")
+			end
 			-- Pointer arg?
 			if argtype:find("*") then
-				write_line("systracetmp", string.format(
-				    "\t\tcase %d:\n\t\t\tp = \"userland %s\";\n\t\t\tbreak;\n",
-				    idx - 1, argtype))
+				desc = "userland " .. argtype
 			else
-				write_line("systracetmp", string.format(
-				    "\t\tcase %d:\n\t\t\tp = \"%s\";\n\t\t\tbreak;\n",
-				    idx - 1, argtype))
+				desc = argtype;
+			end
+			write_line("systracetmp", string.format(
+			    "\t\tcase %d%s:\n\t\t\tp = \"%s\";\n\t\t\tbreak;\n",
+			    idx - 1, padding, desc))
+			if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+				padding = " - _P_"
+				write_line("systracetmp", "#define _P_ 0\n#else\n#define _P_ 1\n#endif\n")
 			end
 
 			if isptrtype(argtype) then
 				write_line("systrace", string.format(
-				    "\t\tuarg[%d] = (%s)p->%s; /* %s */\n",
-				    idx - 1, config["ptr_intptr_t_cast"],
+				    "\t\tuarg[a++] = (%s)p->%s; /* %s */\n",
+				    config["ptr_intptr_t_cast"],
 				    argname, argtype))
 			elseif argtype == "union l_semun" then
 				write_line("systrace", string.format(
-				    "\t\tuarg[%d] = p->%s.buf; /* %s */\n",
-				    idx - 1, argname, argtype))
+				    "\t\tuarg[a++] = p->%s.buf; /* %s */\n",
+				    argname, argtype))
 			elseif argtype:sub(1,1) == "u" or argtype == "size_t" then
 				write_line("systrace", string.format(
-				    "\t\tuarg[%d] = p->%s; /* %s */\n",
-				    idx - 1, argname, argtype))
+				    "\t\tuarg[a++] = p->%s; /* %s */\n",
+				    argname, argtype))
 			else
+				if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+					write_line("systrace", "#ifdef PAD64_REQUIRED\n")
+				end
 				write_line("systrace", string.format(
-				    "\t\tiarg[%d] = p->%s; /* %s */\n",
-				    idx - 1, argname, argtype))
+				    "\t\tiarg[a++] = p->%s; /* %s */\n",
+				    argname, argtype))
+				if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+					write_line("systrace", "#endif\n")
+				end
 			end
 		end
 
 		write_line("systracetmp",
 		    "\t\tdefault:\n\t\t\tbreak;\n\t\t};\n")
+		if padding ~= "" then
+			write_line("systracetmp", "#undef _P_\n\n")
+		end
 
 		write_line("systraceret", string.format([[
 		if (ndx == 0 || ndx == 1)
@@ -683,11 +831,17 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 			    argalias))
 			for _, v in ipairs(funcargs) do
 				local argname, argtype = v["name"], v["type"]
+				if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+					write_line("sysarg", "#ifdef PAD64_REQUIRED\n")
+				end
 				write_line("sysarg", string.format(
 				    "\tchar %s_l_[PADL_(%s)]; %s %s; char %s_r_[PADR_(%s)];\n",
 				    argname, argtype,
 				    argtype, argname,
 				    argname, argtype))
+				if argtype == "int" and argname == "_pad" and abi_changes("pair_64bit") then
+					write_line("sysarg", "#endif\n")
+				end
 			end
 			write_line("sysarg", "};\n")
 		else
@@ -1021,6 +1175,24 @@ process_syscall_def = function(line)
 
 	funcname = trim(funcname)
 
+	if config["obsol_dict"][funcname] then
+		local compat_prefix = ""
+		for _, v in pairs(compat_options) do
+			if flags & v["mask"] ~= 0 then
+				compat_prefix = v["prefix"]
+				goto obsol_compat_done
+			end
+		end
+		::obsol_compat_done::
+		args = nil
+		flags = known_flags['OBSOL']
+		funcomment = compat_prefix .. funcname
+	end
+	if config["unimpl_dict"][funcname] then
+		flags = known_flags['UNIMPL']
+		funcomment = funcname
+	end
+
 	sysflags = "0"
 
 	-- NODEF events do not get audited
@@ -1038,30 +1210,50 @@ process_syscall_def = function(line)
 	end
 
 	local funcargs = {}
+	local changes_abi = false
 	if args ~= nil then
-		funcargs = process_args(args)
+		funcargs, changes_abi = process_args(args)
 	end
+	if config["sys_no_abi_change"][funcname] then
+		changes_abi = false
+	end
+	local noproto = config["abi_flags"] ~= "" and not changes_abi
 
 	local argprefix = ''
+	local funcprefix = ''
 	if abi_changes("pointer_args") then
 		for _, v in ipairs(funcargs) do
 			if isptrtype(v["type"]) then
-				-- argalias should be:
-				--   COMPAT_PREFIX + ABI Prefix + funcname
-				argprefix = config['abi_func_prefix']
-				funcalias = config['abi_func_prefix'] ..
-				    funcname
+				if config["sys_no_abi_change"][funcname] then
+					print("WARNING: " .. funcname ..
+					    " in syscall_no_abi_change, but pointers args are present")
+				end
+				changes_abi = true
 				goto ptrfound
 			end
 		end
 		::ptrfound::
+	end
+	if config["sys_abi_change"][funcname] then
+		changes_abi = true
+	end
+	if changes_abi then
+		-- argalias should be:
+		--   COMPAT_PREFIX + ABI Prefix + funcname
+		argprefix = config['abi_func_prefix']
+		funcprefix = config['abi_func_prefix']
+		funcalias = funcprefix .. funcname
+		noproto = false
+	end
+	if funcname ~= nil then
+		funcname = funcprefix .. funcname
 	end
 	if funcalias == nil or funcalias == "" then
 		funcalias = funcname
 	end
 
 	if argalias == nil and funcname ~= nil then
-		argalias = argprefix .. funcname .. "_args"
+		argalias = funcname .. "_args"
 		for _, v in pairs(compat_options) do
 			local mask = v["mask"]
 			if (flags & mask) ~= 0 then
@@ -1079,8 +1271,16 @@ process_syscall_def = function(line)
 	local ncompatflags = get_mask({"STD", "NODEF", "NOARGS", "NOPROTO",
 	    "NOSTD"})
 	local compatflags = get_mask_pat("COMPAT.*")
-	-- Now try compat...
-	if flags & compatflags ~= 0 then
+	if noproto then
+		flags = flags | known_flags["NOPROTO"];
+	end
+	if flags & known_flags["OBSOL"] ~= 0 then
+		handle_obsol(sysnum, funcname, funcomment)
+	elseif flags & known_flags["RESERVED"] ~= 0 then
+		handle_reserved(sysnum, sysstart, sysend)
+	elseif flags & known_flags["UNIMPL"] ~= 0 then
+		handle_unimpl(sysnum, sysstart, sysend, funcomment)
+	elseif flags & compatflags ~= 0 then
 		if flags & known_flags['STD'] ~= 0 then
 			abort(1, "Incompatible COMPAT/STD: " .. line)
 		end
@@ -1090,12 +1290,6 @@ process_syscall_def = function(line)
 		handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		    auditev, syscallret, funcname, funcalias, funcargs,
 		    argalias)
-	elseif flags & known_flags["OBSOL"] ~= 0 then
-		handle_obsol(sysnum, funcname, funcomment)
-	elseif flags & known_flags["RESERVED"] ~= 0 then
-		handle_reserved(sysnum, sysstart, sysend)
-	elseif flags & known_flags["UNIMPL"] ~= 0 then
-		handle_unimpl(sysnum, sysstart, sysend, funcomment)
 	else
 		abort(1, "Bad flags? " .. line)
 	end
@@ -1144,6 +1338,9 @@ elseif config["capenabled"] ~= "" then
 end
 process_compat()
 process_abi_flags()
+process_syscall_abi_change()
+process_obsol()
+process_unimpl()
 
 if not lfs.mkdir(tmpspace) then
 	error("Failed to create tempdir " .. tmpspace)
@@ -1224,6 +1421,20 @@ struct thread;
 
 ]], generated_tag, config['os_id_keyword'], config['sysproto_h'],
     config['sysproto_h']))
+if abi_changes("pair_64bit") then
+	write_line("sysarg", string.format([[
+#if !defined(PAD64_REQUIRED) && !defined(__amd64__)
+#define PAD64_REQUIRED
+#endif
+]]))
+end
+if abi_changes("pair_64bit") then
+	write_line("systrace", string.format([[
+#if !defined(PAD64_REQUIRED) && !defined(__amd64__)
+#define PAD64_REQUIRED
+#endif
+]]))
+end
 for _, v in pairs(compat_options) do
 	write_line(v["tmp"], string.format("\n#ifdef %s\n\n", v["definition"]))
 end
@@ -1264,6 +1475,7 @@ static void
 systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 {
 	int64_t *iarg = (int64_t *)uarg;
+	int a = 0;
 	switch (sysnum) {
 ]], generated_tag, config['os_id_keyword']))
 

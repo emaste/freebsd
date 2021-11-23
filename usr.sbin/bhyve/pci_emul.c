@@ -33,11 +33,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -46,11 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <strings.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <sysexits.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
-#include <machine/cpufunc.h>
-#include <machine/specialreg.h>
 #include <vmmapi.h>
 
 #include "acpi.h"
@@ -72,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #define	MAXBUSES	(PCI_BUSMAX + 1)
 #define MAXSLOTS	(PCI_SLOTMAX + 1)
 #define	MAXFUNCS	(PCI_FUNCMAX + 1)
+
+#define GB		(1024 * 1024 * 1024UL)
 
 struct funcinfo {
 	nvlist_t *fi_config;
@@ -113,7 +112,13 @@ static uint64_t pci_emul_memlim64;
 #define	PCI_EMUL_ECFG_SIZE	(MAXBUSES * 1024 * 1024)    /* 1MB per bus */
 SYSRES_MEM(PCI_EMUL_ECFG_BASE, PCI_EMUL_ECFG_SIZE);
 
+/*
+ * OVMF always uses 0xC0000000 as base address for 32 bit PCI MMIO. Don't
+ * change this address without changing it in OVMF.
+ */
+#define PCI_EMUL_MEMBASE32 0xC0000000
 #define	PCI_EMUL_MEMLIMIT32	PCI_EMUL_ECFG_BASE
+#define PCI_EMUL_MEMSIZE64	(32*GB)
 
 static struct pci_devemu *pci_emul_finddev(const char *name);
 static void pci_lintr_route(struct pci_devinst *pi);
@@ -1155,25 +1160,18 @@ init_pci(struct vmctx *ctx)
 	nvlist_t *nvl;
 	const char *emul;
 	size_t lowmem;
-	uint64_t cpu_maxphysaddr, pci_emul_memresv64;
-	u_int regs[4];
-	int bus, slot, func, error;
+	int bus, slot, func;
+	int error;
+
+	if (vm_get_lowmem_limit(ctx) > PCI_EMUL_MEMBASE32)
+		errx(EX_OSERR, "Invalid lowmem limit");
 
 	pci_emul_iobase = PCI_EMUL_IOBASE;
-	pci_emul_membase32 = vm_get_lowmem_limit(ctx);
+	pci_emul_membase32 = PCI_EMUL_MEMBASE32;
 
-	do_cpuid(0x80000008, regs);
-	cpu_maxphysaddr = 1ULL << (regs[0] & 0xff);
-	if (cpu_maxphysaddr > VM_MAXUSER_ADDRESS_LA48)
-		cpu_maxphysaddr = VM_MAXUSER_ADDRESS_LA48;
-	pci_emul_memresv64 = cpu_maxphysaddr / 4;
-	/*
-	 * Max power of 2 that is less then
-	 * cpu_maxphysaddr - pci_emul_memresv64.
-	 */
-	pci_emul_membase64 = 1ULL << (flsl(cpu_maxphysaddr -
-	    pci_emul_memresv64) - 1);
-	pci_emul_memlim64 = cpu_maxphysaddr;
+	pci_emul_membase64 = 4*GB + vm_get_highmem_size(ctx);
+	pci_emul_membase64 = roundup2(pci_emul_membase64, PCI_EMUL_MEMSIZE64);
+	pci_emul_memlim64 = pci_emul_membase64 + PCI_EMUL_MEMSIZE64;
 
 	for (bus = 0; bus < MAXBUSES; bus++) {
 		snprintf(node_name, sizeof(node_name), "pci.%d", bus);
@@ -1274,8 +1272,8 @@ init_pci(struct vmctx *ctx)
 	/*
 	 * The guest physical memory map looks like the following:
 	 * [0,		    lowmem)		guest system memory
-	 * [lowmem,	    lowmem_limit)	memory hole (may be absent)
-	 * [lowmem_limit,   0xE0000000)		PCI hole (32-bit BAR allocation)
+	 * [lowmem,	    0xC0000000)		memory hole (may be absent)
+	 * [0xC0000000,     0xE0000000)		PCI hole (32-bit BAR allocation)
 	 * [0xE0000000,	    0xF0000000)		PCI extended config window
 	 * [0xF0000000,	    4GB)		LAPIC, IOAPIC, HPET, firmware
 	 * [4GB,	    4GB + highmem)

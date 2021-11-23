@@ -593,8 +593,8 @@ cfginit(struct vmctx *ctx, struct pci_devinst *pi, int bus, int slot, int func)
 		goto done;
 	}
 
-	pci_set_cfgdata16(pi, PCIR_COMMAND, read_config(&sc->psc_sel,
-	    PCIR_COMMAND, 2));
+	write_config(&sc->psc_sel, PCIR_COMMAND, 2,
+	    pci_get_cfgdata16(pi, PCIR_COMMAND));
 
 	error = 0;				/* success */
 done:
@@ -744,7 +744,8 @@ passthru_cfgread(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	/*
 	 * PCI BARs and MSI capability is emulated.
 	 */
-	if (bar_access(coff) || msicap_access(sc, coff))
+	if (bar_access(coff) || msicap_access(sc, coff) ||
+	    msixcap_access(sc, coff))
 		return (-1);
 
 #ifdef LEGACY_SUPPORT
