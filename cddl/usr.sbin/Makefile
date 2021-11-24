@@ -15,9 +15,7 @@ SUBDIR.${MK_TESTS}+= tests
 .if ${MK_ZFS} != "no"
 _zdb=	zdb
 _zhack=	zhack
-. if ${MK_CXX} != "no"
 _zfsd=	zfsd
-. endif
 .endif
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"

@@ -85,7 +85,6 @@ __DEFAULT_YES_OPTIONS = \
     CROSS_COMPILER \
     CRYPT \
     CUSE \
-    CXX \
     CXGBETOOL \
     DIALOG \
     DICT \
@@ -388,15 +387,6 @@ MK_OPENSSL:=	no
 MK_OPENSSH:=	no
 MK_KERBEROS:=	no
 MK_KERBEROS_SUPPORT:=	no
-.endif
-
-.if ${MK_CXX} == "no"
-MK_CLANG:=	no
-MK_GOOGLETEST:=	no
-MK_OFED:=	no
-MK_OPENMP:=	no
-MK_PMC:=	no
-MK_TESTS:=	no
 .endif
 
 .if ${MK_DIALOG} == "no"

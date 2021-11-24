@@ -47,6 +47,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libcompat \
 	libcrypt \
 	libdevctl \
+	libdevdctl \
 	libdevinfo \
 	libdevstat \
 	libdl \
@@ -167,7 +168,6 @@ SUBDIR+=	clang
 .endif
 
 SUBDIR.${MK_CUSE}+= 	libcuse
-SUBDIR.${MK_CXX}+=	libdevdctl
 SUBDIR.${MK_TOOLCHAIN}+=libpe
 SUBDIR.${MK_DIALOG}+=	libdpv
 SUBDIR.${MK_FILE}+=	libmagic
@@ -180,7 +180,7 @@ SUBDIR.${MK_STATS}+=	libstats
 
 # The libraries under libclang_rt can only be built by clang and when we enable
 # C++ support.  Furthermore, they can only be built for certain architectures.
-.if ${COMPILER_TYPE} == "clang" && ${MK_CXX} != "no" && \
+.if ${COMPILER_TYPE} == "clang" && \
     (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "i386" || \
     ${MACHINE_CPUARCH} == "powerpc")
@@ -189,11 +189,9 @@ _libclang_rt=	libclang_rt
 .error "Requested build with sanitizers but cannot build runtime libraries!"
 .endif
 
-.if ${MK_CXX} != "no"
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
 _libcplusplus+=	libc++experimental
-.endif
 
 SUBDIR.${MK_EFI}+=	libefivar
 SUBDIR.${MK_GOOGLETEST}+=	googletest
@@ -226,7 +224,7 @@ SUBDIR.${MK_RADIUS_SUPPORT}+=	libradius
 SUBDIR.${MK_SENDMAIL}+=	libmilter libsm libsmdb libsmutil
 SUBDIR.${MK_TELNET}+=	libtelnet
 SUBDIR.${MK_TESTS_SUPPORT}+=	atf
-SUBDIR.${MK_TESTS_SUPPORT}.${MK_CXX}+=	liblutok
+SUBDIR.${MK_TESTS_SUPPORT}+=	liblutok
 SUBDIR.${MK_TESTS}+=	tests
 SUBDIR.${MK_UNBOUND}+=	libunbound
 SUBDIR.${MK_USB}+=	libusbhid libusb
