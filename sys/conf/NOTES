@@ -1515,9 +1515,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
-# esp: Emulex ESP, NCR 53C9x and QLogic FAS families based controllers
-#      including the AMD Am53C974 (found on devices such as the Tekram
-#      DC-390(T)) and the Sun ESP and FAS families of controllers
 # isp: Qlogic ISP 1020, 1040 and 1040B PCI SCSI host adapters,
 #      ISP 1240 Dual Ultra SCSI, ISP 1080 and 1280 (Dual) Ultra2,
 #      ISP 12160 Ultra3 SCSI,
@@ -1537,7 +1534,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 device		aacraid
 device		ahc
 device		ahd
-device		esp
 device		isp
 envvar		hint.isp.0.disable="1"
 envvar		hint.isp.0.role="3"
@@ -1629,30 +1625,12 @@ options 	ISP_DEFAULT_ROLES=0
 device		ciss
 
 #
-# Intel Integrated RAID controllers.
-# This driver was developed and is maintained by Intel.  Contacts
-# at Intel for this driver are
-# "Kannanthanam, Boji T" <boji.t.kannanthanam@intel.com> and
-# "Leubner, Achim" <achim.leubner@intel.com>.
-#
-device		iir
-
-#
-# Mylex AcceleRAID and eXtremeRAID controllers with v6 and later
-# firmware.  These controllers have a SCSI-like interface, and require
-# the CAM infrastructure.
-#
-device		mly
-
-#
 # Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only
 # one entry is needed; the code will find and configure all supported
 # controllers.
 #
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960
-device		amr		# AMI MegaRAID
-device		amrp		# SCSI Passthrough interface (optional, CAM req.)
 device		mfi		# LSI MegaRAID SAS
 device		mfip		# LSI MegaRAID SAS passthrough, requires CAM
 options 	MFI_DEBUG

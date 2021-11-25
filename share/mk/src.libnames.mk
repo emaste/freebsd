@@ -16,6 +16,7 @@ _PRIVATELIBS=	\
 		atf_c \
 		atf_cxx \
 		auditd \
+		bsddialog \
 		bsdstat \
 		cbor \
 		devdctl \
@@ -129,6 +130,7 @@ _LIBRARIES=	\
 		execinfo \
 		fetch \
 		figpar \
+		formw \
 		geom \
 		gpio \
 		gssapi \
@@ -261,6 +263,7 @@ _DP_80211=	sbuf bsdxml
 _DP_9p=		sbuf
 _DP_archive=	z bz2 lzma bsdxml zstd
 _DP_avl=	spl
+_DP_bsddialog=	formw ncursesw tinfow
 _DP_zstd=	pthread
 .if ${MK_BLACKLIST} != "no"
 _DP_blacklist+=	pthread
@@ -381,6 +384,7 @@ _DP_stats=	sbuf pthread
 _DP_stdthreads=	pthread
 _DP_tacplus=	md
 _DP_ncursesw=	tinfow
+_DP_formw=	ncursesw
 _DP_nvpair=	spl
 _DP_panelw=	ncursesw
 _DP_rpcsec_gss=	gssapi

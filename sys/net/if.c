@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
+ * Copyright (c) 2010 Bjoern A. Zeeb <bz@FreeBSD.org>
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -65,6 +66,10 @@
 #include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/priv.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #include <machine/stdarg.h>
 #include <vm/uma.h>
@@ -308,7 +313,7 @@ VNET_DEFINE(struct ifgrouphead, ifg_head);
 VNET_DEFINE_STATIC(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
-VNET_DEFINE(struct ifnet **, ifindex_table);
+VNET_DEFINE_STATIC(struct ifnet **, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
@@ -401,7 +406,7 @@ ifindex_alloc(void **old)
 }
 
 static void
-ifindex_free_locked(u_short idx)
+ifindex_free(u_short idx)
 {
 
 	IFNET_WLOCK_ASSERT();
@@ -410,15 +415,6 @@ ifindex_free_locked(u_short idx)
 	while (V_if_index > 0 &&
 	    V_ifindex_table[V_if_index] == NULL)
 		V_if_index--;
-}
-
-static void
-ifindex_free(u_short idx)
-{
-
-	IFNET_WLOCK();
-	ifindex_free_locked(idx);
-	IFNET_WUNLOCK();
 }
 
 static void
@@ -597,7 +593,7 @@ if_grow(void)
  * common structure will also be allocated if an allocation routine is
  * registered for the passed type.
  */
-struct ifnet *
+static struct ifnet *
 if_alloc_domain(u_char type, int numa_domain)
 {
 	struct ifnet *ifp;
@@ -631,11 +627,8 @@ if_alloc_domain(u_char type, int numa_domain)
 #endif
 	if (if_com_alloc[type] != NULL) {
 		ifp->if_l2com = if_com_alloc[type](type, ifp);
-		if (ifp->if_l2com == NULL) {
-			free(ifp, M_IFNET);
-			ifindex_free(idx);
-			return (NULL);
-		}
+		KASSERT(ifp->if_l2com, ("%s: if_com_alloc[%u] failed", __func__,
+		    type));
 	}
 
 	IF_ADDR_LOCK_INIT(ifp);
@@ -678,15 +671,16 @@ if_alloc(u_char type)
 }
 /*
  * Do the actual work of freeing a struct ifnet, and layer 2 common
- * structure.  This call is made when the last reference to an
- * interface is released.
+ * structure.  This call is made when the network epoch guarantees
+ * us that nobody holds a pointer to the interface.
  */
 static void
-if_free_internal(struct ifnet *ifp)
+if_free_deferred(epoch_context_t ctx)
 {
+	struct ifnet *ifp = __containerof(ctx, struct ifnet, if_epoch_ctx);
 
 	KASSERT((ifp->if_flags & IFF_DYING),
-	    ("if_free_internal: interface not dying"));
+	    ("%s: interface not dying", __func__));
 
 	if (if_com_free[ifp->if_alloctype] != NULL)
 		if_com_free[ifp->if_alloctype](ifp->if_l2com,
@@ -707,15 +701,6 @@ if_free_internal(struct ifnet *ifp)
 	free(ifp, M_IFNET);
 }
 
-static void
-if_destroy(epoch_context_t ctx)
-{
-	struct ifnet *ifp;
-
-	ifp = __containerof(ctx, struct ifnet, if_epoch_ctx);
-	if_free_internal(ifp);
-}
-
 /*
  * Deregister an interface and free the associated storage.
  */
@@ -725,16 +710,32 @@ if_free(struct ifnet *ifp)
 
 	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
 
+	/*
+	 * XXXGL: An interface index is really an alias to ifp pointer.
+	 * Why would we clear the alias now, and not in the deferred
+	 * context?  Indeed there is nothing wrong with some network
+	 * thread obtaining ifp via ifnet_byindex() inside the network
+	 * epoch and then dereferencing ifp while we peform if_free(),
+	 * and after if_free() finished, too.
+	 *
+	 * The reason is the VIMAGE.  For some reason it was designed
+	 * to require all sockets drained before destroying, but not all
+	 * ifnets.  A vnet destruction calls if_vmove() on ifnet, which
+	 * causes ID change.  But ID change and a possible misidentification
+	 * of an ifnet later is a lesser problem, as it doesn't crash kernel.
+	 * A worse problem is that removed interface may outlive the vnet it
+	 * belongs too!  The if_free_deferred() would see ifp->if_vnet freed.
+	 */
 	CURVNET_SET_QUIET(ifp->if_vnet);
 	IFNET_WLOCK();
 	KASSERT(ifp == ifnet_byindex(ifp->if_index),
 	    ("%s: freeing unallocated ifnet", ifp->if_xname));
 
-	ifindex_free_locked(ifp->if_index);
+	ifindex_free(ifp->if_index);
 	IFNET_WUNLOCK();
 
 	if (refcount_release(&ifp->if_refcount))
-		NET_EPOCH_CALL(if_destroy, &ifp->if_epoch_ctx);
+		NET_EPOCH_CALL(if_free_deferred, &ifp->if_epoch_ctx);
 	CURVNET_RESTORE();
 }
 
@@ -766,7 +767,7 @@ if_rele(struct ifnet *ifp)
 
 	if (!refcount_release(&ifp->if_refcount))
 		return;
-	NET_EPOCH_CALL(if_destroy, &ifp->if_epoch_ctx);
+	NET_EPOCH_CALL(if_free_deferred, &ifp->if_epoch_ctx);
 }
 
 void
@@ -1351,7 +1352,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	 * or we'd lock on one vnet and unlock on another.
 	 */
 	IFNET_WLOCK();
-	ifindex_free_locked(ifp->if_index);
+	ifindex_free(ifp->if_index);
 	IFNET_WUNLOCK();
 
 	/*
@@ -4592,28 +4593,89 @@ if_setgetcounterfn(if_t ifp, if_get_counter_t fn)
 	ifp->if_get_counter = fn;
 }
 
-/* Revisit these - These are inline functions originally. */
-int
-drbr_inuse_drv(if_t ifh, struct buf_ring *br)
+#ifdef DDB
+static void
+if_show_ifnet(struct ifnet *ifp)
 {
-	return drbr_inuse(ifh, br);
+
+	if (ifp == NULL)
+		return;
+	db_printf("%s:\n", ifp->if_xname);
+#define	IF_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, ifp->e);
+	IF_DB_PRINTF("%s", if_dname);
+	IF_DB_PRINTF("%d", if_dunit);
+	IF_DB_PRINTF("%s", if_description);
+	IF_DB_PRINTF("%u", if_index);
+	IF_DB_PRINTF("%u", if_refcount);
+	IF_DB_PRINTF("%d", if_index_reserved);
+	IF_DB_PRINTF("%p", if_softc);
+	IF_DB_PRINTF("%p", if_l2com);
+	IF_DB_PRINTF("%p", if_llsoftc);
+	IF_DB_PRINTF("%d", if_amcount);
+	IF_DB_PRINTF("%p", if_addr);
+	IF_DB_PRINTF("%p", if_broadcastaddr);
+	IF_DB_PRINTF("%p", if_afdata);
+	IF_DB_PRINTF("%d", if_afdata_initialized);
+	IF_DB_PRINTF("%u", if_fib);
+	IF_DB_PRINTF("%p", if_vnet);
+	IF_DB_PRINTF("%p", if_home_vnet);
+	IF_DB_PRINTF("%p", if_vlantrunk);
+	IF_DB_PRINTF("%p", if_bpf);
+	IF_DB_PRINTF("%u", if_pcount);
+	IF_DB_PRINTF("%p", if_bridge);
+	IF_DB_PRINTF("%p", if_lagg);
+	IF_DB_PRINTF("%p", if_pf_kif);
+	IF_DB_PRINTF("%p", if_carp);
+	IF_DB_PRINTF("%p", if_label);
+	IF_DB_PRINTF("%p", if_netmap);
+	IF_DB_PRINTF("0x%08x", if_flags);
+	IF_DB_PRINTF("0x%08x", if_drv_flags);
+	IF_DB_PRINTF("0x%08x", if_capabilities);
+	IF_DB_PRINTF("0x%08x", if_capenable);
+	IF_DB_PRINTF("%p", if_snd.ifq_head);
+	IF_DB_PRINTF("%p", if_snd.ifq_tail);
+	IF_DB_PRINTF("%d", if_snd.ifq_len);
+	IF_DB_PRINTF("%d", if_snd.ifq_maxlen);
+	IF_DB_PRINTF("%p", if_snd.ifq_drv_head);
+	IF_DB_PRINTF("%p", if_snd.ifq_drv_tail);
+	IF_DB_PRINTF("%d", if_snd.ifq_drv_len);
+	IF_DB_PRINTF("%d", if_snd.ifq_drv_maxlen);
+	IF_DB_PRINTF("%d", if_snd.altq_type);
+	IF_DB_PRINTF("%x", if_snd.altq_flags);
+#undef IF_DB_PRINTF
 }
 
-struct mbuf*
-drbr_dequeue_drv(if_t ifh, struct buf_ring *br)
+DB_SHOW_COMMAND(ifnet, db_show_ifnet)
 {
-	return drbr_dequeue(ifh, br);
+
+	if (!have_addr) {
+		db_printf("usage: show ifnet <struct ifnet *>\n");
+		return;
+	}
+
+	if_show_ifnet((struct ifnet *)addr);
 }
 
-int
-drbr_needs_enqueue_drv(if_t ifh, struct buf_ring *br)
+DB_SHOW_ALL_COMMAND(ifnets, db_show_all_ifnets)
 {
-	return drbr_needs_enqueue(ifh, br);
-}
+	VNET_ITERATOR_DECL(vnet_iter);
+	struct ifnet *ifp;
+	u_short idx;
 
-int
-drbr_enqueue_drv(if_t ifh, struct buf_ring *br, struct mbuf *m)
-{
-	return drbr_enqueue(ifh, br, m);
-
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET_QUIET(vnet_iter);
+#ifdef VIMAGE
+		db_printf("vnet=%p\n", curvnet);
+#endif
+		for (idx = 1; idx <= V_if_index; idx++) {
+			ifp = V_ifindex_table[idx].ife_ifnet;
+			if (ifp == NULL)
+				continue;
+			db_printf( "%20s ifp=%p\n", ifp->if_xname, ifp);
+			if (db_pager_quit)
+				break;
+		}
+		CURVNET_RESTORE();
+	}
 }
+#endif	/* DDB */

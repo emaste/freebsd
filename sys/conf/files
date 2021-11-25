@@ -888,10 +888,6 @@ dev/altera/pio/pio.c		optional altera_pio
 dev/altera/pio/pio_if.m		optional altera_pio
 dev/amdpm/amdpm.c		optional amdpm pci | nfpm pci
 dev/amdsmb/amdsmb.c		optional amdsmb pci
-dev/amr/amr.c			optional amr
-dev/amr/amr_cam.c		optional amrp amr
-dev/amr/amr_disk.c		optional amr
-dev/amr/amr_pci.c		optional amr pci
 #
 dev/ata/ata_if.m		optional ata | atacore
 dev/ata/ata-all.c		optional ata | atacore
@@ -1682,8 +1678,6 @@ dev/ena/ena_sysctl.c 		optional ena \
 	compile-with "${NORMAL_C} -I$S/contrib"
 contrib/ena-com/ena_com.c	optional ena
 contrib/ena-com/ena_eth_com.c	optional ena
-dev/esp/esp_pci.c		optional esp pci
-dev/esp/ncr53c9x.c		optional esp
 dev/etherswitch/arswitch/arswitch.c		optional arswitch
 dev/etherswitch/arswitch/arswitch_reg.c		optional arswitch
 dev/etherswitch/arswitch/arswitch_phy.c		optional arswitch
@@ -1864,15 +1858,14 @@ dev/iicbus/ofw_iicbus.c		optional fdt iicbus
 dev/iicbus/pcf8574.c		optional pcf8574
 dev/iicbus/pcf8591.c		optional pcf8591
 dev/iicbus/rtc8583.c		optional rtc8583
+dev/iicbus/rtc/pcf85063.c	optional pcf85063 iicbus fdt
 dev/iicbus/rtc/rx8803.c		optional rx8803 iicbus fdt
 dev/iicbus/s35390a.c		optional s35390a
 dev/iicbus/sy8106a.c		optional sy8106a ext_resources fdt
 dev/iicbus/syr827.c		optional syr827 ext_resources fdt
+dev/iicbus/gpio/tca6408.c	optional tca6408 fdt gpio
 dev/iicbus/gpio/tca6416.c	optional tca6416 fdt
 dev/iicbus/pmic/fan53555.c	optional fan53555 ext_resources fdt
-dev/iir/iir.c			optional iir
-dev/iir/iir_ctrl.c		optional iir
-dev/iir/iir_pci.c		optional iir pci
 dev/igc/if_igc.c		optional igc iflib pci
 dev/igc/igc_api.c		optional igc iflib pci
 dev/igc/igc_base.c		optional igc iflib pci
@@ -2415,6 +2408,8 @@ dev/mii/axphy.c			optional miibus | axphy
 dev/mii/bmtphy.c		optional miibus | bmtphy
 dev/mii/brgphy.c		optional miibus | brgphy
 dev/mii/ciphy.c			optional miibus | ciphy
+dev/mii/dp83822phy.c		optional miibus | dp83822phy
+dev/mii/dp83867phy.c		optional miibus | dp83867phy
 dev/mii/e1000phy.c		optional miibus | e1000phy
 dev/mii/gentbi.c		optional miibus | gentbi
 dev/mii/icsphy.c		optional miibus | icsphy
@@ -2453,7 +2448,6 @@ dev/mlxfw/mlxfw_mfa2_tlv_multi.c	optional mlxfw \
 dev/mlx/mlx.c			optional mlx
 dev/mlx/mlx_disk.c		optional mlx
 dev/mlx/mlx_pci.c		optional mlx pci
-dev/mly/mly.c			optional mly
 dev/mmc/mmc_subr.c		optional mmc | mmcsd !mmccam
 dev/mmc/mmc.c			optional mmc !mmccam
 dev/mmc/mmcbr_if.m		standard
@@ -3209,18 +3203,6 @@ dev/syscons/warp/warp_saver.c	optional warp_saver
 dev/tcp_log/tcp_log_dev.c	optional tcp_blackbox inet | tcp_blackbox inet6
 dev/tdfx/tdfx_pci.c		optional tdfx pci
 dev/ti/if_ti.c			optional ti pci
-dev/twa/tw_cl_init.c		optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
-dev/twa/tw_cl_intr.c		optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
-dev/twa/tw_cl_io.c		optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
-dev/twa/tw_cl_misc.c		optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
-dev/twa/tw_osl_cam.c		optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
-dev/twa/tw_osl_freebsd.c	optional twa \
-	compile-with "${NORMAL_C} -I$S/dev/twa"
 dev/twe/twe.c			optional twe
 dev/twe/twe_freebsd.c		optional twe
 dev/tws/tws.c			optional tws
@@ -4135,7 +4117,6 @@ net/if.c			standard
 net/if_bridge.c			optional bridge inet | if_bridge inet
 net/if_clone.c			standard
 net/if_dead.c			standard
-net/if_debug.c			optional ddb
 net/if_disc.c			optional disc
 net/if_edsc.c			optional edsc
 net/if_enc.c			optional enc inet | enc inet6
@@ -4321,6 +4302,7 @@ netinet/accf_http.c		optional accept_filter_http inet
 netinet/if_ether.c		optional inet ether
 netinet/igmp.c			optional inet
 netinet/in.c			optional inet
+netinet/in_cksum.c		optional inet | inet6
 netinet/in_debug.c		optional inet ddb
 netinet/in_kdtrace.c		optional inet | inet6
 netinet/ip_carp.c		optional inet carp | inet6 carp
