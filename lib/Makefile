@@ -15,8 +15,9 @@ SUBDIR_BOOTSTRAP= \
 	libc_nonshared \
 	libcompiler_rt \
 	${_libclang_rt} \
-	${_libcplusplus} \
-	${_libcxxrt} \
+	libc++ \
+	libc++experimental \
+	libcxxrt \
 	libelf \
 	libssp \
 	libssp_nonshared \
@@ -188,10 +189,6 @@ _libclang_rt=	libclang_rt
 .elif ${MK_ASAN} != "no" || ${MK_UBSAN} != "no"
 .error "Requested build with sanitizers but cannot build runtime libraries!"
 .endif
-
-_libcxxrt=	libcxxrt
-_libcplusplus=	libc++
-_libcplusplus+=	libc++experimental
 
 SUBDIR.${MK_EFI}+=	libefivar
 SUBDIR.${MK_GOOGLETEST}+=	googletest
