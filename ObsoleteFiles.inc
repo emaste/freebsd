@@ -40,6 +40,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 2021xxxx libc++ moved to /lib
+OLD_LIBS+=usr/lib/libc++.so.1
+
 # 20211125 Old SCSI drivers removed
 OLD_FILES+=usr/share/man/man4/amr.4.gz
 OLD_FILES+=usr/share/man/man4/esp.4.gz
