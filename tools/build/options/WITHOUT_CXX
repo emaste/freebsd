@@ -2,3 +2,6 @@
 Do not build C++ headers and runtime libraries.
 It also prevents building binaries and libraries written in C++, including
 .Xr devd 8 .
+.Bf -symbolic
+The option does not work for build targets.
+.Ef
