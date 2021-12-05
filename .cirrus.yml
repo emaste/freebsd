@@ -34,7 +34,7 @@ task:
   script:
   - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm13 WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
   package_script:
-  - su user -c "make CROSS_TOOLCHAIN=llvm13 WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
+  - su user -c "make CROSS_TOOLCHAIN=llvm13 WITHOUT_TOOLCHAIN=yes WITHOUT_CXX=yes PKG_FORMAT=tar packages"
   test_script:
   - sh tools/boot/ci-qemu-test.sh
   post_script:
