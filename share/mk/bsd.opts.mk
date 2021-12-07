@@ -52,6 +52,7 @@ __<bsd.opts.mk>__:
 # and variables from both files are documented in src.conf(5).
 
 __DEFAULT_YES_OPTIONS = \
+    ASAN \
     ASSERT_DEBUG \
     DEBUG_FILES \
     DOCCOMPRESS \
@@ -68,11 +69,11 @@ __DEFAULT_YES_OPTIONS = \
     SSP \
     TESTS \
     TOOLCHAIN \
+    UBSAN \
     WARNS \
     WERROR
 
 __DEFAULT_NO_OPTIONS = \
-    ASAN \
     BIND_NOW \
     CCACHE_BUILD \
     CTF \
@@ -82,8 +83,7 @@ __DEFAULT_NO_OPTIONS = \
     MANSPLITPKG \
     PROFILE \
     RETPOLINE \
-    STALE_STAGED \
-    UBSAN
+    STALE_STAGED
 
 __DEFAULT_DEPENDENT_OPTIONS = \
     MAKE_CHECK_USE_SANDBOX/TESTS \
