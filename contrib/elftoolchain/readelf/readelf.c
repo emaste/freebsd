@@ -374,6 +374,7 @@ static const char *note_type(const char *note_name, unsigned int et,
 static const char *note_type_freebsd(unsigned int nt);
 static const char *note_type_freebsd_core(unsigned int nt);
 static const char *note_type_linux_core(unsigned int nt);
+static const char *note_type_go(unsigned int nt);
 static const char *note_type_gnu(unsigned int nt);
 static const char *note_type_netbsd(unsigned int nt);
 static const char *note_type_openbsd(unsigned int nt);
@@ -1151,6 +1152,8 @@ note_type(const char *name, unsigned int et, unsigned int nt)
 			return note_type_freebsd(nt);
 	else if (strcmp(name, "GNU") == 0 && et != ET_CORE)
 		return note_type_gnu(nt);
+	else if (strcmp(name, "Go") == 0 && et != ET_CORE)
+		return note_type_go(nt);
 	else if (strcmp(name, "NetBSD") == 0 && et != ET_CORE)
 		return note_type_netbsd(nt);
 	else if (strcmp(name, "OpenBSD") == 0 && et != ET_CORE)
@@ -1242,6 +1245,16 @@ note_type_gnu(unsigned int nt)
 	default: return (note_type_unknown(nt));
 	}
 }
+
+static const char *
+note_type_go(unsigned int nt)
+{
+	switch (nt) {
+	case 4: return "elfGoBuildIDTag";
+	default: return (note_type_unknown(nt));
+	}
+}
+
 
 static const char *
 note_type_netbsd(unsigned int nt)
@@ -3812,6 +3825,15 @@ dump_notes_data(struct readelf *re, const char *name, uint32_t type,
 				goto unknown;
 			printf("   Features:");
 			dump_flags(note_feature_ctl_flags, ubuf[0]);
+			return;
+		}
+	} else if (strcmp(name, "Go") == 0) {
+		if (type == 4) {
+			printf("   Build ID: ");
+			for (i = 0; i < sz; i++)
+				printf(isprint(buf[i]) ? "%c" : "<%02x>",
+				    buf[i]);
+			printf("\n");
 			return;
 		}
 	} else if (strcmp(name, "GNU") == 0) {
