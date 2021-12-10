@@ -5,6 +5,7 @@
 #
 
 # XXX need to port change
+# XXX need to port change
 
 .include <bsd.opts.mk>
 
