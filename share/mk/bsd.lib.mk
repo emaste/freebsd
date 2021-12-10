@@ -114,11 +114,18 @@ CXXFLAGS+= -ftrivial-auto-var-init=pattern
 .if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
     empty(DEBUG_FLAGS:M-gdwarf*)
 .if !${COMPILER_FEATURES:Mcompressed-debug}
-SHARED_CFLAGS+= ${DEBUG_FILES_CFLAGS:N-gz*}
-SHARED_CXXFLAGS+= ${DEBUG_FILES_CFLAGS:N-gz*}
+_DEBUG_FILES_CFLAGS=${DEBUG_FILES_CFLAGS:N-gz*}
 .else
-SHARED_CFLAGS+= ${DEBUG_FILES_CFLAGS}
-SHARED_CXXFLAGS+= ${DEBUG_FILES_CFLAGS}
+_DEBUG_FILES_CFLAGS=${DEBUG_FILES_CFLAGS}
+.endif
+.if defined(INTERNALLIB)
+# INTERNALLIB archives have debug flags applied to support standalone debug
+# files for binaries using those libraries.
+CFLAGS+= ${_DEBUG_FILES_CFLAGS}
+CXXFLAGS+= ${_DEBUG_FILES_CFLAGS}
+.else
+SHARED_CFLAGS+= ${_DEBUG_FILES_CFLAGS}
+SHARED_CXXFLAGS+= ${_DEBUG_FILES_CFLAGS}
 .endif
 CTFFLAGS+= -g
 .endif
