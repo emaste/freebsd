@@ -74,7 +74,7 @@ struct freebsd32_execve_args {
 	char envv_l_[PADL_(uint32_t *)]; uint32_t * envv; char envv_r_[PADR_(uint32_t *)];
 };
 struct freebsd32_mprotect_args {
-	char addr_l_[PADL_(const void *)]; const void * addr; char addr_r_[PADR_(const void *)];
+	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
 };
@@ -1124,6 +1124,12 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 
 
 #endif /* COMPAT_FREEBSD12 */
+
+
+#ifdef COMPAT_FREEBSD13
+
+
+#endif /* COMPAT_FREEBSD13 */
 
 #define	FREEBSD32_SYS_AUE_freebsd32_wait4	AUE_WAIT4
 #define	FREEBSD32_SYS_AUE_freebsd4_freebsd32_getfsstat	AUE_GETFSSTAT

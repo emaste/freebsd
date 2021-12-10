@@ -1495,7 +1495,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.26.2.0.bin"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.26.4.0.bin"	\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1529,7 +1529,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.26.2.0.bin"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.26.4.0.bin"	\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1563,7 +1563,7 @@ t6fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t6fw.fwo"
 t6fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t6fw-1.26.2.0.bin"	\
+	dependency	"$S/dev/cxgbe/firmware/t6fw-1.26.4.0.bin"	\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
@@ -4314,7 +4314,6 @@ netinet/ip_id.c			optional inet
 netinet/in_jail.c		optional inet
 netinet/in_mcast.c		optional inet
 netinet/in_pcb.c		optional inet | inet6
-netinet/in_pcbgroup.c		optional inet pcbgroup | inet6 pcbgroup
 netinet/in_prot.c		optional inet | inet6
 netinet/in_proto.c		optional inet | inet6
 netinet/in_rmx.c		optional inet
@@ -4402,7 +4401,6 @@ netinet6/in6_ifattach.c		optional inet6
 netinet6/in6_jail.c		optional inet6
 netinet6/in6_mcast.c		optional inet6
 netinet6/in6_pcb.c		optional inet6
-netinet6/in6_pcbgroup.c		optional inet6 pcbgroup
 netinet6/in6_proto.c		optional inet6
 netinet6/in6_rmx.c		optional inet6
 netinet6/in6_rss.c		optional inet6 rss
@@ -5066,6 +5064,7 @@ security/mac_none/mac_none.c	optional mac_none
 security/mac_ntpd/mac_ntpd.c	optional mac_ntpd
 security/mac_partition/mac_partition.c optional mac_partition
 security/mac_portacl/mac_portacl.c optional mac_portacl
+security/mac_priority/mac_priority.c	optional mac_priority
 security/mac_seeotheruids/mac_seeotheruids.c optional mac_seeotheruids
 security/mac_stub/mac_stub.c	optional mac_stub
 security/mac_test/mac_test.c	optional mac_test

@@ -56,20 +56,15 @@ struct mdproc {
 
 #define	KINFO_PROC_SIZE 816
 
-#define MAXARGS	8
-/*
- * This holds the syscall state for a single system call.
- * As some syscall arguments may be 64-bit aligned we need to ensure the
- * args value is 64-bit aligned. The ABI will then ensure any 64-bit
- * arguments are already correctly aligned, even if they were passed in
- * via registers, we just need to make sure we copy them to an aligned
- * buffer.
- */
-struct syscall_args {
-	u_int code;
-	u_int original_code;
-	struct sysent *callp;
-	register_t args[MAXARGS];
-} __aligned(8);
+#ifdef _KERNEL
+#include <machine/pcb.h>
 
+/* Get the current kernel thread stack usage. */
+#define	GET_STACK_USAGE(total, used) do {				\
+	struct thread *td = curthread;					\
+	(total) = td->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb);	\
+	(used) = td->td_kstack + (total) - (vm_offset_t)&td;		\
+} while (0)
+
+#endif  /* _KERNEL */
 #endif /* !_MACHINE_PROC_H_ */

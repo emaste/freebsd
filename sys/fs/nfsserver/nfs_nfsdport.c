@@ -2307,7 +2307,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	int nlen, r, error = 0, getret = 1, usevget = 1;
 	int siz, cnt, fullsiz, eofflag, ncookies, entrycnt;
 	caddr_t bpos0, bpos1;
-	u_int64_t off, toff, verf;
+	u_int64_t off, toff, verf __unused;
 	u_long *cookies = NULL, *cookiep;
 	nfsattrbit_t attrbits, rderrbits, savbits;
 	struct uio io;
@@ -3468,8 +3468,7 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 		/*
 		 * If fspec != NULL, this is the v4root path.
 		 */
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE,
-		    nfsexargp->fspec, p);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, nfsexargp->fspec);
 		if ((error = namei(&nd)) != 0)
 			goto out;
 		error = nfsvno_getfh(nd.ni_vp, &fh, p);

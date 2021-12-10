@@ -164,6 +164,7 @@ MAC_NONE	opt_dontuse.h
 MAC_NTPD	opt_dontuse.h
 MAC_PARTITION	opt_dontuse.h
 MAC_PORTACL	opt_dontuse.h
+MAC_PRIORITY	opt_dontuse.h
 MAC_SEEOTHERUIDS	opt_dontuse.h
 MAC_STATIC	opt_mac.h
 MAC_STUB	opt_dontuse.h
@@ -454,7 +455,6 @@ MBUF_PROFILING
 MBUF_STRESS_TEST
 MROUTING		opt_mrouting.h
 NFSLOCKD
-PCBGROUP		opt_pcbgroup.h
 PF_DEFAULT_TO_DROP	opt_pf.h
 ROUTE_MPATH		opt_route.h
 ROUTETABLES		opt_route.h
@@ -727,11 +727,6 @@ DEV_PFLOG		opt_pf.h
 DEV_PFSYNC		opt_pf.h
 DEV_SPLASH		opt_splash.h
 DEV_VLAN		opt_vlan.h
-
-# ed driver
-ED_HPP			opt_ed.h
-ED_3C503		opt_ed.h
-ED_SIC			opt_ed.h
 
 # bce driver
 BCE_DEBUG		opt_bce.h

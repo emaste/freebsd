@@ -238,7 +238,7 @@ pccard_attach_card(device_t dev)
 	DEVPRINTF((dev, "Card has %d functions. pccard_mfc is %d\n", i + 1,
 	    pccard_mfc(sc)));
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
@@ -251,7 +251,7 @@ pccard_attach_card(device_t dev)
 		pf->dev = child;
 		pccard_probe_and_attach_child(dev, child, pf);
 	}
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	return (0);
 }
 
@@ -342,7 +342,7 @@ pccard_detach_card(device_t dev)
 		if (pf->dev == NULL)
 			continue;
 		state = device_get_state(pf->dev);
-		if (state == DS_ATTACHED || state == DS_BUSY)
+		if (state == DS_ATTACHED)
 			device_detach(pf->dev);
 		if (pf->cfe != NULL)
 			pccard_function_disable(pf);

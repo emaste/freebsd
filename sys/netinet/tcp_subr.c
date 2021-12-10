@@ -101,6 +101,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <netinet/tcp.h>
+#ifdef INVARIANTS
+#define TCPSTATES
+#endif
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -1373,6 +1376,8 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
 	 * to the default stack.
 	 */
 	if (force && blk->tfb_refcnt) {
+		struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
+		    INPLOOKUP_WLOCKPCB);
 		struct inpcb *inp;
 		struct tcpcb *tp;
 		VNET_ITERATOR_DECL(vnet_iter);
@@ -1382,22 +1387,14 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
 		VNET_LIST_RLOCK();
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET(vnet_iter);
-			INP_INFO_WLOCK(&V_tcbinfo);
-			CK_LIST_FOREACH(inp, V_tcbinfo.ipi_listhead, inp_list) {
-				INP_WLOCK(inp);
-				if (inp->inp_flags & INP_TIMEWAIT) {
-					INP_WUNLOCK(inp);
+			while ((inp = inp_next(&inpi)) != NULL) {
+				if (inp->inp_flags & INP_TIMEWAIT)
 					continue;
-				}
 				tp = intotcpcb(inp);
-				if (tp == NULL || tp->t_fb != blk) {
-					INP_WUNLOCK(inp);
+				if (tp == NULL || tp->t_fb != blk)
 					continue;
-				}
 				tcp_switch_back_to_default(tp);
-				INP_WUNLOCK(inp);
 			}
-			INP_INFO_WUNLOCK(&V_tcbinfo);
 			CURVNET_RESTORE();
 		}
 		VNET_LIST_RUNLOCK();
@@ -1485,8 +1482,8 @@ tcp_init(void)
 		    "clipped from %d to %d.\n", __func__, oldhashsize,
 		    hashsize);
 	}
-	in_pcbinfo_init(&V_tcbinfo, "tcp", &V_tcb, hashsize, hashsize,
-	    "tcp_inpcb", tcp_inpcb_init, IPI_HASHFIELDS_4TUPLE);
+	in_pcbinfo_init(&V_tcbinfo, "tcp", hashsize, hashsize,
+	    "tcp_inpcb", tcp_inpcb_init);
 
 	/*
 	 * These have to be type stable for the benefit of the timers.
@@ -1596,9 +1593,9 @@ tcp_destroy(void *unused __unused)
 	 * Sleep to let all tcpcb timers really disappear and cleanup.
 	 */
 	for (;;) {
-		INP_LIST_RLOCK(&V_tcbinfo);
+		INP_INFO_WLOCK(&V_tcbinfo);
 		n = V_tcbinfo.ipi_count;
-		INP_LIST_RUNLOCK(&V_tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		if (n == 0)
 			break;
 		pause("tcpdes", hz / 10);
@@ -1755,9 +1752,12 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	int isipv6;
 #endif /* INET6 */
 	int optlen, tlen, win, ulen;
-	bool incl_opts, lock_upgraded;
+	bool incl_opts;
 	uint16_t port;
 	int output_ret;
+#ifdef INVARIANTS
+	int thflags = th->th_flags;
+#endif
 
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
 	NET_EPOCH_ASSERT();
@@ -2088,27 +2088,49 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	TCP_PROBE3(debug__output, tp, th, m);
 	if (flags & TH_RST)
 		TCP_PROBE5(accept__refused, NULL, NULL, m, tp, nth);
-	lock_upgraded = false;
 	lgb = NULL;
 	if ((tp != NULL) && (tp->t_logstate != TCP_LOG_STATE_OFF)) {
-		union tcp_log_stackspecific log;
-		struct timeval tv;
-
-		lock_upgraded = !INP_WLOCKED(inp) && INP_TRY_UPGRADE(inp);
-		/*
-		 *`If we don't already own the write lock and can't upgrade,
-		 * just don't log the event, but still send the response.
-		 */
 		if (INP_WLOCKED(inp)) {
+			union tcp_log_stackspecific log;
+			struct timeval tv;
+
 			memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 			log.u_bbr.inhpts = tp->t_inpcb->inp_in_hpts;
-			log.u_bbr.ininput = tp->t_inpcb->inp_in_input;
+			log.u_bbr.ininput = tp->t_inpcb->inp_in_dropq;
 			log.u_bbr.flex8 = 4;
 			log.u_bbr.pkts_out = tp->t_maxseg;
 			log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 			log.u_bbr.delivered = 0;
-			lgb = tcp_log_event_(tp, nth, NULL, NULL, TCP_LOG_OUT, ERRNO_UNK,
-			                     0, &log, false, NULL, NULL, 0, &tv);
+			lgb = tcp_log_event_(tp, nth, NULL, NULL, TCP_LOG_OUT,
+			    ERRNO_UNK, 0, &log, false, NULL, NULL, 0, &tv);
+		} else {
+			/*
+			 * We can not log the packet, since we only own the
+			 * read lock, but a write lock is needed. The read lock
+			 * is not upgraded to a write lock, since only getting
+			 * the read lock was done intentionally to improve the
+			 * handling of SYN flooding attacks.
+			 * This happens only for pure SYN segments received in
+			 * the initial CLOSED state, or received in a more
+			 * advanced state than listen and the UDP encapsulation
+			 * port is unexpected.
+			 * The incoming SYN segments do not really belong to
+			 * the TCP connection and the handling does not change
+			 * the state of the TCP connection. Therefore, the
+			 * sending of the RST segments is not logged. Please
+			 * note that also the incoming SYN segments are not
+			 * logged.
+			 *
+			 * The following code ensures that the above description
+			 * is and stays correct.
+			 */
+			KASSERT((thflags & (TH_ACK|TH_SYN)) == TH_SYN &&
+			    (tp->t_state == TCPS_CLOSED ||
+			    (tp->t_state > TCPS_LISTEN && tp->t_port != port)),
+			    ("%s: Logging of TCP segment with flags 0x%b and "
+			    "UDP encapsulation port %u skipped in state %s",
+			    __func__, thflags, PRINT_TH_FLAGS,
+			    ntohs(port), tcpstates[tp->t_state]));
 		}
 	}
 
@@ -2129,8 +2151,6 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #endif
 	if (lgb != NULL)
 		lgb->tlb_errno = output_ret;
-	if (lock_upgraded)
-		INP_DOWNGRADE(inp);
 }
 
 /*
@@ -2292,17 +2312,14 @@ tcp_ccalgounload(struct cc_algo *unload_algo)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INP_INFO_WLOCK(&V_tcbinfo);
+		struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
+		    INPLOOKUP_WLOCKPCB);
 		/*
-		 * New connections already part way through being initialised
-		 * with the CC algo we're removing will not race with this code
-		 * because the INP_INFO_WLOCK is held during initialisation. We
-		 * therefore don't enter the loop below until the connection
-		 * list has stabilised.
+		 * XXXGL: would new accept(2)d connections use algo being
+		 * unloaded?
 		 */
 		newalgo = CC_DEFAULT_ALGO();
-		CK_LIST_FOREACH(inp, &V_tcb, inp_list) {
-			INP_WLOCK(inp);
+		while ((inp = inp_next(&inpi)) != NULL) {
 			/* Important to skip tcptw structs. */
 			if (!(inp->inp_flags & INP_TIMEWAIT) &&
 			    (tp = intotcpcb(inp)) != NULL) {
@@ -2336,7 +2353,6 @@ tcp_ccalgounload(struct cc_algo *unload_algo)
 						 * need to try again.
 						 */
 						INP_WUNLOCK(inp);
-						INP_INFO_WUNLOCK(&V_tcbinfo);
 						CURVNET_RESTORE();
 						VNET_LIST_RUNLOCK();
 						return (err);
@@ -2353,9 +2369,7 @@ proceed:
 					}
 				}
 			}
-			INP_WUNLOCK(inp);
 		}
-		INP_INFO_WUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK();
@@ -2373,7 +2387,6 @@ tcp_drop(struct tcpcb *tp, int errno)
 	struct socket *so = tp->t_inpcb->inp_socket;
 
 	NET_EPOCH_ASSERT();
-	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
@@ -2559,7 +2572,6 @@ tcp_close(struct tcpcb *tp)
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so;
 
-	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 #ifdef TCP_OFFLOAD
@@ -2575,6 +2587,9 @@ tcp_close(struct tcpcb *tp)
 		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 		tp->t_tfo_pending = NULL;
 	}
+#ifdef TCPHPTS
+	tcp_hpts_remove(inp, HPTS_REMOVE_ALL);
+#endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
 	if (tp->t_state != TCPS_CLOSED)
@@ -2606,6 +2621,8 @@ tcp_drain(void)
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
+		struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
+		    INPLOOKUP_WLOCKPCB);
 		struct inpcb *inpb;
 		struct tcpcb *tcpb;
 
@@ -2617,13 +2634,9 @@ tcp_drain(void)
 	 *	where we're really low on mbufs, this is potentially
 	 *	useful.
 	 */
-		INP_INFO_WLOCK(&V_tcbinfo);
-		CK_LIST_FOREACH(inpb, V_tcbinfo.ipi_listhead, inp_list) {
-			INP_WLOCK(inpb);
-			if (inpb->inp_flags & INP_TIMEWAIT) {
-				INP_WUNLOCK(inpb);
+		while ((inpb = inp_next(&inpi)) != NULL) {
+			if (inpb->inp_flags & INP_TIMEWAIT)
 				continue;
-			}
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
 				tcp_reass_flush(tcpb);
 				tcp_clean_sackreport(tcpb);
@@ -2638,9 +2651,7 @@ tcp_drain(void)
 				}
 #endif
 			}
-			INP_WUNLOCK(inpb);
 		}
-		INP_INFO_WUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
@@ -2659,7 +2670,6 @@ tcp_notify(struct inpcb *inp, int error)
 {
 	struct tcpcb *tp;
 
-	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 	if ((inp->inp_flags & INP_TIMEWAIT) ||
@@ -2705,9 +2715,10 @@ tcp_notify(struct inpcb *inp, int error)
 static int
 tcp_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	struct epoch_tracker et;
-	struct inpcb *inp;
+	struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
+	    INPLOOKUP_RLOCKPCB);
 	struct xinpgen xig;
+	struct inpcb *inp;
 	int error;
 
 	if (req->newptr != NULL)
@@ -2740,11 +2751,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 
-	NET_EPOCH_ENTER(et);
-	for (inp = CK_LIST_FIRST(V_tcbinfo.ipi_listhead);
-	    inp != NULL;
-	    inp = CK_LIST_NEXT(inp, inp_list)) {
-		INP_RLOCK(inp);
+	while ((inp = inp_next(&inpi)) != NULL) {
 		if (inp->inp_gencnt <= xig.xig_gen) {
 			int crerr;
 
@@ -2765,17 +2772,15 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 				struct xtcpcb xt;
 
 				tcp_inptoxtp(inp, &xt);
-				INP_RUNLOCK(inp);
 				error = SYSCTL_OUT(req, &xt, sizeof xt);
-				if (error)
+				if (error) {
+					INP_RUNLOCK(inp);
 					break;
-				else
+				} else
 					continue;
 			}
 		}
-		INP_RUNLOCK(inp);
 	}
-	NET_EPOCH_EXIT(et);
 
 	if (!error) {
 		/*

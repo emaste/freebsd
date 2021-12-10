@@ -120,6 +120,7 @@ SUBDIR=	\
 	filemon \
 	firewire \
 	firmware \
+	flash \
 	${_ftwd} \
 	fusefs \
 	${_fxp} \
@@ -221,6 +222,7 @@ SUBDIR=	\
 	mac_ntpd \
 	mac_partition \
 	mac_portacl \
+	mac_priority \
 	mac_seeotheruids \
 	mac_stub \
 	mac_test \
@@ -620,7 +622,9 @@ _neta=		neta
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _agp=		agp
+.if ${MACHINE_CPUARCH} == "i386" || !empty(COMPAT_FREEBSD32_ENABLED)
 _aout=		aout
+.endif
 _bios=		bios
 .if ${MK_SOURCELESS_UCODE} != "no"
 _bxe=		bxe

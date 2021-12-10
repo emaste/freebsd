@@ -261,7 +261,11 @@ LIBVERIEXEC?=	${LIBVERIEXECDIR}/libveriexec.a
 # 2nd+ order consumers.  Auto-generating this would be better.
 _DP_80211=	sbuf bsdxml
 _DP_9p=		sbuf
+# XXX: Not bootstrapped so uses host version on non-FreeBSD, so don't use a
+# FreeBSD-specific dependency list
+.if ${.MAKE.OS} == "FreeBSD" || !defined(BOOTSTRAPPING)
 _DP_archive=	z bz2 lzma bsdxml zstd
+.endif
 _DP_avl=	spl
 _DP_bsddialog=	formw ncursesw tinfow
 _DP_zstd=	pthread
@@ -269,10 +273,13 @@ _DP_zstd=	pthread
 _DP_blacklist+=	pthread
 .endif
 _DP_crypto=	pthread
+# See comment by _DP_archive above
+.if ${.MAKE.OS} == "FreeBSD" || !defined(BOOTSTRAPPING)
 .if ${MK_OPENSSL} != "no"
 _DP_archive+=	crypto
 .else
 _DP_archive+=	md
+.endif
 .endif
 _DP_sqlite3=	pthread
 _DP_ssl=	crypto
@@ -329,7 +336,7 @@ _DP_fetch=	ssl crypto
 _DP_fetch=	md
 .endif
 _DP_execinfo=	elf
-_DP_dwarf=	elf
+_DP_dwarf=	elf z
 _DP_dpv=	dialog figpar util tinfow ncursesw
 _DP_dialog=	tinfow ncursesw m
 _DP_cuse=	pthread
@@ -458,8 +465,12 @@ LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l:S/${PIE_SUFFIX}//}${PIE_SUFFIX}
 LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l}
 .endif
 # Add in all dependencies for static linkage.
+# Bootstrapping from non-FreeBSD needs special handling, since it overrides
+# NO_SHARED back to yes despite only building static versions of bootstrap
+# libraries (see tools/build/mk/Makefile.boot.pre).
 .if defined(_DP_${_l}) && (${_INTERNALLIBS:M${_l}} || \
-    (defined(NO_SHARED) && ${NO_SHARED:tl} != "no"))
+    (defined(NO_SHARED) && ${NO_SHARED:tl} != "no") || \
+    (defined(BOOTSTRAPPING) && ${.MAKE.OS} != "FreeBSD"))
 .for _d in ${_DP_${_l}}
 DPADD_${_l}+=	${DPADD_${_d}}
 LDADD_${_l}+=	${LDADD_${_d}}

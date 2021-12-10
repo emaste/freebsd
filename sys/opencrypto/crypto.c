@@ -851,7 +851,10 @@ check_csp(const struct crypto_session_params *csp)
 				return (false);
 			break;
 		case CRYPTO_AES_NIST_GCM_16:
-			if (csp->csp_auth_mlen > 16)
+			if (csp->csp_auth_mlen > AES_GMAC_HASH_LEN)
+				return (false);
+
+			if (csp->csp_ivlen != AES_GCM_IV_LEN)
 				return (false);
 			break;
 		case CRYPTO_CHACHA20_POLY1305:
@@ -1352,7 +1355,8 @@ crp_sanity(struct cryptop *crp)
 		KASSERT(crp->crp_payload_output_start == 0,
 		    ("payload output start non-zero without output buffer"));
 	} else {
-		KASSERT(crp->crp_payload_output_start < olen,
+		KASSERT(crp->crp_payload_output_start == 0 ||
+		    crp->crp_payload_output_start < olen,
 		    ("invalid payload output start"));
 		KASSERT(crp->crp_payload_output_start +
 		    crp->crp_payload_length <= olen,

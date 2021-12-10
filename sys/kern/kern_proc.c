@@ -2275,8 +2275,7 @@ proc_get_binpath(struct proc *p, char *binname, char **retbuf,
 			 * might have been renamed or replaced, in
 			 * which case we should not report old name.
 			 */
-			NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, *retbuf,
-			    curthread);
+			NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, *retbuf);
 			error = namei(&nd);
 			if (error == 0) {
 				if (nd.ni_vp == vp)
@@ -3100,7 +3099,9 @@ sysctl_kern_proc_sigtramp(SYSCTL_HANDLER_ARGS)
 			if (sv->sv_sigcode_base != 0) {
 				kst32.ksigtramp_start = sv->sv_sigcode_base;
 				kst32.ksigtramp_end = sv->sv_sigcode_base +
-				    *sv->sv_szsigcode;
+				    ((sv->sv_flags & SV_DSO_SIG) == 0 ?
+				    *sv->sv_szsigcode :
+				    (uintptr_t)sv->sv_szsigcode);
 			} else {
 				kst32.ksigtramp_start = sv->sv_psstrings -
 				    *sv->sv_szsigcode;
@@ -3116,7 +3117,8 @@ sysctl_kern_proc_sigtramp(SYSCTL_HANDLER_ARGS)
 	if (sv->sv_sigcode_base != 0) {
 		kst.ksigtramp_start = (char *)sv->sv_sigcode_base;
 		kst.ksigtramp_end = (char *)sv->sv_sigcode_base +
-		    *sv->sv_szsigcode;
+		    ((sv->sv_flags & SV_DSO_SIG) == 0 ? *sv->sv_szsigcode :
+		    (uintptr_t)sv->sv_szsigcode);
 	} else {
 		kst.ksigtramp_start = (char *)sv->sv_psstrings -
 		    *sv->sv_szsigcode;

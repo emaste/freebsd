@@ -137,24 +137,14 @@ TARGET_ABI=	gnueabi
 .endif
 .endif
 MACHINE_ABI?=	unknown
-MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${MACHINE_ABI}-freebsd14.0
+MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/[hs]f$//}-${MACHINE_ABI}-freebsd14.0
 TARGET_ABI?=	unknown
-TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd14.0
+TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/[hs]f$//}-${TARGET_ABI}-freebsd14.0
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
 		armv6/arm \
 		armv7/arm \
 		i386 \
-		mips \
-		mipsel/mips \
-		mips64el/mips \
-		mipsn32el/mips \
-		mips64/mips \
-		mipsn32/mips \
-		mipshf/mips \
-		mipselhf/mips \
-		mips64elhf/mips \
-		mips64hf/mips \
 		powerpc \
 		powerpc64/powerpc \
 		powerpc64le/powerpc \
@@ -502,11 +492,13 @@ SVNVERSION_CMD?=${_D}/svnliteversion
 .  endif
 . endfor
 .endif
+.if defined(SVNVERSION_CMD) && !empty(SVNVERSION_CMD)
 _VCS_REVISION?=	$$(eval ${SVNVERSION_CMD} ${SRCDIR})
 . if !empty(_VCS_REVISION)
 VCS_REVISION=	$$(echo r${_VCS_REVISION})
-. endif
 .export VCS_REVISION
+. endif
+.endif
 .endif
 
 .if !defined(GIT_CMD) || empty(GIT_CMD)
@@ -1185,10 +1177,6 @@ _ncpu_cmd=sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo unknown
 buildworld_prologue: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> World build started on `LC_ALL=C date`"
-.if ${TARGET:Mmips}
-	@echo "--------------------------------------------------------------"
-	@echo "WARNING: MIPS architecture is gone in FreeBSD 14.0"
-.endif
 	@echo "--------------------------------------------------------------"
 
 buildworld_epilogue: .PHONY
@@ -1198,10 +1186,6 @@ buildworld_epilogue: .PHONY
 	@seconds=$$(($$(date '+%s') - ${_BUILDWORLD_START})); \
 	  echo -n ">>> World built in $$seconds seconds, "; \
 	  echo "ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
-.if ${TARGET:Mmips}
-	@echo "--------------------------------------------------------------"
-	@echo "WARNING: MIPS architecture is gone in FreeBSD 14.0"
-.endif
 	@echo "--------------------------------------------------------------"
 
 #
@@ -1891,7 +1875,12 @@ _pkgbootstrap: .PHONY
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
 .endif
 
-.if make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make(sign-packages)
+#
+# Allow overriding PKG_ABI, this allow to create kernel packages without having
+# to build world first.
+# If it's not provided resolv it from the uname binary in the world stage.
+#
+.if !defined(PKG_ABI) && (make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make(sign-packages))
 PKG_ABI!=${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI
 .endif
 PKG_BIN_VERSION!=${PKG_CMD} --version </dev/null 2>/dev/null |\
@@ -2056,7 +2045,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
+	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		create -f ${PKG_FORMAT} \
 		-M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
 		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
@@ -2464,6 +2453,14 @@ _other_bootstrap_tools+=usr.bin/bmake
 # Avoid dependency on host bz2 headers:
 _other_bootstrap_tools+=lib/libbz2
 ${_bt}-usr.bin/grep: ${_bt}-lib/libbz2
+
+# libdwarf depends on libz
+_other_bootstrap_tools+=lib/libz
+${_bt}-lib/libdwarf: ${_bt}-lib/libz
+
+# libroken depends on libcrypt
+_other_bootstrap_tools+=lib/libcrypt
+${_bt}-lib/libroken: ${_bt}-lib/libcrypt
 .else
 # All tools in _basic_bootstrap_tools have the same name as the subdirectory
 # so we can use :T to get the name of the symlinks that we need to create.
@@ -2625,6 +2622,7 @@ _dtrace_tools= cddl/lib/libctf cddl/lib/libspl cddl/usr.bin/ctfconvert \
 _elftctools=	lib/libelftc \
 		lib/libpe \
 		usr.bin/elfctl \
+		usr.bin/elfdump \
 		usr.bin/objcopy \
 		usr.bin/nm \
 		usr.bin/size \
@@ -2639,6 +2637,7 @@ _elftctools+=	usr.bin/addr2line
 _elftctools=	lib/libelftc \
 		lib/libpe \
 		usr.bin/elfctl \
+		usr.bin/elfdump \
 		usr.bin/objcopy
 .endif
 
@@ -3022,6 +3021,8 @@ _cddl_lib_libavl= cddl/lib/libavl
 _cddl_lib_libuutil= cddl/lib/libuutil
 _cddl_lib_libspl= cddl/lib/libspl
 
+cddl/lib/libavl__L: cddl/lib/libspl__L
+cddl/lib/libnvpair__L: cddl/lib/libspl__L
 cddl/lib/libuutil__L: cddl/lib/libavl__L cddl/lib/libspl__L
 
 .if ${MK_ZFS} != "no"
@@ -3032,10 +3033,6 @@ _cddl_lib_libzutil= cddl/lib/libzutil
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
 _cddl_lib_libzfs= cddl/lib/libzfs
 _cddl_lib_libzfsbootenv= cddl/lib/libzfsbootenv
-
-cddl/lib/libavl__L: cddl/lib/libspl__L
-
-cddl/lib/libnvpair__L: cddl/lib/libspl__L
 
 cddl/lib/libtpool__L: cddl/lib/libspl__L
 

@@ -5345,8 +5345,7 @@ zfs_getextattr_dir(struct vop_getextattr_args *ap, const char *attrname)
 		return (error);
 
 	flags = FREAD;
-	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, attrname,
-	    xvp, td);
+	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, attrname, xvp);
 	error = vn_open_cred(&nd, &flags, 0, VN_OPEN_INVFS, ap->a_cred, NULL);
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -5460,7 +5459,7 @@ zfs_deleteextattr_dir(struct vop_deleteextattr_args *ap, const char *attrname)
 		return (error);
 
 	NDINIT_ATVP(&nd, DELETE, NOFOLLOW | LOCKPARENT | LOCKLEAF,
-	    UIO_SYSSPACE, attrname, xvp, ap->a_td);
+	    UIO_SYSSPACE, attrname, xvp);
 	error = namei(&nd);
 	vp = nd.ni_vp;
 	if (error != 0) {
@@ -5588,7 +5587,7 @@ zfs_setextattr_dir(struct vop_setextattr_args *ap, const char *attrname)
 		return (error);
 
 	flags = FFLAGS(O_WRONLY | O_CREAT);
-	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, attrname, xvp, td);
+	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, attrname, xvp);
 	error = vn_open_cred(&nd, &flags, 0600, VN_OPEN_INVFS, ap->a_cred,
 	    NULL);
 	vp = nd.ni_vp;
@@ -5744,7 +5743,7 @@ zfs_listextattr_dir(struct vop_listextattr_args *ap, const char *attrprefix)
 	}
 
 	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKSHARED,
-	    UIO_SYSSPACE, ".", xvp, td);
+	    UIO_SYSSPACE, ".", xvp);
 	error = namei(&nd);
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -6173,6 +6172,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_unlock =		vop_unlock,
 	.vop_islocked =		vop_islocked,
 #endif
+	.vop_add_writecount =	vop_stdadd_writecount_nomsync,
 };
 VFS_VOP_VECTOR_REGISTER(zfs_vnodeops);
 
@@ -6197,6 +6197,7 @@ struct vop_vector zfs_fifoops = {
 	.vop_getacl =		zfs_freebsd_getacl,
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
+	.vop_add_writecount =	vop_stdadd_writecount_nomsync,
 };
 VFS_VOP_VECTOR_REGISTER(zfs_fifoops);
 
@@ -6216,5 +6217,6 @@ struct vop_vector zfs_shareops = {
 	.vop_reclaim =		zfs_freebsd_reclaim,
 	.vop_fid =		zfs_freebsd_fid,
 	.vop_pathconf =		zfs_freebsd_pathconf,
+	.vop_add_writecount =	vop_stdadd_writecount_nomsync,
 };
 VFS_VOP_VECTOR_REGISTER(zfs_shareops);

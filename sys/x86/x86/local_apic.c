@@ -221,7 +221,6 @@ SYSCTL_INT(_hw_apic, OID_AUTO, ds_idle_timeout, CTLFLAG_RWTUN,
 #endif
 
 static void lapic_calibrate_initcount(struct lapic *la);
-static void lapic_calibrate_deadline(struct lapic *la);
 
 /*
  * Use __nosanitizethread to exempt the LAPIC I/O accessors from KCSan
@@ -373,6 +372,7 @@ static void 	native_apic_enable_vector(u_int apic_id, u_int vector);
 static void 	native_apic_free_vector(u_int apic_id, u_int vector, u_int irq);
 static void 	native_lapic_set_logical_id(u_int apic_id, u_int cluster,
 		    u_int cluster_id);
+static void	native_lapic_calibrate_timer(void);
 static int 	native_lapic_enable_pmc(void);
 static void 	native_lapic_disable_pmc(void);
 static void 	native_lapic_reenable_pmc(void);
@@ -412,6 +412,7 @@ struct apic_ops apic_ops = {
 	.enable_vector		= native_apic_enable_vector,
 	.disable_vector		= native_apic_disable_vector,
 	.free_vector		= native_apic_free_vector,
+	.calibrate_timer	= native_lapic_calibrate_timer,
 	.enable_pmc		= native_lapic_enable_pmc,
 	.disable_pmc		= native_lapic_disable_pmc,
 	.reenable_pmc		= native_lapic_reenable_pmc,
@@ -749,11 +750,12 @@ native_lapic_dump(const char* str)
 		printf("   cmci: 0x%08x\n", lapic_read32(LAPIC_LVT_CMCI));
 	extf = amd_read_ext_features();
 	if (extf != 0) {
-		printf("   AMD ext features: 0x%08x\n", extf);
+		printf("   AMD ext features: 0x%08x", extf);
 		elvt_count = amd_read_elvt_count();
 		for (i = 0; i < elvt_count; i++)
-			printf("   AMD elvt%d: 0x%08x\n", i,
+			printf("%s elvt%d: 0x%08x", (i % 4) ? "" : "\n ", i,
 			    lapic_read32(LAPIC_EXT_LVT0 + i));
+		printf("\n");
 	}
 }
 
@@ -803,21 +805,18 @@ native_lapic_setup(int boot)
 		    LAPIC_LVT_PCINT));
 	}
 
-	/* Program timer LVT. */
+	/*
+	 * Program the timer LVT.  Calibration is deferred until it is certain
+	 * that we have a reliable timecounter.
+	 */
 	la->lvt_timer_base = lvt_mode(la, APIC_LVT_TIMER,
 	    lapic_read32(LAPIC_LVT_TIMER));
 	la->lvt_timer_last = la->lvt_timer_base;
 	lapic_write32(LAPIC_LVT_TIMER, la->lvt_timer_base);
 
-	/* Calibrate the timer parameters using BSP. */
-	if (boot && IS_BSP()) {
-		lapic_calibrate_initcount(la);
-		if (lapic_timer_tsc_deadline)
-			lapic_calibrate_deadline(la);
-	}
-
-	/* Setup the timer if configured. */
-	if (la->la_timer_mode != LAT_MODE_UNDEF) {
+	if (boot)
+		la->la_timer_mode = LAT_MODE_UNDEF;
+	else if (la->la_timer_mode != LAT_MODE_UNDEF) {
 		KASSERT(la->la_timer_period != 0, ("lapic%u: zero divisor",
 		    lapic_id()));
 		switch (la->la_timer_mode) {
@@ -907,6 +906,25 @@ lapic_update_pmc(void *dummy)
 	    lapic_read32(LAPIC_LVT_PCINT)));
 }
 #endif
+
+static void
+native_lapic_calibrate_timer(void)
+{
+	struct lapic *la;
+	register_t intr;
+
+	intr = intr_disable();
+	la = &lapics[lapic_id()];
+
+	lapic_calibrate_initcount(la);
+
+	intr_restore(intr);
+
+	if (lapic_timer_tsc_deadline && bootverbose) {
+		printf("lapic: deadline tsc mode, Frequency %ju Hz\n",
+		    (uintmax_t)tsc_freq);
+	}
+}
 
 static int
 native_lapic_enable_pmc(void)
@@ -999,26 +1017,10 @@ lapic_calibrate_initcount(struct lapic *la)
 }
 
 static void
-lapic_calibrate_deadline(struct lapic *la __unused)
-{
-
-	if (bootverbose) {
-		printf("lapic: deadline tsc mode, Frequency %ju Hz\n",
-		    (uintmax_t)tsc_freq);
-	}
-}
-
-static void
 lapic_change_mode(struct eventtimer *et, struct lapic *la,
     enum lat_timer_mode newmode)
 {
-
-	/*
-	 * The TSC frequency may change during late calibration against other
-	 * timecounters (HPET or ACPI PMTimer).
-	 */
-	if (la->la_timer_mode == newmode &&
-	    (newmode != LAT_MODE_DEADLINE || et->et_frequency == tsc_freq))
+	if (la->la_timer_mode == newmode)
 		return;
 	switch (newmode) {
 	case LAT_MODE_PERIODIC:
@@ -1477,8 +1479,6 @@ native_lapic_enable_cmc(void)
 	    ("%s: missing APIC %u", __func__, apic_id));
 	lapics[apic_id].la_lvts[APIC_LVT_CMCI].lvt_masked = 0;
 	lapics[apic_id].la_lvts[APIC_LVT_CMCI].lvt_active = 1;
-	if (bootverbose)
-		printf("lapic%u: CMCI unmasked\n", apic_id);
 }
 
 static int
@@ -1508,8 +1508,6 @@ native_lapic_enable_mca_elvt(void)
 	}
 	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_masked = 0;
 	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_active = 1;
-	if (bootverbose)
-		printf("lapic%u: MCE Thresholding ELVT unmasked\n", apic_id);
 	return (APIC_ELVT_MCA);
 }
 
@@ -2180,7 +2178,7 @@ static void
 native_lapic_ipi_free(int vector)
 {
 	struct gate_descriptor *ip;
-	long func;
+	long func __diagused;
 
 	KASSERT(vector >= IPI_DYN_FIRST && vector <= IPI_DYN_LAST,
 	    ("%s: invalid vector %d", __func__, vector));

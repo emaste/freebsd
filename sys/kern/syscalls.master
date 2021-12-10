@@ -13,8 +13,8 @@
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, RESERVED, UNIMPL, COMPAT, COMPAT4, COMPAT6,
-;		COMPAT7, COMPAT11, COMPAT12, NODEF, NOARGS, NOPROTO, NOSTD
+;	type	one of STD, OBSOL, RESERVED, UNIMPL, SYSMUX, COMPAT*,
+;		NODEF, NOARGS, NOPROTO, NOSTD
 ;		The COMPAT* options may be combined with one or more NO*
 ;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
 ;		The CAPENABLED option may be ORed into a type.
@@ -34,6 +34,7 @@
 ;	COMPAT10 included on COMPAT_FREEBSD10 #ifdef (FreeBSD 10 compat)
 ;	COMPAT11 included on COMPAT_FREEBSD11 #ifdef (FreeBSD 11 compat)
 ;	COMPAT12 included on COMPAT_FREEBSD12 #ifdef (FreeBSD 12 compat)
+;	COMPAT13 included on COMPAT_FREEBSD13 #ifdef (FreeBSD 13 compat)
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	RESERVED reserved for local or vendor use (not for FreeBSD)
 ;	UNIMPL	not implemented, placeholder only
@@ -48,6 +49,8 @@
 ;		function prototype in sys/sysproto.h.  Does add a
 ;		definition to syscall.h besides adding a sysent.
 ;	NOTSTATIC syscall is loadable
+;	SYSMUX	syscall multiplexer.  No prototype, argument struct, or
+;		handler is declared or used.  Handled in MD syscall code.
 ;	CAPENABLED syscall is allowed in capability mode
 ;
 ; To support programmatic generation of both the default ABI and 32-bit compat
@@ -112,14 +115,17 @@
 #include <sys/sysproto.h>
 %%ABI_HEADERS%%
 
-0	AUE_NULL	STD {
-		int nosys(void);
-	} syscall nosys_args int
+0	AUE_NULL	SYSMUX {
+		int syscall(
+		    int number,
+		    ...
+		);
+	}
 1	AUE_EXIT	STD|CAPENABLED {
-		void sys_exit(
+		void exit(
 		    int rval
 		);
-	} exit sys_exit_args void
+	}
 2	AUE_FORK	STD|CAPENABLED {
 		int fork(void);
 	}
@@ -529,7 +535,7 @@
 	}
 74	AUE_MPROTECT	STD|CAPENABLED {
 		int mprotect(
-		    _In_ const void *addr,
+		    _In_ void *addr,
 		    size_t len,
 		    int prot
 		);
@@ -816,7 +822,7 @@
 		    mode_t mode
 		);
 	}
-125	AUE_RECVFROM	COMPAT|NOARGS|CAPENABLED {
+125	AUE_RECVFROM	COMPAT|CAPENABLED {
 		int recvfrom(
 		    int s,
 		    _Out_writes_(len) void *buf,
@@ -825,7 +831,7 @@
 		    _Out_writes_bytes_(*fromlenaddr) struct sockaddr *from,
 		    _Inout_ __socklen_t *fromlenaddr
 		);
-	} recvfrom recvfrom_args int
+	}
 126	AUE_SETREUID	STD|CAPENABLED {
 		int setreuid(
 		    int ruid,
@@ -963,13 +969,13 @@
 149	AUE_O_QUOTA	COMPAT {
 		int quota(void);
 	}
-150	AUE_GETSOCKNAME	COMPAT|NOARGS|CAPENABLED {
+150	AUE_GETSOCKNAME	COMPAT|CAPENABLED {
 		int getsockname(
-		    int fdec,
+		    int fdes,
 		    _Out_writes_bytes_(*alen) struct sockaddr *asa,
 		    _Inout_ __socklen_t *alen
 		);
-	} getsockname getsockname_args int
+	}
 151-153	AUE_NULL	RESERVED
 ; 154 is initialised by the NLM code, if present.
 154	AUE_NULL	NOSTD {
@@ -1166,13 +1172,13 @@
 		    u_int which,
 		    _Out_ struct rlimit *rlp
 		);
-	} getrlimit __getrlimit_args int
+	}
 195	AUE_SETRLIMIT	STD|CAPENABLED {
 		int setrlimit(
 		    u_int which,
 		    _In_ struct rlimit *rlp
 		);
-	} setrlimit __setrlimit_args int
+	}
 196	AUE_GETDIRENTRIES	COMPAT11|CAPENABLED {
 		int getdirentries(
 		    int fd,
@@ -1192,9 +1198,12 @@
 		    off_t pos
 		);
 	}
-198	AUE_NULL	NOPROTO {
-		int nosys(void);
-	} __syscall __syscall_args int
+198	AUE_NULL	SYSMUX {
+		int __syscall(
+		    int64_t number,
+		    ...
+		);
+	}
 199	AUE_LSEEK	COMPAT6|CAPENABLED {
 		off_t lseek(
 		    int fd,
@@ -1341,7 +1350,7 @@
 		int shmctl(
 		    int shmid,
 		    int cmd,
-		    _Contains_long_ struct shmid_ds_old *buf
+		    _Inout_opt_ _Contains_long_ struct shmid_ds_old *buf
 		);
 	}
 230	AUE_SHMDT	NOSTD {
@@ -1743,7 +1752,7 @@
 	}
 335	AUE_NULL	STD|CAPENABLED {
 		int utrace(
-		   _In_reads_bytes_(len) const void *addr,
+		    _In_reads_bytes_(len) const void *addr,
 		    size_t len
 		);
 	}
@@ -2238,7 +2247,7 @@
 		    _In_ _Contains_long_ptr_ const struct __ucontext *ucp
 		);
 	}
-424	AUE_SWAPOFF	STD {
+424	AUE_SWAPOFF	COMPAT13 {
 		int swapoff(
 		    _In_z_ const char *name
 		);
@@ -2337,8 +2346,7 @@
 		ssize_t extattr_list_link(
 		    _In_z_ const char *path,
 		    int attrnamespace,
-		    _Out_writes_bytes_opt_(nbytes)
-		    void *data,
+		    _Out_writes_bytes_opt_(nbytes) void *data,
 		    size_t nbytes
 		);
 	}
@@ -3290,6 +3298,13 @@
 	}
 581	AUE_NULL	STD|CAPENABLED {
 		int sched_getcpu(void);
+	}
+
+582	AUE_SWAPOFF	STD {
+		int swapoff(
+		    _In_z_ const char *name,
+		    u_int flags,
+		);
 	}
 
 ; Please copy any additions and changes to the following compatability tables:

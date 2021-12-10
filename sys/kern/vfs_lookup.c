@@ -1677,8 +1677,8 @@ out_mismatch:
  * the M_TEMP bucket if one is returned.
  */
 int
-kern_alternate_path(struct thread *td, const char *prefix, const char *path,
-    enum uio_seg pathseg, char **pathbuf, int create, int dirfd)
+kern_alternate_path(const char *prefix, const char *path, enum uio_seg pathseg,
+    char **pathbuf, int create, int dirfd)
 {
 	struct nameidata nd, ndroot;
 	char *ptr, *buf, *cp;
@@ -1737,13 +1737,13 @@ kern_alternate_path(struct thread *td, const char *prefix, const char *path,
 		for (cp = &ptr[len] - 1; *cp != '/'; cp--);
 		*cp = '\0';
 
-		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, buf, td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, buf);
 		error = namei(&nd);
 		*cp = '/';
 		if (error != 0)
 			goto keeporig;
 	} else {
-		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, buf, td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, buf);
 
 		error = namei(&nd);
 		if (error != 0)
@@ -1757,8 +1757,7 @@ kern_alternate_path(struct thread *td, const char *prefix, const char *path,
 		 * root directory and never finding it, because "/" resolves
 		 * to the emulation root directory. This is expensive :-(
 		 */
-		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, prefix,
-		    td);
+		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, prefix);
 
 		/* We shouldn't ever get an error from this namei(). */
 		error = namei(&ndroot);

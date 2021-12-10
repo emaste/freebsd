@@ -36,6 +36,7 @@
 #include "opt_bpf.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
@@ -83,6 +84,7 @@
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/if_mib.h>
 #include <net/if_vlan_var.h>
 #include <net/radix.h>
 #include <net/route.h>
@@ -272,7 +274,6 @@ struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
 static void	if_attachdomain(void *);
 static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
-static void	*if_grow(void);
 static void	if_input_default(struct ifnet *, struct mbuf *);
 static int	if_requestencap_default(struct ifnet *, struct if_encap_req *);
 static void	if_route(struct ifnet *, int flag, int fam);
@@ -305,18 +306,24 @@ extern void	nd6_setmtu(struct ifnet *);
 VNET_DEFINE(struct hhook_head *, ipsec_hhh_in[HHOOK_IPSEC_COUNT]);
 VNET_DEFINE(struct hhook_head *, ipsec_hhh_out[HHOOK_IPSEC_COUNT]);
 
-VNET_DEFINE(int, if_index);
 int	ifqmaxlen = IFQ_MAXLEN;
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
 VNET_DEFINE(struct ifgrouphead, ifg_head);
 
-VNET_DEFINE_STATIC(int, if_indexlim) = 8;
-
 /* Table of ifnet by index. */
-VNET_DEFINE_STATIC(struct ifnet **, ifindex_table);
-
+VNET_DEFINE_STATIC(int, if_index);
+#define	V_if_index		VNET(if_index)
+VNET_DEFINE_STATIC(int, if_indexlim) = 8;
 #define	V_if_indexlim		VNET(if_indexlim)
+VNET_DEFINE_STATIC(struct ifnet **, ifindex_table);
 #define	V_ifindex_table		VNET(ifindex_table)
+
+SYSCTL_NODE(_net_link_generic, IFMIB_SYSTEM, system,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Variables global to all interfaces");
+SYSCTL_INT(_net_link_generic_system, IFMIB_IFCOUNT, ifcount,
+    CTLFLAG_VNET | CTLFLAG_RD, &VNET_NAME(if_index), 0,
+    "Number of configured interfaces");
 
 /*
  * The global network interface list (V_ifnet) and related state (such as
@@ -329,13 +336,6 @@ SX_SYSINIT_FLAGS(ifnet_sx, &ifnet_sxlock, "ifnet_sx", SX_RECURSE);
 struct sx ifnet_detach_sxlock;
 SX_SYSINIT_FLAGS(ifnet_detach, &ifnet_detach_sxlock, "ifnet_detach_sx",
     SX_RECURSE);
-
-/*
- * The allocation of network interfaces is a rather non-atomic affair; we
- * need to select an index before we are ready to expose the interface for
- * use, so will use this pointer value to indicate reservation.
- */
-#define	IFNET_HOLD	(void *)(uintptr_t)(-1)
 
 #ifdef VIMAGE
 #define	VNET_IS_SHUTTING_DOWN(_vnet)					\
@@ -350,23 +350,21 @@ MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
 struct ifnet *
-ifnet_byindex(u_short idx)
+ifnet_byindex(u_int idx)
 {
-	struct ifnet *ifp;
+
+	NET_EPOCH_ASSERT();
 
 	if (__predict_false(idx > V_if_index))
 		return (NULL);
 
-	ifp = *(struct ifnet * const volatile *)(V_ifindex_table + idx);
-	return (__predict_false(ifp == IFNET_HOLD) ? NULL : ifp);
+	return (ck_pr_load_ptr(&V_ifindex_table[idx]));
 }
 
 struct ifnet *
-ifnet_byindex_ref(u_short idx)
+ifnet_byindex_ref(u_int idx)
 {
 	struct ifnet *ifp;
-
-	NET_EPOCH_ASSERT();
 
 	ifp = ifnet_byindex(idx);
 	if (ifp == NULL || (ifp->if_flags & IFF_DYING))
@@ -377,15 +375,14 @@ ifnet_byindex_ref(u_short idx)
 }
 
 /*
- * Allocate an ifindex array entry; return 0 on success or an error on
- * failure.
+ * Allocate an ifindex array entry.
  */
-static u_short
-ifindex_alloc(void **old)
+static void
+ifindex_alloc(struct ifnet *ifp)
 {
 	u_short idx;
 
-	IFNET_WLOCK_ASSERT();
+	IFNET_WLOCK();
 	/*
 	 * Try to find an empty slot below V_if_index.  If we fail, take the
 	 * next slot.
@@ -397,12 +394,24 @@ ifindex_alloc(void **old)
 
 	/* Catch if_index overflow. */
 	if (idx >= V_if_indexlim) {
-		*old = if_grow();
-		return (USHRT_MAX);
+		struct ifnet **new, **old;
+		int newlim;
+
+		newlim = V_if_indexlim * 2;
+		new = malloc(newlim * sizeof(*new), M_IFNET, M_WAITOK | M_ZERO);
+		memcpy(new, V_ifindex_table, V_if_indexlim * sizeof(*new));
+		old = V_ifindex_table;
+		ck_pr_store_ptr(&V_ifindex_table, new);
+		V_if_indexlim = newlim;
+		epoch_wait_preempt(net_epoch_preempt);
+		free(old, M_IFNET);
 	}
 	if (idx > V_if_index)
 		V_if_index = idx;
-	return (idx);
+
+	ifp->if_index = idx;
+	ck_pr_store_ptr(&V_ifindex_table[idx], ifp);
+	IFNET_WUNLOCK();
 }
 
 static void
@@ -411,17 +420,10 @@ ifindex_free(u_short idx)
 
 	IFNET_WLOCK_ASSERT();
 
-	V_ifindex_table[idx] = NULL;
+	ck_pr_store_ptr(&V_ifindex_table[idx], NULL);
 	while (V_if_index > 0 &&
 	    V_ifindex_table[V_if_index] == NULL)
 		V_if_index--;
-}
-
-static void
-ifnet_setbyindex(u_short idx, struct ifnet *ifp)
-{
-
-	V_ifindex_table[idx] = ifp;
 }
 
 struct ifaddr *
@@ -448,15 +450,11 @@ ifaddr_byindex(u_short idx)
 static void
 vnet_if_init(const void *unused __unused)
 {
-	void *old;
 
 	CK_STAILQ_INIT(&V_ifnet);
 	CK_STAILQ_INIT(&V_ifg_head);
-	IFNET_WLOCK();
-	old = if_grow();				/* create initial table */
-	IFNET_WUNLOCK();
-	epoch_wait_preempt(net_epoch_preempt);
-	free(old, M_IFNET);
+	V_ifindex_table = malloc(V_if_indexlim * sizeof(*V_ifindex_table),
+	    M_IFNET, M_WAITOK | M_ZERO);
 	vnet_if_clone_init();
 }
 VNET_SYSINIT(vnet_if_init, SI_SUB_INIT_IF, SI_ORDER_SECOND, vnet_if_init,
@@ -519,7 +517,8 @@ vnet_if_return(const void *unused __unused)
 {
 	struct ifnet *ifp, *nifp;
 	struct ifnet **pending;
-	int found, i;
+	int found __diagused;
+	int i;
 
 	i = 0;
 
@@ -560,34 +559,6 @@ VNET_SYSUNINIT(vnet_if_return, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     vnet_if_return, NULL);
 #endif
 
-static void *
-if_grow(void)
-{
-	int oldlim;
-	u_int n;
-	struct ifnet **e;
-	void *old;
-
-	old = NULL;
-	IFNET_WLOCK_ASSERT();
-	oldlim = V_if_indexlim;
-	IFNET_WUNLOCK();
-	n = (oldlim << 1) * sizeof(*e);
-	e = malloc(n, M_IFNET, M_WAITOK | M_ZERO);
-	IFNET_WLOCK();
-	if (V_if_indexlim != oldlim) {
-		free(e, M_IFNET);
-		return (NULL);
-	}
-	if (V_ifindex_table != NULL) {
-		memcpy((caddr_t)e, (caddr_t)V_ifindex_table, n/2);
-		old = V_ifindex_table;
-	}
-	V_if_indexlim <<= 1;
-	V_ifindex_table = e;
-	return (old);
-}
-
 /*
  * Allocate a struct ifnet and an index for an interface.  A layer 2
  * common structure will also be allocated if an allocation routine is
@@ -597,8 +568,6 @@ static struct ifnet *
 if_alloc_domain(u_char type, int numa_domain)
 {
 	struct ifnet *ifp;
-	u_short idx;
-	void *old;
 
 	KASSERT(numa_domain <= IF_NODOM, ("numa_domain too large"));
 	if (numa_domain == IF_NODOM)
@@ -607,18 +576,6 @@ if_alloc_domain(u_char type, int numa_domain)
 	else
 		ifp = malloc_domainset(sizeof(struct ifnet), M_IFNET,
 		    DOMAINSET_PREF(numa_domain), M_WAITOK | M_ZERO);
- restart:
-	IFNET_WLOCK();
-	idx = ifindex_alloc(&old);
-	if (__predict_false(idx == USHRT_MAX)) {
-		IFNET_WUNLOCK();
-		epoch_wait_preempt(net_epoch_preempt);
-		free(old, M_IFNET);
-		goto restart;
-	}
-	ifnet_setbyindex(idx, IFNET_HOLD);
-	IFNET_WUNLOCK();
-	ifp->if_index = idx;
 	ifp->if_type = type;
 	ifp->if_alloctype = type;
 	ifp->if_numa_domain = numa_domain;
@@ -649,7 +606,9 @@ if_alloc_domain(u_char type, int numa_domain)
 		ifp->if_counters[i] = counter_u64_alloc(M_WAITOK);
 	ifp->if_get_counter = if_get_counter_default;
 	ifp->if_pcp = IFNET_PCP_NONE;
-	ifnet_setbyindex(ifp->if_index, ifp);
+
+	ifindex_alloc(ifp);
+
 	return (ifp);
 }
 
@@ -728,9 +687,7 @@ if_free(struct ifnet *ifp)
 	 */
 	CURVNET_SET_QUIET(ifp->if_vnet);
 	IFNET_WLOCK();
-	KASSERT(ifp == ifnet_byindex(ifp->if_index),
-	    ("%s: freeing unallocated ifnet", ifp->if_xname));
-
+	MPASS(V_ifindex_table[ifp->if_index] == ifp);
 	ifindex_free(ifp->if_index);
 	IFNET_WUNLOCK();
 
@@ -880,9 +837,7 @@ if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
 
-	if (ifp->if_index == 0 || ifp != ifnet_byindex(ifp->if_index))
-		panic ("%s: BUG: if_attach called without if_alloc'd input()\n",
-		    ifp->if_xname);
+	MPASS(V_ifindex_table[ifp->if_index] == ifp);
 
 #ifdef VIMAGE
 	ifp->if_vnet = curvnet;
@@ -1312,9 +1267,6 @@ finish_vnet_shutdown:
 /*
  * if_vmove() performs a limited version of if_detach() in current
  * vnet and if_attach()es the ifnet to the vnet specified as 2nd arg.
- * An attempt is made to shrink if_index in current vnet, find an
- * unused if_index in target vnet and calls if_grow() if necessary,
- * and finally find an unused if_xname for the target vnet.
  */
 static int
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
@@ -1323,7 +1275,6 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 #ifdef DEV_BPF
 	u_int bif_dlt, bif_hdrlen;
 #endif
-	void *old;
 	int rc;
 
 #ifdef DEV_BPF
@@ -1366,18 +1317,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	 * Switch to the context of the target vnet.
 	 */
 	CURVNET_SET_QUIET(new_vnet);
- restart:
-	IFNET_WLOCK();
-	ifp->if_index = ifindex_alloc(&old);
-	if (__predict_false(ifp->if_index == USHRT_MAX)) {
-		IFNET_WUNLOCK();
-		epoch_wait_preempt(net_epoch_preempt);
-		free(old, M_IFNET);
-		goto restart;
-	}
-	ifnet_setbyindex(ifp->if_index, ifp);
-	IFNET_WUNLOCK();
-
+	ifindex_alloc(ifp);
 	if_attach_internal(ifp, 1, ifc);
 
 #ifdef DEV_BPF
@@ -1398,7 +1338,7 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	struct prison *pr;
 	struct ifnet *difp;
 	int error;
-	bool found;
+	bool found __diagused;
 	bool shutdown;
 
 	/* Try to find the prison within our visibility. */
@@ -1455,7 +1395,7 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	struct prison *pr;
 	struct vnet *vnet_dst;
 	struct ifnet *ifp;
-	int error, found;
+	int error, found __diagused;
  	bool shutdown;
 
 	/* Try to find the prison within our visibility. */
@@ -4668,7 +4608,7 @@ DB_SHOW_ALL_COMMAND(ifnets, db_show_all_ifnets)
 		db_printf("vnet=%p\n", curvnet);
 #endif
 		for (idx = 1; idx <= V_if_index; idx++) {
-			ifp = V_ifindex_table[idx].ife_ifnet;
+			ifp = V_ifindex_table[idx];
 			if (ifp == NULL)
 				continue;
 			db_printf( "%20s ifp=%p\n", ifp->if_xname, ifp);

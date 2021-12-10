@@ -37,6 +37,7 @@
 struct mdthread {
 	int	md_spinlock_count;	/* (k) */
 	register_t md_saved_daif;	/* (k) */
+	uintptr_t md_canary;
 };
 
 struct mdproc {
@@ -46,14 +47,6 @@ struct mdproc {
 #define	KINFO_PROC_SIZE	1088
 #define	KINFO_PROC32_SIZE 816
 
-#define	MAXARGS		8
-struct syscall_args {
-	u_int code;
-	u_int original_code;
-	struct sysent *callp;
-	register_t args[MAXARGS];
-};
-
 #ifdef _KERNEL
 
 #include <machine/pcb.h>
@@ -61,9 +54,7 @@ struct syscall_args {
 #define	GET_STACK_USAGE(total, used) do {				\
 	struct thread *td = curthread;					\
 	(total) = td->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb);	\
-	(used) = (char *)td->td_kstack +				\
-	    td->td_kstack_pages * PAGE_SIZE -				\
-	    (char *)&td;						\
+	(used) = td->td_kstack + (total) - (vm_offset_t)&td;		\
 } while (0)
 
 #endif
