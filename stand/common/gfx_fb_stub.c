@@ -28,7 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * userboot-specific gfx stubs.
+ * Generic gfx stubs.
  */
 
 #include <sys/types.h>

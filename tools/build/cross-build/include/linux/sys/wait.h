@@ -1,6 +1,7 @@
 /*-
- * Copyright 2021 Toomas Soome <tsoome@freebsd.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright 2021 Jessica Clarke <jrtc27@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,55 +25,23 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#pragma once
 
 /*
- * powerpc specific gfx stubs.
+ * glibc's sys/wait.h and stdlib.h both define various wait-related constants,
+ * depending on __USE_XOPEN(2K8) and if the other header has been included.
+ * Since they each probe the other's include guard to determine that, there is
+ * a window between a header defining its include guard and checking for the
+ * other's within which, if the other is included for the first time, they both
+ * believe the other has already defined the relevant macros etc, and so
+ * neither ends up doing so. This was not previously hit, and is still not hit
+ * when using glibc normally (though seems extremely fragile). However, as of
+ * glibc 2.34, signal.h, included by sys/wait, includes a new bits/sigstksz,
+ * which in turn includes unistd.h (when _SC_SIGSTKSZ_SOURCE is defined, which
+ * is implied by _GNU_SOURCE), which we wrap and include stdlib.h from,
+ * creating the exact aforementioned situation that breaks. Thus, forcefully
+ * include stdlib.h first whenever sys/wait.h is as a workaround, since that
+ * way round still works.
  */
-
-#include <sys/types.h>
-#include <pnglite.h>
-#include "bootstrap.h"
-#include "gfx_fb.h"
-
-font_list_t fonts = STAILQ_HEAD_INITIALIZER(fonts);
-teken_gfx_t gfx_state = { 0 };
-
-void
-gfx_fb_setpixel(uint32_t x __unused, uint32_t y __unused)
-{
-}
-
-void
-gfx_fb_drawrect(uint32_t x1 __unused, uint32_t y1 __unused,
-    uint32_t x2 __unused, uint32_t y2 __unused, uint32_t fill __unused)
-{
-}
-
-void
-gfx_term_drawrect(uint32_t x1 __unused, uint32_t y1 __unused,
-    uint32_t x2 __unused, uint32_t y2 __unused)
-{
-}
-
-void
-gfx_fb_line(uint32_t x0 __unused, uint32_t y0 __unused,
-    uint32_t x1 __unused, uint32_t y1 __unused, uint32_t w __unused)
-{
-}
-
-void
-gfx_fb_bezier(uint32_t x0 __unused, uint32_t y0 __unused,
-    uint32_t x1 __unused, uint32_t y1 __unused, uint32_t x2 __unused,
-    uint32_t y2 __unused, uint32_t w __unused)
-{
-}
-
-int
-gfx_fb_putimage(png_t *png __unused, uint32_t ux1 __unused,
-    uint32_t uy1 __unused, uint32_t ux2 __unused, uint32_t uy2 __unused,
-    uint32_t flags __unused)
-{
-	return (1);
-}
+#include <stdlib.h>
+#include_next <sys/wait.h>

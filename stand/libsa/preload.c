@@ -1,6 +1,5 @@
 /*-
- * Copyright 2021 Toomas Soome <tsoome@freebsd.org>
- * All rights reserved.
+ * Copyright (c) 2021 Beckhoff Automation GmbH & Co. KG
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -22,57 +21,25 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
- * powerpc specific gfx stubs.
- */
-
-#include <sys/types.h>
-#include <pnglite.h>
-#include "bootstrap.h"
-#include "gfx_fb.h"
-
-font_list_t fonts = STAILQ_HEAD_INITIALIZER(fonts);
-teken_gfx_t gfx_state = { 0 };
+#include <sys/param.h>
+#include "stand.h"
 
 void
-gfx_fb_setpixel(uint32_t x __unused, uint32_t y __unused)
+preload(int fd)
 {
-}
+	struct open_file *f;
 
-void
-gfx_fb_drawrect(uint32_t x1 __unused, uint32_t y1 __unused,
-    uint32_t x2 __unused, uint32_t y2 __unused, uint32_t fill __unused)
-{
-}
-
-void
-gfx_term_drawrect(uint32_t x1 __unused, uint32_t y1 __unused,
-    uint32_t x2 __unused, uint32_t y2 __unused)
-{
-}
-
-void
-gfx_fb_line(uint32_t x0 __unused, uint32_t y0 __unused,
-    uint32_t x1 __unused, uint32_t y1 __unused, uint32_t w __unused)
-{
-}
-
-void
-gfx_fb_bezier(uint32_t x0 __unused, uint32_t y0 __unused,
-    uint32_t x1 __unused, uint32_t y1 __unused, uint32_t x2 __unused,
-    uint32_t y2 __unused, uint32_t w __unused)
-{
-}
-
-int
-gfx_fb_putimage(png_t *png __unused, uint32_t ux1 __unused,
-    uint32_t uy1 __unused, uint32_t ux2 __unused, uint32_t uy2 __unused,
-    uint32_t flags __unused)
-{
-	return (1);
+	f = fd2open_file(fd);
+	if (f == NULL) {
+		errno = EBADF;
+		return;
+	}
+	if (f->f_ops->fo_preload)
+		(f->f_ops->fo_preload)(f);
 }
