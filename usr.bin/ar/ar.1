@@ -222,8 +222,8 @@ and
 .Fl U
 options are specified on the command line, the final one takes precedence.
 .It Fl f
-Synonymous with option
-.Fl T .
+Use only the first fifteen characters of the archive member name or
+command line file name argument when naming archive members.
 .It Fl i Ar member-before
 Synonymous with option
 .Fl b .
@@ -314,8 +314,14 @@ List the files specified by arguments
 in the order in which they appear in the archive, one per line.
 If no files are specified, all files in the archive are listed.
 .It Fl T
-Use only the first fifteen characters of the archive member name or
-command line file name argument when naming archive members.
+Not supported.
+In earlier versions of
+.Nm .
+it was an alias for
+.Fl f .
+In other implementations of
+.Nm
+it creates a "thin" archive.
 .It Fl u
 Conditionally update the archive or extract members.
 When used with the
