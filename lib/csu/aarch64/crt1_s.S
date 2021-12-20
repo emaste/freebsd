@@ -30,7 +30,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
 
 ENTRY(_start)
 	mov	x3, x2		/* cleanup */

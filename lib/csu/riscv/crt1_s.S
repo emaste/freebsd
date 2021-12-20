@@ -34,7 +34,6 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
 
 ENTRY(_start)
 	mv	a3, a2		# cleanup
