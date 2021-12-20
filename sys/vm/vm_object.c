@@ -2498,6 +2498,21 @@ vm_object_busy_wait(vm_object_t obj, const char *wmesg)
 	(void)blockcount_sleep(&obj->busy, NULL, wmesg, PVM);
 }
 
+/*
+ * This function aims to determine if the object is mapped,
+ * specifically, if it is referenced by a vm_map_entry.  Because
+ * objects occasionally acquire transient references that do not
+ * represent a mapping, the method used here is inexact.  However, it
+ * has very low overhead and is good enough for the advisory
+ * vm.vmtotal sysctl.
+ */
+bool
+vm_object_is_active(vm_object_t obj)
+{
+
+	return (obj->ref_count > obj->shadow_count);
+}
+
 static int
 vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 {
@@ -2815,18 +2830,13 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 	vm_pindex_t fidx;
 	vm_paddr_t pa;
 	vm_page_t m, prev_m;
-	int rcount, nl, c;
+	int rcount;
 
-	nl = 0;
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
 		db_printf("new object: %p\n", (void *)object);
-		if (nl > 18) {
-			c = cngetc();
-			if (c != ' ')
-				return;
-			nl = 0;
-		}
-		nl++;
+		if (db_pager_quit)
+			return;
+
 		rcount = 0;
 		fidx = 0;
 		pa = -1;
@@ -2838,13 +2848,8 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 				if (rcount) {
 					db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
 						(long)fidx, rcount, (long)pa);
-					if (nl > 18) {
-						c = cngetc();
-						if (c != ' ')
-							return;
-						nl = 0;
-					}
-					nl++;
+					if (db_pager_quit)
+						return;
 					rcount = 0;
 				}
 			}				
@@ -2856,13 +2861,8 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 			if (rcount) {
 				db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
 					(long)fidx, rcount, (long)pa);
-				if (nl > 18) {
-					c = cngetc();
-					if (c != ' ')
-						return;
-					nl = 0;
-				}
-				nl++;
+				if (db_pager_quit)
+					return;
 			}
 			fidx = m->pindex;
 			pa = VM_PAGE_TO_PHYS(m);
@@ -2871,13 +2871,8 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 		if (rcount) {
 			db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
 				(long)fidx, rcount, (long)pa);
-			if (nl > 18) {
-				c = cngetc();
-				if (c != ' ')
-					return;
-				nl = 0;
-			}
-			nl++;
+			if (db_pager_quit)
+				return;
 		}
 	}
 }
