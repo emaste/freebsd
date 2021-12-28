@@ -27,24 +27,13 @@
  * $FreeBSD$
  */
 
-#ifndef	__QCOM_GCC_IPQ4018_VAR_H__
-#define	__QCOM_GCC_IPQ4018_VAR_H__
+#ifndef	__QCOM_CLK_BRANCH2_REG_H__
+#define	__QCOM_CLK_BRANCH2_REG_H__
 
-struct qcom_gcc_ipq4018_reset_entry {
-	uint32_t	reg;
-	uint32_t	bit;
-};
+#define	QCOM_CLK_BRANCH2_CLK_OFF			(1U << 31)
+#define	QCOM_CLK_BRANCH2_NOC_FSM_STATUS_SHIFT		28
+#define	QCOM_CLK_BRANCH2_NOC_FSM_STATUS_MASK		0x7
+#define	QCOM_CLK_BRANCH2_NOC_FSM_STATUS_ON	\
+	    (0x2 << QCOM_CLK_BRANCH2_NOC_FSM_STATUS_SHIFT)
 
-struct qcom_gcc_ipq4018_softc {
-	device_t		dev;
-	int			reg_rid;
-	struct resource		*reg;
-	struct mtx		mtx;
-};
-
-extern	int qcom_gcc_ipq4018_hwreset_assert(device_t dev, intptr_t id,
-	    bool reset);
-extern	int qcom_gcc_ipq4018_hwreset_is_asserted(device_t dev, intptr_t id,
-	    bool *reset);
-
-#endif	/* __QCOM_GCC_IPQ4018_VAR_H__ */
+#endif	/* __QCOM_CLK_BRANCH2_REG_H__ */

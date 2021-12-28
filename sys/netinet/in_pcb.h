@@ -73,7 +73,8 @@ typedef	uint64_t	inp_gen_t;
 /*
  * PCB with AF_INET6 null bind'ed laddr can receive AF_INET input packet.
  * So, AF_INET6 null laddr is also used as AF_INET null laddr, by utilizing
- * the following structure.
+ * the following structure.  This requires padding always be zeroed out,
+ * which is done right after inpcb allocation and stays through its lifetime.
  */
 struct in_addr_4in6 {
 	u_int32_t	ia46_pad32[3];
@@ -235,19 +236,15 @@ struct inpcb {
 	 */
 #if defined(__amd64__) || defined(__i386__)
 	uint8_t inp_in_hpts; /* on output hpts (lock b) */
-	uint8_t inp_in_dropq; /* on input hpts (lock b) */
 #else
 	uint32_t inp_in_hpts; /* on output hpts (lock b) */
-	uint32_t inp_in_dropq; /* on input hpts (lock b) */
 #endif
 	volatile uint16_t  inp_hpts_cpu; /* Lock (i) */
 	volatile uint16_t  inp_irq_cpu;	/* Set by LRO in behalf of or the driver */
 	u_int	inp_refcount;		/* (i) refcount */
 	int	inp_flags;		/* (i) generic IP/datagram flags */
 	int	inp_flags2;		/* (i) generic IP/datagram flags #2*/
-	uint16_t  inp_dropq_cpu; /* Lock (i) */
 	uint8_t inp_hpts_cpu_set :1,  /* on output hpts (i) */
-			 inp_dropq_cpu_set : 1,	/* on input hpts (i) */
 			 inp_hpts_calls :1,	/* (i) from output hpts */
 			 inp_irq_cpu_set :1,	/* (i) from LRO/Driver */
 			 inp_spare_bits2 : 3;
@@ -256,8 +253,6 @@ struct inpcb {
 	struct	socket *inp_socket;	/* (i) back pointer to socket */
 	int32_t 	 inp_hptsslot;	/* Hpts wheel slot this tcb is Lock(i&b) */
 	uint32_t         inp_hpts_drop_reas;	/* reason we are dropping the PCB (lock i&b) */
-	uint32_t	inp_dropq_gencnt;
-	TAILQ_ENTRY(inpcb) inp_dropq;	/* hpts drop queue next lock(b) */
 	struct	inpcbinfo *inp_pcbinfo;	/* (c) PCB list info */
 	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
 	u_int32_t inp_flow;		/* (i) IPv6 flow information */
@@ -536,13 +531,36 @@ int	inp_so_options(const struct inpcb *inp);
 #define	INP_HASH_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_hash_lock, \
 					MA_OWNED)
 
-#define INP_PCBHASH(faddr, lport, fport, mask) \
-	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))
-#define INP_PCBPORTHASH(lport, mask) \
-	(ntohs((lport)) & (mask))
-#define	INP_PCBLBGROUP_PKTHASH(faddr, lport, fport) \
-	((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport)))
-#define	INP6_PCBHASHKEY(faddr)	((faddr)->s6_addr32[3])
+/*
+ * Wildcard matching hash is not just a microoptimisation!  The hash for
+ * wildcard IPv4 and wildcard IPv6 must be the same, otherwise AF_INET6
+ * wildcard bound pcb won't be able to receive AF_INET connections, while:
+ * jenkins_hash(&zeroes, 1, s) != jenkins_hash(&zeroes, 4, s)
+ * See also comment above struct in_addr_4in6.
+ */
+#define	IN_ADDR_JHASH32(addr)						\
+	((addr)->s_addr == INADDR_ANY ? V_in_pcbhashseed :		\
+	    jenkins_hash32((&(addr)->s_addr), 1, V_in_pcbhashseed))
+#define	IN6_ADDR_JHASH32(addr)						\
+	(memcmp((addr), &in6addr_any, sizeof(in6addr_any)) == 0 ?	\
+	    V_in_pcbhashseed :						\
+	    jenkins_hash32((addr)->__u6_addr.__u6_addr32,		\
+	    nitems((addr)->__u6_addr.__u6_addr32), V_in_pcbhashseed))
+
+#define INP_PCBHASH(faddr, lport, fport, mask)				\
+	((IN_ADDR_JHASH32(faddr) ^ ntohs((lport) ^ (fport))) & (mask))
+#define	INP6_PCBHASH(faddr, lport, fport, mask)				\
+	((IN6_ADDR_JHASH32(faddr) ^ ntohs((lport) ^ (fport))) & (mask))
+
+#define	INP_PCBHASH_WILD(lport, mask)					\
+	((V_in_pcbhashseed ^ ntohs(lport)) & (mask))
+
+#define	INP_PCBLBGROUP_PKTHASH(faddr, lport, fport)			\
+	(IN_ADDR_JHASH32(faddr) ^ ntohs((lport) ^ (fport)))
+#define	INP6_PCBLBGROUP_PKTHASH(faddr, lport, fport)			\
+	(IN6_ADDR_JHASH32(faddr) ^ ntohs((lport) ^ (fport)))
+
+#define INP_PCBPORTHASH(lport, mask)	(ntohs((lport)) & (mask))
 
 /*
  * Flags for inp_vflags -- historically version flags only

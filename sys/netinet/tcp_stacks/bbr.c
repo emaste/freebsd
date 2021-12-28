@@ -1059,7 +1059,7 @@ bbr_timer_audit(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts, struct sock
 wrong_timer:
 	if ((bbr->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) == 0) {
 		if (tcp_in_hpts(inp))
-			tcp_hpts_remove(inp, HPTS_REMOVE_OUTPUT);
+			tcp_hpts_remove(inp);
 		bbr_timer_cancel(bbr, __LINE__, cts);
 		bbr_start_hpts_timer(bbr, tp, cts, 1, bbr->r_ctl.rc_last_delay_val,
 		    0);
@@ -1884,7 +1884,6 @@ bbr_fill_in_logging_data(struct tcp_bbr *bbr, struct tcp_log_bbr *l, uint32_t ct
 	l->pacing_gain = bbr->r_ctl.rc_bbr_hptsi_gain;
 	l->cwnd_gain = bbr->r_ctl.rc_bbr_cwnd_gain;
 	l->inhpts = tcp_in_hpts(bbr->rc_inp);
-	l->ininput = bbr->rc_inp->inp_in_dropq;
 	l->use_lt_bw = bbr->rc_lt_use_bw;
 	l->pkts_out = bbr->r_ctl.rc_flight_at_input;
 	l->pkt_epoch = bbr->r_ctl.rc_pkt_epoch;
@@ -4580,8 +4579,7 @@ bbr_timeout_tlp(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	}
 	if (ctf_progress_timeout_check(tp, true)) {
 		bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-		return (1);
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	/* Did we somehow get into persists? */
 	if (bbr->rc_in_persist) {
@@ -4773,8 +4771,7 @@ bbr_timeout_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	 */
 	if (ctf_progress_timeout_check(tp, true)) {
 		bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-		goto out;
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	/*
 	 * Hack: if the peer is dead/unreachable, we do not time out if the
@@ -4787,8 +4784,7 @@ bbr_timeout_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	    ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
 		KMOD_TCPSTAT_INC(tcps_persistdrop);
 		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
-		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-		goto out;
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	if ((sbavail(&bbr->rc_inp->inp_socket->so_snd) == 0) &&
 	    tp->snd_una == tp->snd_max) {
@@ -4804,8 +4800,7 @@ bbr_timeout_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
 		KMOD_TCPSTAT_INC(tcps_persistdrop);
 		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
-		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-		goto out;
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	t_template = tcpip_maketemplate(bbr->rc_inp);
 	if (t_template) {
@@ -4877,8 +4872,7 @@ bbr_timeout_keepalive(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 dropit:
 	KMOD_TCPSTAT_INC(tcps_keepdrops);
 	tcp_log_end_status(tp, TCP_EI_STATUS_KEEP_MAX);
-	tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-	return (1);
+	return (-ETIMEDOUT);	/* tcp_drop() */
 }
 
 /*
@@ -4998,10 +4992,8 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	 * and retransmit one segment.
 	 */
 	if (ctf_progress_timeout_check(tp, true)) {
-		retval = 1;
 		bbr_log_progress_event(bbr, tp, tick, PROGRESS_DROP, __LINE__);
-		tcp_set_inp_to_drop(bbr->rc_inp, ETIMEDOUT);
-		goto out;
+		return (-ETIMEDOUT);	/* tcp_drop() */
 	}
 	bbr_remxt_tmr(tp);
 	if ((bbr->r_ctl.rc_resend == NULL) ||
@@ -5017,11 +5009,11 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	if (tp->t_rxtshift > TCP_MAXRXTSHIFT) {
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
 		KMOD_TCPSTAT_INC(tcps_timeoutdrop);
-		retval = 1;
 		tcp_log_end_status(tp, TCP_EI_STATUS_RETRAN);
-		tcp_set_inp_to_drop(bbr->rc_inp,
-		    (tp->t_softerror ? (uint16_t) tp->t_softerror : ETIMEDOUT));
-		goto out;
+		/* XXXGL: previously t_softerror was casted to uint16_t */
+		MPASS(tp->t_softerror >= 0);
+		retval = tp->t_softerror ? -tp->t_softerror : -ETIMEDOUT;
+		return (retval);	/* tcp_drop() */
 	}
 	if (tp->t_state == TCPS_SYN_SENT) {
 		/*
@@ -5194,7 +5186,7 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	tp->snd_recover = tp->snd_max;
 	tp->t_flags |= TF_ACKNOW;
 	tp->t_rtttime = 0;
-out:
+
 	return (retval);
 }
 
@@ -5272,7 +5264,7 @@ bbr_timer_cancel(struct tcp_bbr *bbr, int32_t line, uint32_t cts)
 			 * must remove ourselves from the hpts.
 			 */
 			hpts_removed = 1;
-			tcp_hpts_remove(bbr->rc_inp, HPTS_REMOVE_OUTPUT);
+			tcp_hpts_remove(bbr->rc_inp);
 			if (bbr->r_ctl.rc_last_delay_val) {
 				/* Update the last hptsi delay too */
 				uint32_t time_since_send;
@@ -7973,7 +7965,7 @@ bbr_exit_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts, int32_t li
 	 * for our sum's calculations.
 	 */
 	if (tcp_in_hpts(bbr->rc_inp)) {
-		tcp_hpts_remove(bbr->rc_inp, HPTS_REMOVE_OUTPUT);
+		tcp_hpts_remove(bbr->rc_inp);
 		bbr->rc_timer_first = 0;
 		bbr->r_ctl.rc_hpts_flags = 0;
 		bbr->r_ctl.rc_last_delay_val = 0;
@@ -11637,7 +11629,8 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if (bbr->r_wanted_output != 0) {
 				bbr->rc_output_starts_timer = 0;
 				did_out = 1;
-				(void)tp->t_fb->tfb_tcp_output(tp);
+				if (tcp_output(tp) < 0)
+					return (1);
 			} else
 				bbr_start_hpts_timer(bbr, tp, cts, 6, 0, 0);
 		}
@@ -11662,7 +11655,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				;
 			} else {
 				if (tcp_in_hpts(bbr->rc_inp)) {
-					tcp_hpts_remove(bbr->rc_inp, HPTS_REMOVE_OUTPUT);
+					tcp_hpts_remove(bbr->rc_inp);
 					if ((bbr->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) &&
 					    (TSTMP_GT(lcts, bbr->rc_pacer_started))) {
 						uint32_t del;
@@ -11676,7 +11669,8 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 							/* We are late */
 							bbr->r_ctl.rc_last_delay_val = 0;
 							BBR_STAT_INC(bbr_force_output);
-							(void)tp->t_fb->tfb_tcp_output(tp);
+							if (tcp_output(tp) < 0)
+								return (1);
 						}
 					}
 				}
@@ -12040,7 +12034,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 				return (0);
 			}
 		}
-		tcp_hpts_remove(inp, HPTS_REMOVE_OUTPUT);
+		tcp_hpts_remove(inp);
 		bbr_timer_cancel(bbr, __LINE__, cts);
 	}
 	if (bbr->r_ctl.rc_last_delay_val) {
@@ -12057,7 +12051,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	    (tp->t_state < TCPS_ESTABLISHED)) {
 		/* Timeouts or early states are exempt */
 		if (tcp_in_hpts(inp))
-			tcp_hpts_remove(inp, HPTS_REMOVE_OUTPUT);
+			tcp_hpts_remove(inp);
 	} else if (tcp_in_hpts(inp)) {
 		if ((bbr->r_ctl.rc_last_delay_val) &&
 		    (bbr->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) &&
@@ -12070,10 +12064,10 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 			 */
 			counter_u64_add(bbr_out_size[TCP_MSS_ACCT_LATE], 1);
 			bbr->r_ctl.rc_last_delay_val = 0;
-			tcp_hpts_remove(inp, HPTS_REMOVE_OUTPUT);
+			tcp_hpts_remove(inp);
 		} else if (tp->t_state == TCPS_CLOSED) {
 			bbr->r_ctl.rc_last_delay_val = 0;
-			tcp_hpts_remove(inp, HPTS_REMOVE_OUTPUT);
+			tcp_hpts_remove(inp);
 		} else {
 			/*
 			 * On the hpts, you shall not pass! even if ACKNOW
@@ -12163,9 +12157,16 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	hpts_calling = inp->inp_hpts_calls;
 	inp->inp_hpts_calls = 0;
 	if (bbr->r_ctl.rc_hpts_flags & PACE_TMR_MASK) {
-		if (bbr_process_timers(tp, bbr, cts, hpts_calling)) {
+		int retval;
+
+		retval = bbr_process_timers(tp, bbr, cts, hpts_calling);
+		if (retval != 0) {
 			counter_u64_add(bbr_out_size[TCP_MSS_ACCT_ATIMER], 1);
-			return (0);
+			/*
+			 * If timers want tcp_drop(), then pass error out,
+			 * otherwise suppress it.
+			 */
+			return (retval < 0 ? retval : 0);
 		}
 	}
 	bbr->rc_inp->inp_flags2 &= ~INP_MBUF_QUEUE_READY;
@@ -13234,10 +13235,9 @@ send:
 					 * is the only thing to do.
 					 */
 					BBR_STAT_INC(bbr_offset_drop);
-					tcp_set_inp_to_drop(inp, EFAULT);
 					SOCKBUF_UNLOCK(sb);
 					(void)m_free(m);
-					return (0);
+					return (-EFAULT); /* tcp_drop() */
 				}
 				len = rsm->r_end - rsm->r_start;
 			}
@@ -13891,7 +13891,7 @@ nomore:
 			bbr->oerror_cnt++;
 		if (bbr_max_net_error_cnt && (bbr->oerror_cnt >= bbr_max_net_error_cnt)) {
 			/* drop the session */
-			tcp_set_inp_to_drop(inp, ENETDOWN);
+			return (-ENETDOWN);
 		}
 		switch (error) {
 		case ENOBUFS:
@@ -14238,6 +14238,7 @@ struct tcp_function_block __tcp_bbr = {
 	.tfb_tcp_handoff_ok = bbr_handoff_ok,
 	.tfb_tcp_mtu_chg = bbr_mtu_chg,
 	.tfb_pru_options = bbr_pru_options,
+	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP,
 };
 
 /*

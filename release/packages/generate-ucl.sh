@@ -40,11 +40,10 @@ main() {
 			# else imposed on it.
 			;;
 		caroot)
-			pkgdeps="utilities"
+			pkgdeps="openssl"
 			;;
 		utilities)
 			uclfile="${uclfile}"
-			vital="true"
 			;;
 		runtime)
 			outname="runtime"

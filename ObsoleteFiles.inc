@@ -43,6 +43,9 @@
 # 2021xxxx libc++ moved to /lib
 OLD_LIBS+=usr/lib/libc++.so.1
 
+# 20211221 efi_set_variables_supported.3 should be efi_variables_supported.3
+OLD_FILES+=usr/share/man/man3/efi_set_variables_supported.3.gz
+
 # 20211218 meteor.4 removed, see also 20200301 entry below
 OLD_FILES+=usr/share/man/man4/meteor.4.gz
 

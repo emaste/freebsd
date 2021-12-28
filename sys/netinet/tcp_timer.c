@@ -117,10 +117,10 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_DELACKTIME, delacktime,
     &tcp_delacktime, 0, sysctl_msec_to_ticks, "I",
     "Time before a delayed ACK is sent");
 
-int	tcp_msl;
+VNET_DEFINE(int, tcp_msl);
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, msl,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    &tcp_msl, 0, sysctl_msec_to_ticks, "I",
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(tcp_msl), 0, sysctl_msec_to_ticks, "I",
     "Maximum segment lifetime");
 
 int	tcp_rexmit_initial;
@@ -292,8 +292,7 @@ tcp_timer_delack(void *xtp)
 	tp->t_flags |= TF_ACKNOW;
 	TCPSTAT_INC(tcps_delack);
 	NET_EPOCH_ENTER(et);
-	(void) tp->t_fb->tfb_tcp_output(tp);
-	INP_WUNLOCK(inp);
+	(void) tcp_output_unlock(tp);
 	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 }
@@ -502,6 +501,7 @@ tcp_timer_persist(void *xtp)
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
 	struct epoch_tracker et;
+	int outrv;
 	CURVNET_SET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
@@ -563,8 +563,7 @@ tcp_timer_persist(void *xtp)
 	tcp_setpersist(tp);
 	tp->t_flags |= TF_FORCEDATA;
 	NET_EPOCH_ENTER(et);
-	(void) tp->t_fb->tfb_tcp_output(tp);
-	NET_EPOCH_EXIT(et);
+	outrv = tcp_output_nodrop(tp);
 	tp->t_flags &= ~TF_FORCEDATA;
 
 #ifdef TCPDEBUG
@@ -572,7 +571,8 @@ tcp_timer_persist(void *xtp)
 		tcp_trace(TA_USER, ostate, tp, NULL, NULL, PRU_SLOWTIMO);
 #endif
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
-	INP_WUNLOCK(inp);
+	(void) tcp_unlock_or_drop(tp, outrv);
+	NET_EPOCH_EXIT(et);
 out:
 	CURVNET_RESTORE();
 }
@@ -582,7 +582,7 @@ tcp_timer_rexmt(void * xtp)
 {
 	struct tcpcb *tp = xtp;
 	CURVNET_SET(tp->t_vnet);
-	int rexmt;
+	int rexmt, outrv;
 	struct inpcb *inp;
 	struct epoch_tracker et;
 	bool isipv6;
@@ -843,15 +843,15 @@ tcp_timer_rexmt(void * xtp)
 
 	cc_cong_signal(tp, NULL, CC_RTO);
 	NET_EPOCH_ENTER(et);
-	(void) tp->t_fb->tfb_tcp_output(tp);
-	NET_EPOCH_EXIT(et);
+	outrv = tcp_output_nodrop(tp);
 #ifdef TCPDEBUG
 	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
-	INP_WUNLOCK(inp);
+	(void) tcp_unlock_or_drop(tp, outrv);
+	NET_EPOCH_EXIT(et);
 out:
 	CURVNET_RESTORE();
 }

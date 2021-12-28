@@ -375,13 +375,13 @@ static void	tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged);
 static int	tcp_default_handoff_ok(struct tcpcb *tp);
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
-static void tcp_mtudisc(struct inpcb *, int);
+static struct inpcb *tcp_mtudisc(struct inpcb *, int);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    void *ip4hdr, const void *ip6hdr);
 
 static struct tcp_function_block tcp_def_funcblk = {
 	.tfb_tcp_block_name = "freebsd",
-	.tfb_tcp_output = tcp_output,
+	.tfb_tcp_output = tcp_default_output,
 	.tfb_tcp_do_segment = tcp_do_segment,
 	.tfb_tcp_ctloutput = tcp_default_ctloutput,
 	.tfb_tcp_handoff_ok = tcp_default_handoff_ok,
@@ -1506,19 +1506,20 @@ tcp_init(void)
 	COUNTER_ARRAY_ALLOC(V_tcps_states, TCP_NSTATES, M_WAITOK);
 	VNET_PCPUSTAT_ALLOC(tcpstat, M_WAITOK);
 
+	V_tcp_msl = TCPTV_MSL;
+
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
 	tcp_reass_global_init();
 
-	/* XXX virtualize those bellow? */
+	/* XXX virtualize those below? */
 	tcp_delacktime = TCPTV_DELACK;
 	tcp_keepinit = TCPTV_KEEP_INIT;
 	tcp_keepidle = TCPTV_KEEP_IDLE;
 	tcp_keepintvl = TCPTV_KEEPINTVL;
 	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
-	tcp_msl = TCPTV_MSL;
 	tcp_rexmit_initial = TCPTV_RTOBASE;
 	if (tcp_rexmit_initial < 1)
 		tcp_rexmit_initial = 1;
@@ -2102,7 +2103,6 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 
 			memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 			log.u_bbr.inhpts = tp->t_inpcb->inp_in_hpts;
-			log.u_bbr.ininput = tp->t_inpcb->inp_in_dropq;
 			log.u_bbr.flex8 = 4;
 			log.u_bbr.pkts_out = tp->t_maxseg;
 			log.u_bbr.timeStamp = tcp_get_usecs(&tv);
@@ -2397,7 +2397,8 @@ tcp_drop(struct tcpcb *tp, int errno)
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tcp_state_change(tp, TCPS_CLOSED);
-		(void) tp->t_fb->tfb_tcp_output(tp);
+		/* Don't use tcp_output() here due to possible recursion. */
+		(void)tcp_output_nodrop(tp);
 		TCPSTAT_INC(tcps_drops);
 	} else
 		TCPSTAT_INC(tcps_conndrops);
@@ -2594,7 +2595,7 @@ tcp_close(struct tcpcb *tp)
 		tp->t_tfo_pending = NULL;
 	}
 #ifdef TCPHPTS
-	tcp_hpts_remove(inp, HPTS_REMOVE_ALL);
+	tcp_hpts_remove(inp);
 #endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
@@ -3025,7 +3026,7 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr *sa, void *vip, uint16_t port)
 						inc.inc_fibnum =
 						    inp->inp_inc.inc_fibnum;
 						tcp_hc_updatemtu(&inc, mtu);
-						tcp_mtudisc(inp, mtu);
+						inp = tcp_mtudisc(inp, mtu);
 					}
 				} else
 					inp = (*notify)(inp,
@@ -3473,11 +3474,10 @@ static struct inpcb *
 tcp_mtudisc_notify(struct inpcb *inp, int error)
 {
 
-	tcp_mtudisc(inp, -1);
-	return (inp);
+	return (tcp_mtudisc(inp, -1));
 }
 
-static void
+static struct inpcb *
 tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 {
 	struct tcpcb *tp;
@@ -3486,7 +3486,7 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 	INP_WLOCK_ASSERT(inp);
 	if ((inp->inp_flags & INP_TIMEWAIT) ||
 	    (inp->inp_flags & INP_DROPPED))
-		return;
+		return (inp);
 
 	tp = intotcpcb(inp);
 	KASSERT(tp != NULL, ("tcp_mtudisc: tp == NULL"));
@@ -3516,7 +3516,10 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 		 */
 		tp->t_fb->tfb_tcp_mtu_chg(tp);
 	}
-	tp->t_fb->tfb_tcp_output(tp);
+	if (tcp_output(tp) < 0)
+		return (NULL);
+	else
+		return (inp);
 }
 
 #ifdef INET

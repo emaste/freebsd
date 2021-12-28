@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -96,6 +97,9 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+
+#include <netipsec/ipsec_support.h>
+
 #include <machine/in_cksum.h>
 
 #include <security/mac/mac_framework.h>
@@ -325,6 +329,7 @@ tcp_twstart(struct tcpcb *tp)
 	tw->t_port = tp->t_port;
 	tw->rcv_nxt = tp->rcv_nxt;
 	tw->tw_time = 0;
+	tw->tw_flags = tp->t_flags;
 
 /* XXX
  * If this code will
@@ -342,7 +347,7 @@ tcp_twstart(struct tcpcb *tp)
 	 * and might not be needed here any longer.
 	 */
 #ifdef TCPHPTS
-	tcp_hpts_remove(inp, HPTS_REMOVE_ALL);
+	tcp_hpts_remove(inp);
 #endif
 	tcp_discardcb(tp);
 	soisdisconnected(so);
@@ -669,6 +674,10 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		to.to_tsval = tcp_ts_getticks() + tw->ts_offset;
 		to.to_tsecr = tw->t_recent;
 	}
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	if (tw->tw_flags & TF_SIGNATURE)
+		to.to_flags |= TOF_SIGNATURE;
+#endif
 	optlen = tcp_addoptions(&to, (u_char *)(th + 1));
 
 	if (udp) {
@@ -686,6 +695,13 @@ tcp_twrespond(struct tcptw *tw, int flags)
 	th->th_flags = flags;
 	th->th_win = htons(tw->last_win);
 
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	if (tw->tw_flags & TF_SIGNATURE) {
+		if (!TCPMD5_ENABLED() ||
+		    TCPMD5_OUTPUT(m, th, to.to_signature) != 0)
+			return (-1);
+	}
+#endif
 #ifdef INET6
 	if (isipv6) {
 		if (tw->t_port) {
@@ -749,7 +765,7 @@ tcp_tw_2msl_reset(struct tcptw *tw, int rearm)
 	TW_WLOCK(V_tw_lock);
 	if (rearm)
 		TAILQ_REMOVE(&V_twq_2msl, tw, tw_2msl);
-	tw->tw_time = ticks + 2 * tcp_msl;
+	tw->tw_time = ticks + 2 * V_tcp_msl;
 	TAILQ_INSERT_TAIL(&V_twq_2msl, tw, tw_2msl);
 	TW_WUNLOCK(V_tw_lock);
 }
