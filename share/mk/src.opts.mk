@@ -114,8 +114,6 @@ __DEFAULT_YES_OPTIONS = \
     HTML \
     HYPERV \
     ICONV \
-    INET \
-    INET6 \
     INETD \
     IPFILTER \
     IPFW \
@@ -203,6 +201,8 @@ __DEFAULT_NO_OPTIONS = \
     DTRACE_TESTS \
     EXPERIMENTAL \
     HESIOD \
+    INET \
+    INET6 \
     LIBSOFT \
     LOADER_FIREWIRE \
     LOADER_VERBOSE \
