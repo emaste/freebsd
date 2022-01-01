@@ -6,13 +6,13 @@
 # relevant for all build environments.
 #
 # Users define WITH_FOO and WITHOUT_FOO on the command line or in /etc/src.conf
-# and /etc/make.conf files. These translate in the build system to MK_FOO={yes,no}
-# with (usually) sensible defaults.
+# and /etc/make.conf files. These translate in the build system to
+# MK_FOO={yes,no} with (usually) sensible defaults.
 #
 # Makefiles must include bsd.opts.mk after defining specific MK_FOO options that
-# are applicable for that Makefile (typically there are none, but sometimes there
-# are exceptions). Recursive makes usually add MK_FOO=no for options that they wish
-# to omit from that make.
+# are applicable for that Makefile (typically there are none, but sometimes
+# there are exceptions). Recursive makes usually add MK_FOO=no for options that
+# they wish to omit from that make.
 #
 # Makefiles must include bsd.mkopt.mk before they test the value of any MK_FOO
 # variable.
@@ -21,8 +21,8 @@
 # need variables defined there prior to the end of the Makefile where
 # bsd.{subdir,lib.bin}.mk is traditionally included.
 #
-# The old-style YES_FOO and NO_FOO are being phased out. No new instances of them
-# should be added. Old instances should be removed since they were just to
+# The old-style YES_FOO and NO_FOO are being phased out. No new instances of
+# them should be added. Old instances should be removed since they were just to
 # bridge the gap between FreeBSD 4 and FreeBSD 5.
 #
 # Makefiles should never test WITH_FOO or WITHOUT_FOO directly (although an
