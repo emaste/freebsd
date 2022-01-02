@@ -227,7 +227,8 @@ main(int argc, char **argv)
 			bsdar->options |= AR_S;
 			break;
 		case 'T':
-			errx(1, "-T is not supported");
+			warnx("-T is deprecated");
+			bsdar->options |= AR_TR;
 			break;
 		case 't':
 			set_mode(bsdar, opt);
