@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
+
+#include "opt_inet.h"
+
 #undef ALC_USE_CUSTOM_CSUM
 
 #ifdef ALC_USE_CUSTOM_CSUM
@@ -2721,6 +2724,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	ip = NULL;
 	tcp = NULL;
 	ip_off = poff = 0;
+#ifdef INET
 	if ((m->m_pkthdr.csum_flags & (ALC_CSUM_FEATURES | CSUM_TSO)) != 0) {
 		/*
 		 * AR81[3567]x requires offset of TCP/UDP header in its
@@ -2803,6 +2807,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 		}
 		*m_head = m;
 	}
+#endif
 
 	prod = sc->alc_cdata.alc_tx_prod;
 	txd = &sc->alc_cdata.alc_txdesc[prod];

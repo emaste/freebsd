@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
+#include "opt_inet.h"
+
 #define	AGE_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
 
 MODULE_DEPEND(age, pci, 1, 1, 1);
@@ -1507,6 +1509,7 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 	tcp = NULL;
 	cflags = vtag = 0;
 	ip_off = poff = 0;
+#if defined(INET)
 	if ((m->m_pkthdr.csum_flags & (AGE_CSUM_FEATURES | CSUM_TSO)) != 0) {
 		/*
 		 * L1 requires offset of TCP/UDP payload in its Tx
@@ -1590,6 +1593,7 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 		}
 		*m_head = m;
 	}
+#endif
 
 	si = prod = sc->age_cdata.age_tx_prod;
 	txd = &sc->age_cdata.age_txdesc[prod];

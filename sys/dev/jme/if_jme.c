@@ -76,6 +76,8 @@ __FBSDID("$FreeBSD$");
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
+#include "opt_inet.h"
+
 /* Define the following to disable printing Rx errors. */
 #undef	JME_SHOW_ERRORS
 
@@ -1696,6 +1698,7 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 
 	M_ASSERTPKTHDR((*m_head));
 
+#ifdef INET
 	if (((*m_head)->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 		/*
 		 * Due to the adherence to NDIS specification JMC250
@@ -1767,6 +1770,7 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 		*m_head = m;
 	}
+#endif
 
 	prod = sc->jme_cdata.jme_tx_prod;
 	txd = &sc->jme_cdata.jme_txdesc[prod];

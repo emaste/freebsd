@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
 #endif
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1439,6 +1440,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		    FXP_IPCB_HARDWAREPARSING_ENABLE;
 
 	m = *m_head;
+#ifdef INET
 	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
 		/*
 		 * 82550/82551 requires ethernet/IP/TCP headers must be
@@ -1562,6 +1564,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		}
 #endif
 	}
+#endif
 
 	error = bus_dmamap_load_mbuf_sg(sc->fxp_txmtag, txp->tx_map, *m_head,
 	    segs, &nseg, 0);

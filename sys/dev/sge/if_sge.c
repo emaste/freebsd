@@ -98,6 +98,8 @@ MODULE_DEPEND(sge, miibus, 1, 1, 1);
 /* "device miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
+#include "opt_inet.h"
+
 /*
  * Various supported device vendors/types and their names.
  */
@@ -1403,6 +1405,7 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 
 	si = prod = sc->sge_cdata.sge_tx_prod;
 	txd = &sc->sge_cdata.sge_txdesc[prod];
+#ifdef INET
 	if (((*m_head)->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 		struct ether_header *eh;
 		struct ip *ip;
@@ -1464,6 +1467,7 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 		    htons(IPPROTO_TCP));
 		*m_head = m;
 	}
+#endif
 
 	error = bus_dmamap_load_mbuf_sg(sc->sge_cdata.sge_txmbuf_tag,
 	    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);

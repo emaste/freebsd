@@ -134,6 +134,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/sk/xmaciireg.h>
 #include <dev/sk/yukonreg.h>
 
+#include "opt_inet.h"
+
 MODULE_DEPEND(sk, pci, 1, 1, 1);
 MODULE_DEPEND(sk, ether, 1, 1, 1);
 MODULE_DEPEND(sk, miibus, 1, 1, 1);
@@ -2646,6 +2648,7 @@ skc_resume(dev)
 	return (0);
 }
 
+#ifdef INET
 /*
  * According to the data sheet from SK-NET GENESIS the hardware can compute
  * two Rx checksums at the same time(Each checksum start position is
@@ -2711,6 +2714,7 @@ sk_rxcksum(ifp, m, csum)
 	if (ipcsum == 0xffff)
 		m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
 }
+#endif
 
 static __inline int
 sk_rxvalid(sc, stat, len)
@@ -2786,8 +2790,10 @@ sk_rxeof(sc_if)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = SK_RXBYTES(sk_ctl);
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+#ifdef INET
 		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 			sk_rxcksum(ifp, m, csum);
+#endif
 		SK_IF_UNLOCK(sc_if);
 		(*ifp->if_input)(ifp, m);
 		SK_IF_LOCK(sc_if);
@@ -2854,8 +2860,10 @@ sk_jumbo_rxeof(sc_if)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = SK_RXBYTES(sk_ctl);
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+#ifdef INET
 		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 			sk_rxcksum(ifp, m, csum);
+#endif
 		SK_IF_UNLOCK(sc_if);
 		(*ifp->if_input)(ifp, m);
 		SK_IF_LOCK(sc_if);

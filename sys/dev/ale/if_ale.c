@@ -78,6 +78,8 @@ __FBSDID("$FreeBSD$");
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
+#include "opt_inet.h"
+
 /* For more information about Tx checksum offload issues see ale_encap(). */
 #define	ALE_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
 
@@ -1617,6 +1619,7 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 	tcp = NULL;
 	cflags = vtag = 0;
 	ip_off = poff = 0;
+#ifdef INET
 	if ((m->m_pkthdr.csum_flags & (ALE_CSUM_FEATURES | CSUM_TSO)) != 0) {
 		/*
 		 * AR81xx requires offset of TCP/UDP payload in its Tx
@@ -1725,6 +1728,7 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 		}
 		*m_head = m;
 	}
+#endif
 
 	si = prod = sc->ale_cdata.ale_tx_prod;
 	txd = &sc->ale_cdata.ale_txdesc[prod];

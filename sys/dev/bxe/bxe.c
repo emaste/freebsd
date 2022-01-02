@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "57711_int_offsets.h"
 #include "57712_int_offsets.h"
 
+#include "opt_inet.h"
 /*
  * CTLTYPE_U64 and sysctl_handle_64 were added in r217616. Define these
  * explicitly here for older kernels that don't include this changeset.
@@ -4924,8 +4925,10 @@ bxe_set_pbd_csum(struct bxe_fastpath        *fp,
     int e_hlen, ip_hlen;
     uint16_t proto;
     uint8_t hlen;
+#ifdef INET
     uint16_t tmp_csum;
     uint32_t *tmp_uh;
+#endif
 
     /* get the Ethernet header */
     eh = mtod(m, struct ether_vlan_header *);
@@ -4997,6 +5000,7 @@ bxe_set_pbd_csum(struct bxe_fastpath        *fp,
 
     pbd->total_hlen_w = htole16(hlen);
 
+#ifdef INET
     if (m->m_pkthdr.csum_flags & (CSUM_TCP |
                                   CSUM_TSO |
                                   CSUM_TCP_IPV6)) {
@@ -5032,6 +5036,7 @@ bxe_set_pbd_csum(struct bxe_fastpath        *fp,
 
         pbd->tcp_pseudo_csum = ntohs(in_addword(uh->uh_sum, ~tmp_csum));
     }
+#endif
 
     return (hlen * 2); /* entire header length, number of bytes */
 }
@@ -5072,6 +5077,7 @@ bxe_set_pbd_lso(struct mbuf                *m,
     pbd->tcp_send_seq = ntohl(th->th_seq);
     pbd->tcp_flags = ((ntohl(((uint32_t *)th)[3]) >> 16) & 0xff);
 
+#ifdef INET
 #if 1
         /* XXX IPv4 */
         pbd->ip_id = ntohs(ip->ip_id);
@@ -5085,6 +5091,7 @@ bxe_set_pbd_lso(struct mbuf                *m,
             ntohs(in_pseudo(&ip6->ip6_src,
                             &ip6->ip6_dst,
                             htons(IPPROTO_TCP)));
+#endif
 #endif
 
     pbd->global_data |=

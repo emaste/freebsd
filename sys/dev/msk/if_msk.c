@@ -145,6 +145,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/msk/if_mskreg.h>
 
+#include "opt_inet.h"
 MODULE_DEPEND(msk, pci, 1, 1, 1);
 MODULE_DEPEND(msk, ether, 1, 1, 1);
 MODULE_DEPEND(msk, miibus, 1, 1, 1);
@@ -2636,6 +2637,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 
 	tcp_offset = offset = 0;
 	m = *m_head;
+#ifdef INET
 	if (((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) == 0 &&
 	    (m->m_pkthdr.csum_flags & MSK_CSUM_FEATURES) != 0) ||
 	    ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
@@ -2726,6 +2728,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		}
 		*m_head = m;
 	}
+#endif
 
 	prod = sc_if->msk_cdata.msk_tx_prod;
 	txd = &sc_if->msk_cdata.msk_txdesc[prod];
