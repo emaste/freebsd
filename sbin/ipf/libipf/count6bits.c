@@ -11,8 +11,8 @@
 #include "ipf.h"
 
 
-int count6bits(msk)
-	u_32_t *msk;
+int
+count6bits(u_32_t *msk)
 {
 	int i = 0, k;
 	u_32_t j;
@@ -25,5 +25,5 @@ int count6bits(msk)
 				if (j & 0x80000000)
 					i++;
 		}
-	return i;
+	return (i);
 }

@@ -11,10 +11,8 @@
 #include "ipf.h"
 
 
-u_32_t optname(cp, sp, linenum)
-	char ***cp;
-	u_short *sp;
-	int linenum;
+u_32_t
+optname(char ***cp, u_short *sp, int linenum)
 {
 	struct ipopt_names *io, *so;
 	u_long msk = 0;
@@ -31,7 +29,7 @@ u_32_t optname(cp, sp, linenum)
 		if (!io->on_name) {
 			fprintf(stderr, "%d: unknown IP option name %s\n",
 				linenum, s);
-			return 0;
+			return (0);
 		}
 		if (!strcasecmp(s, "sec-class"))
 			sec = 1;
@@ -40,7 +38,7 @@ u_32_t optname(cp, sp, linenum)
 	if (sec && !*(*cp + 1)) {
 		fprintf(stderr, "%d: missing security level after sec-class\n",
 			linenum);
-		return 0;
+		return (0);
 	}
 
 	if (sec) {
@@ -55,11 +53,11 @@ u_32_t optname(cp, sp, linenum)
 				fprintf(stderr,
 					"%d: no such security level: %s\n",
 					linenum, s);
-				return 0;
+				return (0);
 			}
 		}
 		if (smsk)
 			*sp = smsk;
 	}
-	return msk;
+	return (msk);
 }

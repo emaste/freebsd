@@ -10,19 +10,15 @@
 
 
 iphtent_t *
-printhashnode(iph, ipep, copyfunc, opts, fields)
-	iphtable_t *iph;
-	iphtent_t *ipep;
-	copyfunc_t copyfunc;
-	int opts;
-	wordtab_t *fields;
+printhashnode(iphtable_t *iph, iphtent_t *ipep, copyfunc_t copyfunc, int opts,
+	wordtab_t *fields)
 {
 	iphtent_t ipe;
 	u_int hv;
 	int i;
 
 	if ((*copyfunc)(ipep, &ipe, sizeof(ipe)))
-		return NULL;
+		return (NULL);
 
 	hv = IPE_V4_HASH_FN(ipe.ipe_addr.i6[0], ipe.ipe_mask.i6[0],
 			    iph->iph_size);
@@ -94,5 +90,5 @@ printhashnode(iph, ipep, copyfunc, opts, fields)
 	}
 
 	ipep = ipe.ipe_next;
-	return ipep;
+	return (ipep);
 }

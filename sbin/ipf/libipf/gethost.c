@@ -10,10 +10,8 @@
 
 #include "ipf.h"
 
-int gethost(family, name, hostp)
-	int family;
-	char *name;
-	i6addr_t *hostp;
+int
+gethost(int family, char *name, i6addr_t *hostp)
 {
 	struct hostent *h;
 	struct netent *n;
@@ -32,7 +30,7 @@ int gethost(family, name, hostp)
 			hostp->i6[3] = htonl(0xfedcba98);
 		}
 #endif
-		return 0;
+		return (0);
 	}
 
 	if (!strcmp(name, "<thishost>"))
@@ -45,14 +43,14 @@ int gethost(family, name, hostp)
 			    (h->h_length == sizeof(addr))) {
 				bcopy(h->h_addr, (char *)&addr, sizeof(addr));
 				hostp->in4.s_addr = addr;
-				return 0;
+				return (0);
 			}
 		}
 
 		n = getnetbyname(name);
 		if (n != NULL) {
 			hostp->in4.s_addr = htonl(n->n_net & 0xffffffff);
-			return 0;
+			return (0);
 		}
 	}
 #ifdef USE_INET6
@@ -68,9 +66,9 @@ int gethost(family, name, hostp)
 			sin6 = (struct sockaddr_in6 *)res->ai_addr;
 			hostp->in6 = sin6->sin6_addr;
 			freeaddrinfo(res);
-			return 0;
+			return (0);
 		}
 	}
 #endif
-	return -1;
+	return (-1);
 }

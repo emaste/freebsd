@@ -134,20 +134,19 @@ ipf_lookup_t ipf_htable_backend = {
 /* Initialise the routing table data structures where required.             */
 /* ------------------------------------------------------------------------ */
 static void *
-ipf_htable_soft_create(softc)
-	ipf_main_softc_t *softc;
+ipf_htable_soft_create(ipf_main_softc_t *softc)
 {
 	ipf_htable_softc_t *softh;
 
 	KMALLOC(softh, ipf_htable_softc_t *);
 	if (softh == NULL) {
 		IPFERROR(30026);
-		return NULL;
+		return (NULL);
 	}
 
 	bzero((char *)softh, sizeof(*softh));
 
-	return softh;
+	return (softh);
 }
 
 
@@ -161,9 +160,7 @@ ipf_htable_soft_create(softc)
 /* up the pool context too.                                                 */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_htable_soft_destroy(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_htable_soft_destroy(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_htable_softc_t *softh = arg;
 
@@ -188,7 +185,7 @@ ipf_htable_soft_init(softc, arg)
 
 	bzero((char *)softh, sizeof(*softh));
 
-	return 0;
+	return (0);
 }
 
 
@@ -204,9 +201,7 @@ ipf_htable_soft_init(softc, arg)
 /* used to delete the pools one by one to ensure they're properly freed up. */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_htable_soft_fini(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_htable_soft_fini(ipf_main_softc_t *softc, void *arg)
 {
 	iplookupflush_t fop;
 
@@ -230,10 +225,7 @@ ipf_htable_soft_fini(softc, arg)
 /* structure used to export statistics.                                     */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_stats_get(softc, arg, op)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupop_t *op;
+ipf_htable_stats_get(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 {
 	ipf_htable_softc_t *softh = arg;
 	iphtstat_t stats;
@@ -241,7 +233,7 @@ ipf_htable_stats_get(softc, arg, op)
 
 	if (op->iplo_size != sizeof(stats)) {
 		IPFERROR(30001);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	stats.iphs_tables = softh->ipf_htables[op->iplo_unit + 1];
@@ -252,9 +244,9 @@ ipf_htable_stats_get(softc, arg, op)
 	err = COPYOUT(&stats, op->iplo_struct, sizeof(stats));
 	if (err != 0) {
 		IPFERROR(30013);
-		return EFAULT;
+		return (EFAULT);
 	}
-	return 0;
+	return (0);
 
 }
 
@@ -269,10 +261,7 @@ ipf_htable_stats_get(softc, arg, op)
 /* Create a new hash table using the template passed.                       */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_create(softc, arg, op)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupop_t *op;
+ipf_htable_create(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 {
 	ipf_htable_softc_t *softh = arg;
 	iphtable_t htab, *iph, *oiph;
@@ -281,22 +270,22 @@ ipf_htable_create(softc, arg, op)
 
 	if (op->iplo_size != sizeof(htab)) {
 		IPFERROR(30024);
-		return EINVAL;
+		return (EINVAL);
 	}
 	err = COPYIN(op->iplo_struct, &htab, sizeof(htab));
 	if (err != 0) {
 		IPFERROR(30003);
-		return EFAULT;
+		return (EFAULT);
 	}
 
 	unit = op->iplo_unit;
 	if (htab.iph_unit != unit) {
 		IPFERROR(30005);
-		return EINVAL;
+		return (EINVAL);
 	}
 	if (htab.iph_size < 1) {
 		IPFERROR(30025);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 
@@ -305,11 +294,11 @@ ipf_htable_create(softc, arg, op)
 		if (iph != NULL) {
 			if ((iph->iph_flags & IPHASH_DELETE) == 0) {
 				IPFERROR(30004);
-				return EEXIST;
+				return (EEXIST);
 			}
 			iph->iph_flags &= ~IPHASH_DELETE;
 			iph->iph_ref++;
-			return 0;
+			return (0);
 		}
 	}
 
@@ -317,7 +306,7 @@ ipf_htable_create(softc, arg, op)
 	if (iph == NULL) {
 		softh->ipht_nomem[op->iplo_unit + 1]++;
 		IPFERROR(30002);
-		return ENOMEM;
+		return (ENOMEM);
 	}
 	*iph = htab;
 
@@ -348,7 +337,7 @@ ipf_htable_create(softc, arg, op)
 		KFREE(iph);
 		softh->ipht_nomem[unit + 1]++;
 		IPFERROR(30006);
-		return ENOMEM;
+		return (ENOMEM);
 	}
 
 	bzero((char *)iph->iph_table, iph->iph_size * sizeof(*iph->iph_table));
@@ -368,7 +357,7 @@ ipf_htable_create(softc, arg, op)
 
 	softh->ipf_nhtables[unit + 1]++;
 
-	return 0;
+	return (0);
 }
 
 
@@ -381,12 +370,9 @@ ipf_htable_create(softc, arg, op)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_table_del(softc, arg, op)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupop_t *op;
+ipf_htable_table_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 {
-	return ipf_htable_destroy(softc, arg, op->iplo_unit, op->iplo_name);
+	return (ipf_htable_destroy(softc, arg, op->iplo_unit, op->iplo_name));
 }
 
 
@@ -403,34 +389,30 @@ ipf_htable_table_del(softc, arg, op)
 /* can be removed.                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_destroy(softc, arg, unit, name)
-	ipf_main_softc_t *softc;
-	void *arg;
-	int unit;
-	char *name;
+ipf_htable_destroy(ipf_main_softc_t *softc, void *arg, int unit, char *name)
 {
 	iphtable_t *iph;
 
 	iph = ipf_htable_find(arg, unit, name);
 	if (iph == NULL) {
 		IPFERROR(30007);
-		return ESRCH;
+		return (ESRCH);
 	}
 
 	if (iph->iph_unit != unit) {
 		IPFERROR(30008);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	if (iph->iph_ref != 0) {
 		ipf_htable_clear(softc, arg, iph);
 		iph->iph_flags |= IPHASH_DELETE;
-		return 0;
+		return (0);
 	}
 
 	ipf_htable_remove(softc, arg, iph);
 
-	return 0;
+	return (0);
 }
 
 
@@ -445,17 +427,14 @@ ipf_htable_destroy(softc, arg, unit, name)
 /* each one, one by one.                                                    */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_clear(softc, arg, iph)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iphtable_t *iph;
+ipf_htable_clear(ipf_main_softc_t *softc, void *arg, iphtable_t *iph)
 {
 	iphtent_t *ipe;
 
 	while ((ipe = iph->iph_list) != NULL)
 		if (ipf_htent_remove(softc, arg, iph, ipe) != 0)
-			return 1;
-	return 0;
+			return (1);
+	return (0);
 }
 
 
@@ -467,9 +446,7 @@ ipf_htable_clear(softc, arg, iph)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_htable_free(arg, iph)
-	void *arg;
-	iphtable_t *iph;
+ipf_htable_free(void *arg, iphtable_t *iph)
 {
 	ipf_htable_softc_t *softh = arg;
 
@@ -498,14 +475,11 @@ ipf_htable_free(arg, iph)
 /* the while loop in ipf_htable_flush() functions properly.                 */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_remove(softc, arg, iph)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iphtable_t *iph;
+ipf_htable_remove(ipf_main_softc_t *softc, void *arg, iphtable_t *iph)
 {
 
 	if (ipf_htable_clear(softc, arg, iph) != 0)
-		return 1;
+		return (1);
 
 	if (iph->iph_pnext != NULL)
 		*iph->iph_pnext = iph->iph_next;
@@ -514,7 +488,7 @@ ipf_htable_remove(softc, arg, iph)
 	iph->iph_pnext = NULL;
 	iph->iph_next = NULL;
 
-	return ipf_htable_deref(softc, arg, iph);
+	return (ipf_htable_deref(softc, arg, iph));
 }
 
 
@@ -528,47 +502,44 @@ ipf_htable_remove(softc, arg, iph)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_node_del(softc, arg, op, uid)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupop_t *op;
-	int uid;
+ipf_htable_node_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
+	int uid)
 {
-        iphtable_t *iph;
-        iphtent_t hte, *ent;
+	iphtable_t *iph;
+	iphtent_t hte, *ent;
 	int err;
 
 	if (op->iplo_size != sizeof(hte)) {
 		IPFERROR(30014);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	err = COPYIN(op->iplo_struct, &hte, sizeof(hte));
 	if (err != 0) {
 		IPFERROR(30015);
-		return EFAULT;
+		return (EFAULT);
 	}
 
 	iph = ipf_htable_find(arg, op->iplo_unit, op->iplo_name);
 	if (iph == NULL) {
 		IPFERROR(30016);
-		return ESRCH;
+		return (ESRCH);
 	}
 
 	ent = ipf_htent_find(iph, &hte);
 	if (ent == NULL) {
 		IPFERROR(30022);
-		return ESRCH;
+		return (ESRCH);
 	}
 
 	if ((uid != 0) && (ent->ipe_uid != uid)) {
 		IPFERROR(30023);
-		return EACCES;
+		return (EACCES);
 	}
 
 	err = ipf_htent_remove(softc, arg, iph, ent);
 
-	return err;
+	return (err);
 }
 
 
@@ -581,10 +552,7 @@ ipf_htable_node_del(softc, arg, op, uid)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_table_add(softc, arg, op)
-	ipf_main_softc_t *softc;
-	void *arg;
-        iplookupop_t *op;
+ipf_htable_table_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 {
 	int err;
 
@@ -595,7 +563,7 @@ ipf_htable_table_add(softc, arg, op)
 		err = ipf_htable_create(softc, arg, op);
 	}
 
-	return err;
+	return (err);
 }
 
 
@@ -610,11 +578,8 @@ ipf_htable_table_add(softc, arg, op)
 /* Delete an entry from a hash table.                                       */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htent_remove(softc, arg, iph, ipe)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iphtable_t *iph;
-	iphtent_t *ipe;
+ipf_htent_remove(ipf_main_softc_t *softc, void *arg, iphtable_t *iph,
+	iphtent_t *ipe)
 {
 
 	if (iph->iph_tail == &ipe->ipe_next)
@@ -654,7 +619,7 @@ ipf_htent_remove(softc, arg, iph, ipe)
 		break;
 	}
 
-	return ipf_htent_deref(arg, ipe);
+	return (ipf_htent_deref(arg, ipe));
 }
 
 
@@ -667,9 +632,7 @@ ipf_htent_remove(softc, arg, iph, ipe)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_deref(softc, arg, object)
-	ipf_main_softc_t *softc;
-	void *arg, *object;
+ipf_htable_deref(ipf_main_softc_t *softc, void *arg, void *object)
 {
 	ipf_htable_softc_t *softh = arg;
 	iphtable_t *iph = object;
@@ -682,7 +645,7 @@ ipf_htable_deref(softc, arg, object)
 		ipf_htable_free(softh, iph);
 	}
 
-	return refs;
+	return (refs);
 }
 
 
@@ -693,9 +656,7 @@ ipf_htable_deref(softc, arg, object)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htent_deref(arg, ipe)
-	void *arg;
-	iphtent_t *ipe;
+ipf_htent_deref(void *arg, iphtent_t *ipe)
 {
 	ipf_htable_softc_t *softh = arg;
 
@@ -704,10 +665,10 @@ ipf_htent_deref(arg, ipe)
 		softh->ipf_nhtnodes[ipe->ipe_unit + 1]--;
 		KFREE(ipe);
 
-		return 0;
+		return (0);
 	}
 
-	return ipe->ipe_ref;
+	return (ipe->ipe_ref);
 }
 
 
@@ -717,10 +678,7 @@ ipf_htent_deref(arg, ipe)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static void *
-ipf_htable_exists(arg, unit, name)
-	void *arg;
-	int unit;
-	char *name;
+ipf_htable_exists(void *arg, int unit, char *name)
 {
 	ipf_htable_softc_t *softh = arg;
 	iphtable_t *iph;
@@ -746,7 +704,7 @@ ipf_htable_exists(arg, unit, name)
 				break;
 		}
 	}
-	return iph;
+	return (iph);
 }
 
 
@@ -759,10 +717,7 @@ ipf_htable_exists(arg, unit, name)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static void *
-ipf_htable_select_add_ref(arg, unit, name)
-	void *arg;
-	int unit;
-	char *name;
+ipf_htable_select_add_ref(void *arg, int unit, char *name)
 {
 	iphtable_t *iph;
 
@@ -770,7 +725,7 @@ ipf_htable_select_add_ref(arg, unit, name)
 	if (iph != NULL) {
 		ATOMIC_INC32(iph->iph_ref);
 	}
-	return iph;
+	return (iph);
 }
 
 
@@ -784,18 +739,15 @@ ipf_htable_select_add_ref(arg, unit, name)
 /* This function is exposed becaues it is used in the group-map feature.    */
 /* ------------------------------------------------------------------------ */
 iphtable_t *
-ipf_htable_find(arg, unit, name)
-	void *arg;
-	int unit;
-	char *name;
+ipf_htable_find(void *arg, int unit, char *name)
 {
 	iphtable_t *iph;
 
 	iph = ipf_htable_exists(arg, unit, name);
 	if ((iph != NULL) && (iph->iph_flags & IPHASH_DELETE) == 0)
-		return iph;
+		return (iph);
 
-	return NULL;
+	return (NULL);
 }
 
 
@@ -808,10 +760,7 @@ ipf_htable_find(arg, unit, name)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static size_t
-ipf_htable_flush(softc, arg, op)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupflush_t *op;
+ipf_htable_flush(ipf_main_softc_t *softc, void *arg, iplookupflush_t *op)
 {
 	ipf_htable_softc_t *softh = arg;
 	iphtable_t *iph;
@@ -832,7 +781,7 @@ ipf_htable_flush(softc, arg, op)
 		}
 	}
 
-	return freed;
+	return (freed);
 }
 
 
@@ -846,11 +795,8 @@ ipf_htable_flush(softc, arg, op)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_node_add(softc, arg, op, uid)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iplookupop_t *op;
-	int uid;
+ipf_htable_node_add(ipf_main_softc_t *softc, void *arg, iplookupop_t *op,
+	int uid)
 {
 	iphtable_t *iph;
 	iphtent_t hte;
@@ -858,30 +804,30 @@ ipf_htable_node_add(softc, arg, op, uid)
 
 	if (op->iplo_size != sizeof(hte)) {
 		IPFERROR(30018);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	err = COPYIN(op->iplo_struct, &hte, sizeof(hte));
 	if (err != 0) {
 		IPFERROR(30019);
-		return EFAULT;
+		return (EFAULT);
 	}
 	hte.ipe_uid = uid;
 
 	iph = ipf_htable_find(arg, op->iplo_unit, op->iplo_name);
 	if (iph == NULL) {
 		IPFERROR(30020);
-		return ESRCH;
+		return (ESRCH);
 	}
 
 	if (ipf_htent_find(iph, &hte) != NULL) {
 		IPFERROR(30021);
-		return EEXIST;
+		return (EEXIST);
 	}
 
 	err = ipf_htent_insert(softc, arg, iph, &hte);
 
-	return err;
+	return (err);
 }
 
 
@@ -896,11 +842,8 @@ ipf_htable_node_add(softc, arg, op, uid)
 /* Add an entry to a hash table.                                            */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htent_insert(softc, arg, iph, ipeo)
-	ipf_main_softc_t *softc;
-	void *arg;
-	iphtable_t *iph;
-	iphtent_t *ipeo;
+ipf_htent_insert(ipf_main_softc_t *softc, void *arg, iphtable_t *iph,
+	iphtent_t *ipeo)
 {
 	ipf_htable_softc_t *softh = arg;
 	iphtent_t *ipe;
@@ -909,7 +852,7 @@ ipf_htent_insert(softc, arg, iph, ipeo)
 
 	KMALLOC(ipe, iphtent_t *);
 	if (ipe == NULL)
-		return -1;
+		return (-1);
 
 	bcopy((char *)ipeo, (char *)ipe, sizeof(*ipe));
 	ipe->ipe_addr.i6[0] &= ipe->ipe_mask.i6[0];
@@ -937,7 +880,7 @@ ipf_htent_insert(softc, arg, iph, ipeo)
 #endif
 	{
 		KFREE(ipe);
-		return -1;
+		return (-1);
 	}
 
 	ipe->ipe_owner = iph;
@@ -1017,7 +960,7 @@ ipf_htent_insert(softc, arg, iph, ipeo)
 	ipe->ipe_unit = iph->iph_unit;
 	softh->ipf_nhtnodes[ipe->ipe_unit + 1]++;
 
-	return 0;
+	return (0);
 }
 
 
@@ -1032,9 +975,7 @@ ipf_htent_insert(softc, arg, iph, ipeo)
 /* is time to call this function, so it is just more convenient.            */
 /* ------------------------------------------------------------------------ */
 static iphtent_t *
-ipf_htent_find(iph, ipeo)
-	iphtable_t *iph;
-	iphtent_t *ipeo;
+ipf_htent_find(iphtable_t *iph, iphtent_t *ipeo)
 {
 	iphtent_t ipe, *ent;
 	u_int hv;
@@ -1063,7 +1004,7 @@ ipf_htent_find(iph, ipeo)
 				    ipe.ipe_mask.i6, iph->iph_size);
 	} else
 #endif
-		return NULL;
+		return (NULL);
 
 	for (ent = iph->iph_table[hv]; ent != NULL; ent = ent->ipe_hnext) {
 		if (ent->ipe_family != ipe.ipe_family)
@@ -1075,7 +1016,7 @@ ipf_htent_find(iph, ipeo)
 		break;
 	}
 
-	return ent;
+	return (ent);
 }
 
 
@@ -1092,9 +1033,7 @@ ipf_htent_find(iph, ipeo)
 /* This function is exposed becaues it is used in the group-map feature.    */
 /* ------------------------------------------------------------------------ */
 void *
-ipf_iphmfindgroup(softc, tptr, aptr)
-	ipf_main_softc_t *softc;
-	void *tptr, *aptr;
+ipf_iphmfindgroup(ipf_main_softc_t *softc, void *tptr, void *aptr)
 {
 	struct in_addr *addr;
 	iphtable_t *iph;
@@ -1111,7 +1050,7 @@ ipf_iphmfindgroup(softc, tptr, aptr)
 	else
 		rval = NULL;
 	RWLOCK_EXIT(&softc->ipf_poolrw);
-	return rval;
+	return (rval);
 }
 
 
@@ -1127,11 +1066,8 @@ ipf_iphmfindgroup(softc, tptr, aptr)
 /* Search the hash table for a given address and return a search result.    */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_iphmfindip(softc, tptr, ipversion, aptr, bytes)
-	ipf_main_softc_t *softc;
-	void *tptr, *aptr;
-	int ipversion;
-	u_int bytes;
+ipf_iphmfindip(ipf_main_softc_t *softc, void *tptr, int ipversion, void *aptr,
+	u_int bytes)
 {
 	struct in_addr *addr;
 	iphtable_t *iph;
@@ -1139,7 +1075,7 @@ ipf_iphmfindip(softc, tptr, ipversion, aptr, bytes)
 	int rval;
 
 	if (tptr == NULL || aptr == NULL)
-		return -1;
+		return (-1);
 
 	iph = tptr;
 	addr = aptr;
@@ -1163,7 +1099,7 @@ ipf_iphmfindip(softc, tptr, ipversion, aptr, bytes)
 		rval = 1;
 	}
 	RWLOCK_EXIT(&softc->ipf_poolrw);
-	return rval;
+	return (rval);
 }
 
 
@@ -1175,9 +1111,7 @@ ipf_iphmfindip(softc, tptr, ipversion, aptr, bytes)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static iphtent_t *
-ipf_iphmfind(iph, addr)
-	iphtable_t *iph;
-	struct in_addr *addr;
+ipf_iphmfind(iphtable_t *iph, struct in_addr *addr)
 {
 	u_32_t msk, ips;
 	iphtent_t *ipe;
@@ -1203,7 +1137,7 @@ maskloop:
 		if (i < iph->iph_v4_masks.imt4_max)
 			goto maskloop;
 	}
-	return ipe;
+	return (ipe);
 }
 
 
@@ -1217,11 +1151,8 @@ maskloop:
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_iter_next(softc, arg, token, ilp)
-	ipf_main_softc_t *softc;
-	void *arg;
-	ipftoken_t *token;
-	ipflookupiter_t *ilp;
+ipf_htable_iter_next(ipf_main_softc_t *softc, void *arg, ipftoken_t *token,
+	ipflookupiter_t *ilp)
 {
 	ipf_htable_softc_t *softh = arg;
 	iphtent_t *node, zn, *nextnode;
@@ -1293,7 +1224,7 @@ ipf_htable_iter_next(softc, arg, token, ilp)
 
 	RWLOCK_EXIT(&softc->ipf_poolrw);
 	if (err != 0)
-		return err;
+		return (err);
 
 	switch (ilp->ili_otype)
 	{
@@ -1327,7 +1258,7 @@ ipf_htable_iter_next(softc, arg, token, ilp)
 	if (hnext == NULL)
 		ipf_token_mark_complete(token);
 
-	return err;
+	return (err);
 }
 
 
@@ -1342,19 +1273,15 @@ ipf_htable_iter_next(softc, arg, token, ilp)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_iter_deref(softc, arg, otype, unit, data)
-	ipf_main_softc_t *softc;
-	void *arg;
-	int otype;
-	int unit;
-	void *data;
+ipf_htable_iter_deref(ipf_main_softc_t *softc, void *arg, int otype, int unit,
+	void *data)
 {
 
 	if (data == NULL)
-		return EFAULT;
+		return (EFAULT);
 
 	if (unit < -1 || unit > IPL_LOGMAX)
-		return EINVAL;
+		return (EINVAL);
 
 	switch (otype)
 	{
@@ -1369,7 +1296,7 @@ ipf_htable_iter_deref(softc, arg, otype, unit, data)
 		break;
 	}
 
-	return 0;
+	return (0);
 }
 
 
@@ -1382,9 +1309,7 @@ ipf_htable_iter_deref(softc, arg, otype, unit, data)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static iphtent_t *
-ipf_iphmfind6(iph, addr)
-	iphtable_t *iph;
-	i6addr_t *addr;
+ipf_iphmfind6(iphtable_t *iph, i6addr_t *addr)
 {
 	i6addr_t *msk, ips;
 	iphtent_t *ipe;
@@ -1413,15 +1338,13 @@ maskloop:
 		if (i < iph->iph_v6_masks.imt6_max)
 			goto maskloop;
 	}
-	return ipe;
+	return (ipe);
 }
 #endif
 
 
 static void
-ipf_htable_expire(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_htable_expire(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_htable_softc_t *softh = arg;
 	iphtent_t *n;
@@ -1441,9 +1364,7 @@ ipf_htable_expire(softc, arg)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 void
-ipf_htable_dump(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_htable_dump(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_htable_softc_t *softh = arg;
 	iphtable_t *iph;

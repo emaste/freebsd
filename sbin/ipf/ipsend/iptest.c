@@ -63,9 +63,8 @@ static void usage(prog)
 }
 
 
-int main(argc, argv)
-	int argc;
-	char **argv;
+int
+main(int argc, char **argv)
 {
 	struct	tcpiphdr *ti;
 	struct	in_addr	gwip;
@@ -193,5 +192,5 @@ int main(argc, argv)
 		ip_test7(dev, mtu, (ip_t *)ti, gwip, pointtest);
 		break;
 	}
-	return 0;
+	return (0);
 }

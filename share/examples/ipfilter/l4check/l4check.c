@@ -66,8 +66,8 @@ int opts = 0;
 #endif
 
 
-char *copystr(dst, src)
-	char *dst, *src;
+char *
+copystr(char *dst, char *src)
 {
 	register char *s, *t, c;
 	register int esc = 0;
@@ -92,11 +92,11 @@ char *copystr(dst, src)
 		else
 			esc = 1;
 	*t = '\0';
-	return dst;
+	return(dst);
 }
 
-void addnat(l4)
-	l4cfg_t *l4;
+void
+addnat(l4cfg_t *l4)
 {
 	ipnat_t *ipn = &l4->l4_nat;
 
@@ -110,8 +110,8 @@ void addnat(l4)
 }
 
 
-void delnat(l4)
-	l4cfg_t *l4;
+void
+delnat(l4cfg_t *l4)
 {
 	ipnat_t *ipn = &l4->l4_nat;
 
@@ -125,8 +125,8 @@ void delnat(l4)
 }
 
 
-void connectl4(l4)
-	l4cfg_t *l4;
+void
+connectl4(l4cfg_t *l4)
 {
 	l4->l4_rw = 1;
 	l4->l4_rlen = 0;
@@ -139,9 +139,8 @@ void connectl4(l4)
 }
 
 
-void closel4(l4, dead)
-	l4cfg_t *l4;
-	int dead;
+void
+closel4(l4cfg_t *l4, int dead)
 {
 	close(l4->l4_fd);
 	l4->l4_fd = -1;
@@ -153,8 +152,8 @@ void closel4(l4, dead)
 }
 
 
-void connectfd(l4)
-	l4cfg_t *l4;
+void
+connectfd(l4cfg_t *l4)
 {
 	if (connect(l4->l4_fd, (struct sockaddr *)&l4->l4_sin,
 		    sizeof(l4->l4_sin)) == -1) {
@@ -175,8 +174,8 @@ void connectfd(l4)
 }
 
 
-void writefd(l4)
-	l4cfg_t *l4;
+void
+writefd(l4cfg_t *l4)
 {
 	char buf[80], *ptr;
 	int n, i, fd;
@@ -207,8 +206,7 @@ void writefd(l4)
 }
 
 
-void readfd(l4)
-	l4cfg_t *l4;
+void readfd(l4cfg_t *l4)
 {
 	char buf[80], *ptr;
 	int n, i, fd;
@@ -271,7 +269,8 @@ void readfd(l4)
 }
 
 
-int runconfig()
+int
+runconfig(void)
 {
 	int fd, opt, res, mfd, i;
 	struct timeval tv;
@@ -373,7 +372,7 @@ int runconfig()
 	i = select(mfd + 1, &rfd, &wfd, NULL, &tv);
 	if (i == -1) {
 		perror("select");
-		return -1;
+		return(-1);
 	}
 
 	now1 = time(NULL);
@@ -397,15 +396,12 @@ int runconfig()
 			i--;
 		}
 	}
-	return 0;
+	return(0);
 }
 
 
-int gethostport(str, lnum, ipp, portp)
-	char *str;
-	int lnum;
-	u_32_t *ipp;
-	u_short *portp;
+int
+gethostport(char *str, int lnum, u_32_t *ipp, u_short *portp)
 {
 	struct servent *sp;
 	struct hostent *hp;
@@ -428,7 +424,7 @@ int gethostport(str, lnum, ipp, portp)
 		if (!(hp = gethostbyname(host))) {
 			fprintf(stderr, "%d: can't resolve hostname: %s\n",
 				lnum, host);
-			return 0;
+			return(0);
 		}
 		*ipp = *(u_32_t *)hp->h_addr;
 	}
@@ -443,18 +439,17 @@ int gethostport(str, lnum, ipp, portp)
 			else {
 				fprintf(stderr, "%d: unknown service %s\n",
 					lnum, port);
-				return 0;
+				return(0);
 			}
 		}
 	} else
 		*portp = 0;
-	return 1;
+	return(1);
 }
 
 
-char *mapfile(file, sizep)
-	char *file;
-	size_t *sizep;
+char *
+mapfile(char *file, size_t *sizep)
 {
 	struct stat sb;
 	caddr_t addr;
@@ -463,29 +458,29 @@ char *mapfile(file, sizep)
 	fd = open(file, O_RDONLY);
 	if (fd == -1) {
 		perror("open(mapfile)");
-		return NULL;
+		return(NULL);
 	}
 
 	if (fstat(fd, &sb) == -1) {
 		perror("fstat(mapfile)");
 		close(fd);
-		return NULL;
+		return(NULL);
 	}
 
 	addr = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (addr == (caddr_t)-1) {
 		perror("mmap(mapfile)");
 		close(fd);
-		return NULL;
+		return(NULL);
 	}
 	close(fd);
 	*sizep = sb.st_size;
-	return (char *)addr;
+	return(char *)addr;
 }
 
 
-int readconfig(filename)
-	char *filename;
+int
+readconfig(char *filename)
 {
 	char c, buf[512], *s, *t, *errtxt = NULL, *line;
 	int num, err = 0;
@@ -496,7 +491,7 @@ int readconfig(filename)
 	fp = fopen(filename, "r");
 	if (!fp) {
 		perror("open(configfile)");
-		return -1;
+		return(-1);
 	}
 
 	bzero((char *)&template, sizeof(template));
@@ -512,7 +507,7 @@ int readconfig(filename)
 		if  (!s) {
 			fprintf(stderr, "%d: line too long\n", num);
 			fclose(fp);
-			return -1;
+			return(-1);
 		}
 
 		*s = '\0';
@@ -748,21 +743,20 @@ int readconfig(filename)
 	if (errtxt)
 		fprintf(stderr, "%d: syntax error at \"%s\"\n", num, errtxt);
 	fclose(fp);
-	return err;
+	return(err);
 }
 
 
-void usage(prog)
-	char *prog;
+void
+usage(char *prog)
 {
 	fprintf(stderr, "Usage: %s -f <configfile>\n", prog);
 	exit(1);
 }
 
 
-int main(argc, argv)
-	int argc;
-	char *argv[];
+int
+main(int argc, char *argv[])
 {
 	char *config = NULL;
 	int c;

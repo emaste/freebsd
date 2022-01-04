@@ -61,6 +61,8 @@
 
 #include <fs/unionfs/union.h>
 
+#include <machine/atomic.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
@@ -2523,26 +2525,28 @@ unionfs_add_writecount(struct vop_add_writecount_args *ap)
 {
 	struct vnode *tvp, *vp;
 	struct unionfs_node *unp;
-	int error;
+	int error, writerefs;
 
 	vp = ap->a_vp;
 	unp = VTOUNIONFS(vp);
-	tvp = unp->un_uppervp != NULL ? unp->un_uppervp : unp->un_lowervp;
-	VI_LOCK(vp);
+	tvp = unp->un_uppervp;
+	KASSERT(tvp != NULL,
+	    ("%s: adding write ref without upper vnode", __func__));
+	error = VOP_ADD_WRITECOUNT(tvp, ap->a_inc);
+	if (error != 0)
+		return (error);
+	/*
+	 * We need to track the write refs we've passed to the underlying
+	 * vnodes so that we can undo them in case we are forcibly unmounted.
+	 */
+	writerefs = atomic_fetchadd_int(&vp->v_writecount, ap->a_inc);
 	/* text refs are bypassed to lowervp */
-	VNASSERT(vp->v_writecount >= 0, vp, ("wrong null writecount"));
-	VNASSERT(vp->v_writecount + ap->a_inc >= 0, vp,
-	    ("wrong writecount inc %d", ap->a_inc));
-	if (tvp != NULL)
-		error = VOP_ADD_WRITECOUNT(tvp, ap->a_inc);
-	else if (vp->v_writecount < 0)
-		error = ETXTBSY;
-	else
-		error = 0;
-	if (error == 0)
-		vp->v_writecount += ap->a_inc;
-	VI_UNLOCK(vp);
-	return (error);
+	VNASSERT(writerefs >= 0, vp,
+	    ("%s: invalid write count %d", __func__, writerefs));
+	VNASSERT(writerefs + ap->a_inc >= 0, vp,
+	    ("%s: invalid write count inc %d + %d", __func__,
+	    writerefs, ap->a_inc));
+	return (0);
 }
 
 static int
@@ -2667,6 +2671,38 @@ unionfs_vput_pair(struct vop_vput_pair_args *ap)
 	return (res);
 }
 
+static int
+unionfs_set_text(struct vop_set_text_args *ap)
+{
+	struct vnode *tvp;
+	struct unionfs_node *unp;
+	int error;
+
+	/*
+	 * We assume text refs are managed against lvp/uvp through the
+	 * executable mapping backed by its VM object.  We therefore don't
+	 * need to track leased text refs in the case of a forcible unmount.
+	 */
+	unp = VTOUNIONFS(ap->a_vp);
+	ASSERT_VOP_LOCKED(ap->a_vp, __func__);
+	tvp = unp->un_uppervp != NULL ? unp->un_uppervp : unp->un_lowervp;
+	error = VOP_SET_TEXT(tvp);
+	return (error);
+}
+
+static int
+unionfs_unset_text(struct vop_unset_text_args *ap)
+{
+	struct vnode *tvp;
+	struct unionfs_node *unp;
+
+	ASSERT_VOP_LOCKED(ap->a_vp, __func__);
+	unp = VTOUNIONFS(ap->a_vp);
+	tvp = unp->un_uppervp != NULL ? unp->un_uppervp : unp->un_lowervp;
+	VOP_UNSET_TEXT_CHECKED(tvp);
+	return (0);
+}
+
 struct vop_vector unionfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
 
@@ -2718,5 +2754,7 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_vptofh =		unionfs_vptofh,
 	.vop_add_writecount =	unionfs_add_writecount,
 	.vop_vput_pair =	unionfs_vput_pair,
+	.vop_set_text =		unionfs_set_text,
+	.vop_unset_text = 	unionfs_unset_text,
 };
 VFS_VOP_VECTOR_REGISTER(unionfs_vnodeops);

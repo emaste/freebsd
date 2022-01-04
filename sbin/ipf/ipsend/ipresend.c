@@ -64,9 +64,8 @@ static void usage(prog)
 }
 
 
-int main(argc, argv)
-	int	argc;
-	char	**argv;
+int
+main(int argc, char **argv)
 {
 	struct	in_addr	gwip;
 	struct	ipread	*ipr = NULL;
@@ -129,5 +128,5 @@ int main(argc, argv)
 	printf("Gateway: %s\n", inet_ntoa(gwip));
 	printf("mtu:     %d\n", mtu);
 
-	return ip_resend(dev, mtu, ipr, gwip, resend);
+	return (ip_resend(dev, mtu, ipr, gwip, resend));
 }

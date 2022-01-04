@@ -111,7 +111,7 @@ static int m_xhalf(mb_t *, int, int *);
 		(_k) -= len; \
 		(_m) = (_m)->m_next; \
 		if ((_m) == 0) \
-			return 0; \
+			return (0); \
 		len = M_LEN(m); \
 	} \
 }
@@ -129,7 +129,7 @@ m_xword(m, k, err)
 	cp = MTOD(m, u_char *) + k;
 	if (len - k >= 4) {
 		*err = 0;
-		return EXTRACT_LONG(cp);
+		return (EXTRACT_LONG(cp));
 	}
 	m0 = m->m_next;
 	if (m0 == NULL || M_LEN(m0) + len - k < 4)
@@ -149,7 +149,7 @@ m_xword(m, k, err)
 	}
     bad:
 	*err = 1;
-	return 0;
+	return (0);
 }
 
 static int
@@ -165,7 +165,7 @@ m_xhalf(m, k, err)
 	cp = MTOD(m, u_char *) + k;
 	if (len - k >= 2) {
 		*err = 0;
-		return EXTRACT_SHORT(cp);
+		return (EXTRACT_SHORT(cp));
 	}
 	m0 = m->m_next;
 	if (m0 == NULL)
@@ -174,7 +174,7 @@ m_xhalf(m, k, err)
 	return (cp[0] << 8) | MTOD(m0, u_char *)[0];
  bad:
 	*err = 1;
-	return 0;
+	return (0);
 }
 
 /*
@@ -218,7 +218,7 @@ bpf_filter(pc, p, wirelen, buflen)
 		switch (pc->code) {
 
 		default:
-			return 0;
+			return (0);
 		case BPF_RET|BPF_K:
 			return (u_int)pc->k;
 
@@ -229,10 +229,10 @@ bpf_filter(pc, p, wirelen, buflen)
 			k = pc->k;
 			if (k + sizeof(int32) > buflen) {
 				if (m == NULL)
-					return 0;
+					return (0);
 				A = m_xword(m, k, &merr);
 				if (merr != 0)
-					return 0;
+					return (0);
 				continue;
 			}
 			A = EXTRACT_LONG(&p[k]);
@@ -242,10 +242,10 @@ bpf_filter(pc, p, wirelen, buflen)
 			k = pc->k;
 			if (k + sizeof(short) > buflen) {
 				if (m == NULL)
-					return 0;
+					return (0);
 				A = m_xhalf(m, k, &merr);
 				if (merr != 0)
-					return 0;
+					return (0);
 				continue;
 			}
 			A = EXTRACT_SHORT(&p[k]);
@@ -255,7 +255,7 @@ bpf_filter(pc, p, wirelen, buflen)
 			k = pc->k;
 			if (k >= buflen) {
 				if (m == NULL)
-					return 0;
+					return (0);
 				n = m;
 				MINDEX(len, n, k);
 				A = MTOD(n, u_char *)[k];
@@ -276,10 +276,10 @@ bpf_filter(pc, p, wirelen, buflen)
 			k = X + pc->k;
 			if (k + sizeof(int32) > buflen) {
 				if (m == NULL)
-					return 0;
+					return (0);
 				A = m_xword(m, k, &merr);
 				if (merr != 0)
-					return 0;
+					return (0);
 				continue;
 			}
 			A = EXTRACT_LONG(&p[k]);
@@ -289,10 +289,10 @@ bpf_filter(pc, p, wirelen, buflen)
 			k = X + pc->k;
 			if (k + sizeof(short) > buflen) {
 				if (m == NULL)
-					return 0;
+					return (0);
 				A = m_xhalf(m, k, &merr);
 				if (merr != 0)
-					return 0;
+					return (0);
 				continue;
 			}
 			A = EXTRACT_SHORT(&p[k]);
@@ -302,7 +302,7 @@ bpf_filter(pc, p, wirelen, buflen)
 			k = X + pc->k;
 			if (k >= buflen) {
 				if (m == NULL)
-					return 0;
+					return (0);
 				n = m;
 				MINDEX(len, n, k);
 				A = MTOD(n, u_char *)[k];
@@ -315,7 +315,7 @@ bpf_filter(pc, p, wirelen, buflen)
 			k = pc->k;
 			if (k >= buflen) {
 				if (m == NULL)
-					return 0;
+					return (0);
 				n = m;
 				MINDEX(len, n, k);
 				X = (MTOD(n, char *)[k] & 0xf) << 2;
@@ -398,7 +398,7 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_ALU|BPF_DIV|BPF_X:
 			if (X == 0)
-				return 0;
+				return (0);
 			A /= X;
 			continue;
 
@@ -486,10 +486,10 @@ bpf_validate(f, len)
 	const struct bpf_insn *p;
 
 	if (len == 0)
-		return 1;
+		return (1);
 
 	if (len < 1 || len > BPF_MAXINSNS)
-		return 0;
+		return (0);
 
 	for (i = 0; i < len; ++i) {
 		p = &f[i];
@@ -511,23 +511,23 @@ bpf_validate(f, len)
 				 */
 #if 0
 				if (p->k >= bpf_maxbufsize)
-					return 0;
+					return (0);
 #endif
 				break;
 			case BPF_MEM:
 				if (p->k >= BPF_MEMWORDS)
-					return 0;
+					return (0);
 				break;
 			case BPF_LEN:
 				break;
 			default:
-				return 0;
+				return (0);
 			}
 			break;
 		case BPF_ST:
 		case BPF_STX:
 			if (p->k >= BPF_MEMWORDS)
-				return 0;
+				return (0);
 			break;
 		case BPF_ALU:
 			switch (BPF_OP(p->code)) {
@@ -544,9 +544,9 @@ bpf_validate(f, len)
 				 * Check for constant division by 0.
 				 */
 				if (BPF_RVAL(p->code) == BPF_K && p->k == 0)
-					return 0;
+					return (0);
 			default:
-				return 0;
+				return (0);
 			}
 			break;
 		case BPF_JMP:
@@ -570,17 +570,17 @@ bpf_validate(f, len)
 			switch (BPF_OP(p->code)) {
 			case BPF_JA:
 				if (from + p->k < from || from + p->k >= len)
-					return 0;
+					return (0);
 				break;
 			case BPF_JEQ:
 			case BPF_JGT:
 			case BPF_JGE:
 			case BPF_JSET:
 				if (from + p->jt >= len || from + p->jf >= len)
-					return 0;
+					return (0);
 				break;
 			default:
-				return 0;
+				return (0);
 			}
 			break;
 		case BPF_RET:
@@ -588,8 +588,8 @@ bpf_validate(f, len)
 		case BPF_MISC:
 			break;
 		default:
-			return 0;
+			return (0);
 		}
 	}
-	return BPF_CLASS(f[len - 1].code) == BPF_RET;
+	return (BPF_CLASS(f[len - 1].code) == BPF_RET);
 }

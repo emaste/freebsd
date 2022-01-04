@@ -67,8 +67,8 @@ struct	ipread	pcap = { ipcap_open, ipcap_close, ipcap_readip, 0 };
 #define	SWAPSHORT(y)	\
 	( (((y)&0xff)<<8) | (((y)&0xff00)>>8) )
 
-static	void	iswap_hdr(p)
-	fileheader_t	*p;
+static void
+iswap_hdr(fileheader_t *p)
 {
 	p->major = SWAPSHORT(p->major);
 	p->minor = SWAPSHORT(p->minor);
@@ -78,27 +78,27 @@ static	void	iswap_hdr(p)
 	p->type = SWAPLONG(p->type);
 }
 
-static	int	ipcap_open(fname)
-	char	*fname;
+static int
+ipcap_open(char *fname)
 {
 	fileheader_t ph;
 	int fd, i;
 
 	if (pfd != -1)
-		return pfd;
+		return (pfd);
 
 	if (!strcmp(fname, "-"))
 		fd = 0;
 	else if ((fd = open(fname, O_RDONLY)) == -1)
-		return -1;
+		return (-1);
 
 	if (read(fd, (char *)&ph, sizeof(ph)) != sizeof(ph))
-		return -2;
+		return (-2);
 
 	if (ph.id != 0xa1b2c3d4) {
 		if (SWAPLONG(ph.id) != 0xa1b2c3d4) {
 			(void) close(fd);
-			return -2;
+			return (-2);
 		}
 		swapped = 1;
 		iswap_hdr(&ph);
@@ -112,7 +112,7 @@ static	int	ipcap_open(fname)
 
 	if (llcp == NULL) {
 		(void) close(fd);
-		return -2;
+		return (-2);
 	}
 
 	pfd = fd;
@@ -120,13 +120,14 @@ static	int	ipcap_open(fname)
 	printf("\tid: %08x version: %d.%d type: %d snap %d\n",
 		ph.id, ph.major, ph.minor, ph.type, ph.snaplen);
 
-	return fd;
+	return (fd);
 }
 
 
-static	int	ipcap_close()
+static int
+ipcap_close(void)
 {
-	return close(pfd);
+	return (close(pfd));
 }
 
 
@@ -134,8 +135,8 @@ static	int	ipcap_close()
  * read in the header (and validate) which should be the first record
  * in a pcap file.
  */
-static	int	ipcap_read_rec(rec)
-	packetheader_t *rec;
+static int
+ipcap_read_rec(packetheader_t *rec)
 {
 	int	n, p, i;
 
@@ -144,7 +145,7 @@ static	int	ipcap_read_rec(rec)
 	while (n > 0) {
 		i = read(pfd, (char *)rec, sizeof(*rec));
 		if (i <= 0)
-			return -2;
+			return (-2);
 		n -= i;
 	}
 
@@ -157,11 +158,11 @@ static	int	ipcap_read_rec(rec)
 	p = rec->caplen;
 	n = MIN(p, rec->wirelen);
 	if (!n || n < 0)
-		return -3;
+		return (-3);
 
 	if (p < 0 || p > 65536)
-		return -4;
-	return p;
+		return (-4);
+	return (p);
 }
 
 
@@ -170,16 +171,15 @@ static	int	ipcap_read_rec(rec)
  * read an entire pcap packet record.  only the data part is copied into
  * the available buffer, with the number of bytes copied returned.
  */
-static	int	ipcap_read(buf, cnt)
-	char	*buf;
-	int	cnt;
+static int
+ipcap_read(char *buf, int cnt)
 {
 	packetheader_t rec;
 	static	char	*bufp = NULL;
 	int	i, n;
 
 	if ((i = ipcap_read_rec(&rec)) <= 0)
-		return i;
+		return (i);
 
 	if (!bufp)
 		bufp = malloc(i);
@@ -187,22 +187,20 @@ static	int	ipcap_read(buf, cnt)
 		bufp = realloc(bufp, i);
 
 	if (read(pfd, bufp, i) != i)
-		return -2;
+		return (-2);
 
 	n = MIN(i, cnt);
 	bcopy(bufp, buf, n);
-	return n;
+	return (n);
 }
 #endif
 
 
 /*
- * return only an IP packet read into buf
+* return only an IP packet read into buf
  */
-static	int	ipcap_readip(mb, ifn, dir)
-	mb_t	*mb;
-	char	**ifn;
-	int	*dir;
+static int
+ipcap_readip(mb_t *mb, char **ifn, int *dir)
 {
 	static	char	*bufp = NULL;
 	packetheader_t	rec;
@@ -222,7 +220,7 @@ static	int	ipcap_readip(mb, ifn, dir)
 
 	/* do { */
 		if ((i = ipcap_read_rec(&rec)) <= 0)
-			return i;
+			return (i);
 
 		if (!bufp)
 			bufp = malloc(i);
@@ -233,7 +231,7 @@ static	int	ipcap_readip(mb, ifn, dir)
 		for (j = i, n = 0; j > 0; ) {
 			n = read(pfd, s, j);
 			if (n <= 0)
-				return -2;
+				return (-2);
 			j -= n;
 			s += n;
 		}
@@ -247,5 +245,5 @@ static	int	ipcap_readip(mb, ifn, dir)
 	n = MIN(i, cnt);
 	bcopy(s, buf, n);
 	mb->mb_len = n;
-	return n;
+	return (n);
 }

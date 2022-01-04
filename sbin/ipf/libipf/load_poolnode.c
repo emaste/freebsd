@@ -16,12 +16,8 @@
 
 
 int
-load_poolnode(role, name, node, ttl, iocfunc)
-	int role;
-	char *name;
-	ip_pool_node_t *node;
-	int ttl;
-	ioctlfunc_t iocfunc;
+load_poolnode(int role, char *name, ip_pool_node_t *node, int ttl,
+	ioctlfunc_t iocfunc)
 {
 	ip_pool_node_t pn;
 	iplookupop_t op;
@@ -29,7 +25,7 @@ load_poolnode(role, name, node, ttl, iocfunc)
 	int err;
 
 	if (pool_open() == -1)
-		return -1;
+		return (-1);
 
 	op.iplo_unit = role;
 	op.iplo_type = IPLT_POOL;
@@ -62,9 +58,9 @@ load_poolnode(role, name, node, ttl, iocfunc)
 			snprintf(msg, sizeof(msg), "%s pool node(%s/", what,
 				inet_ntoa(pn.ipn_addr.adf_addr.in4));
 			strcat(msg, inet_ntoa(pn.ipn_mask.adf_addr.in4));
-			return ipf_perror_fd(pool_fd(), iocfunc, msg);
+			return (ipf_perror_fd(pool_fd(), iocfunc, msg));
 		}
 	}
 
-	return 0;
+	return (0);
 }

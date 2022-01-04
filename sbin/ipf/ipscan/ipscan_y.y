@@ -197,9 +197,8 @@ static	struct	wordtab	yywords[] = {
 };
 
 
-int cram(dst, src)
-char *dst;
-char *src;
+int
+cram(char *dst, char *src)
 {
 	char c, *s, *t, *u;
 	int i, j, k;
@@ -252,12 +251,12 @@ char *src;
 		} else
 			*u++ = c, i++;
 	}
-	return i;
+	return(i);
 }
 
 
-void printent(isc)
-ipscan_t *isc;
+void
+printent(ipscan_t *isc)
 {
 	char buf[ISC_TLEN+1];
 	u_char *u;
@@ -334,10 +333,8 @@ ipscan_t *isc;
 }
 
 
-void addtag(tstr, cp, sp, act)
-char *tstr;
-char **cp, **sp;
-struct action *act;
+void
+addtag(char *tstr, char **cp, char **sp, struct action *act)
 {
 	ipscan_t isc, *iscp;
 
@@ -406,20 +403,20 @@ struct action *act;
 }
 
 
-char **makepair(s1, s2)
-char *s1, *s2;
+char **
+makepair(char *s1, char *s2)
 {
 	char **a;
 
 	a = malloc(sizeof(char *) * 2);
 	a[0] = s1;
 	a[1] = s2;
-	return a;
+	return(a);
 }
 
 
-struct in_addr combine(a1, a2, a3, a4)
-int a1, a2, a3, a4;
+struct in_addr
+combine(int a1, int a2, int a3, int a4)
 {
 	struct in_addr in;
 
@@ -432,12 +429,12 @@ int a1, a2, a3, a4;
 	a4 &= 0xff;
 	in.s_addr |= a4;
 	in.s_addr = htonl(in.s_addr);
-	return in;
+	return(in);
 }
 
 
-struct in_addr gethostip(host)
-char *host;
+struct in_addr
+gethostip(char *host)
 {
 	struct hostent *hp;
 	struct in_addr in;
@@ -446,25 +443,26 @@ char *host;
 
 	hp = gethostbyname(host);
 	if (!hp)
-		return in;
+		return(in);
 	bcopy(hp->h_addr, (char *)&in, sizeof(in));
-	return in;
+	return(in);
 }
 
 
-int getportnum(port)
-char *port;
+int
+getportnum(char *port)
 {
 	struct servent *s;
 
 	s = getservbyname(port, "tcp");
 	if (s == NULL)
-		return -1;
-	return s->s_port;
+		return(-1);
+	return(s->s_port);
 }
 
 
-void showlist()
+void
+showlist(void)
 {
 	ipscanstat_t ipsc, *ipscp = &ipsc;
 	ipscan_t isc;
@@ -490,8 +488,8 @@ void showlist()
 }
 
 
-void usage(prog)
-char *prog;
+void
+usage(char *prog)
 {
 	fprintf(stderr, "Usage:\t%s [-dnrv] -f <filename>\n", prog);
 	fprintf(stderr, "\t%s [-dlv]\n", prog);
@@ -499,9 +497,8 @@ char *prog;
 }
 
 
-int main(argc, argv)
-int argc;
-char *argv[];
+int
+main(int argc, char *argv[])
 {
 	FILE *fp = NULL;
 	int c;

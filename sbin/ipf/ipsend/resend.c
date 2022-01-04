@@ -33,8 +33,8 @@ extern	int	opts;
 void	dumppacket(ip_t *);
 
 
-void dumppacket(ip)
-	ip_t	*ip;
+void
+dumppacket(ip_t *ip)
 {
 	tcphdr_t *t;
 	int i, j;
@@ -63,12 +63,9 @@ void dumppacket(ip)
 }
 
 
-int	ip_resend(dev, mtu, r, gwip, datain)
-	char	*dev;
-	int	mtu;
-	struct	in_addr	gwip;
-	struct	ipread	*r;
-	char	*datain;
+int
+ip_resend(char *dev, int mtu, struct  ipread  *r, struct  in_addr gwip,
+	char *datain)
 {
 	ether_header_t	*eh;
 	char	dhost[6];
@@ -77,7 +74,7 @@ int	ip_resend(dev, mtu, r, gwip, datain)
 	mb_t	mb;
 
 	if (wfd == -1)
-		return -1;
+		return (-1);
 
 	if (datain)
 		fd = (*r->r_open)(datain);
@@ -92,7 +89,7 @@ int	ip_resend(dev, mtu, r, gwip, datain)
 	if(!eh)
 	    {
 		perror("malloc failed");
-		return -2;
+		return (-2);
 	    }
 
 	bzero((char *) &eh->ether_shost, sizeof(eh->ether_shost));
@@ -100,7 +97,7 @@ int	ip_resend(dev, mtu, r, gwip, datain)
 	    {
 		perror("arp");
 		free(eh);
-		return -2;
+		return (-2);
 	    }
 
 	while ((i = (*r->r_readip)(&mb, NULL, NULL)) > 0)
@@ -137,5 +134,5 @@ int	ip_resend(dev, mtu, r, gwip, datain)
 	    }
 	(*r->r_close)();
 	free(eh);
-	return 0;
+	return (0);
 }

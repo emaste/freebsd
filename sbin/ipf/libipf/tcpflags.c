@@ -25,8 +25,7 @@ extern	char	flagset[];
 extern	u_char	flags[];
 
 
-u_char tcpflags(flgs)
-	char *flgs;
+u_char tcpflags(char *flgs)
 {
 	u_char tcpf = 0;
 	char *s, *t;
@@ -36,10 +35,10 @@ u_char tcpflags(flgs)
 			tcpf |= TH_CWR;
 		else {
 			if (!(t = strchr(flagset, *s))) {
-				return 0;
+				return (0);
 			}
 			tcpf |= flags[t - flagset];
 		}
 	}
-	return tcpf;
+	return (tcpf);
 }

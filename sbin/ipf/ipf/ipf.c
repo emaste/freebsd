@@ -66,9 +66,8 @@ static void usage()
 }
 
 
-int main(argc,argv)
-	int argc;
-	char *argv[];
+int
+main(int argc, char *argv[])
 {
 	int c, *filter = NULL;
 
@@ -166,21 +165,20 @@ int main(argc,argv)
 	if (fd != -1)
 		(void) close(fd);
 
-	return(exitstatus);
+	return (exitstatus);
 	/* NOTREACHED */
 }
 
 
-static int opendevice(ipfdev, check)
-	char *ipfdev;
-	int check;
+static int
+opendevice(char *ipfdev, int check)
 {
 	if (opts & OPT_DONOTHING)
-		return -2;
+		return (-2);
 
 	if (check && checkrev(ipfname) == -1) {
 		fprintf(stderr, "User/kernel version check failed\n");
-		return -2;
+		return (-2);
 	}
 
 	if (!ipfdev)
@@ -190,32 +188,34 @@ static int opendevice(ipfdev, check)
 		if ((fd = open(ipfdev, O_RDWR)) == -1)
 			if ((fd = open(ipfdev, O_RDONLY)) == -1)
 				ipferror(fd, "open device");
-	return fd;
+	return (fd);
 }
 
 
-static void closedevice()
+static void
+closedevice(void)
 {
 	close(fd);
 	fd = -1;
 }
 
 
-static	int	get_flags()
+static int
+get_flags(void)
 {
 	int i = 0;
 
 	if ((opendevice(ipfname, 1) != -2) &&
 	    (ioctl(fd, SIOCGETFF, &i) == -1)) {
 		ipferror(fd, "SIOCGETFF");
-		return 0;
+		return (0);
 	}
-	return i;
+	return (i);
 }
 
 
-static	void	set_state(enable)
-	u_int	enable;
+static void
+set_state(u_int enable)
 {
 	if (opendevice(ipfname, 0) != -2) {
 		if (ioctl(fd, SIOCFRENB, &enable) == -1) {
@@ -231,8 +231,8 @@ static	void	set_state(enable)
 }
 
 
-static	void	procfile(file)
-	char	*file;
+static void
+procfile(char *file)
 {
 	(void) opendevice(ipfname, 1);
 
@@ -248,22 +248,20 @@ static	void	procfile(file)
 }
 
 
-static int ipf_interceptadd(fd, ioctlfunc, ptr)
-	int fd;
-	ioctlfunc_t ioctlfunc;
-	void *ptr;
+static int
+ipf_interceptadd(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 {
 	if (outputc)
 		printc(ptr);
 
 	if (ipf_addrule(fd, ioctlfunc, ptr) != 0)
 		exitstatus = 1;
-	return 0;
+	return (0);
 }
 
 
-static void packetlogon(opt)
-	char	*opt;
+static void
+packetlogon(char *opt)
 {
 	int	flag, xfd, logopt, change = 0;
 
@@ -346,9 +344,8 @@ static void packetlogon(opt)
 }
 
 
-static void flushfilter(arg, filter)
-	char *arg;
-	int *filter;
+static void
+flushfilter(char *arg, int *filter)
 {
 	int	fl = 0, rem;
 
@@ -441,7 +438,8 @@ static void flushfilter(arg, filter)
 }
 
 
-static void swapactive()
+static void
+swapactive(void)
 {
 	int in = 2;
 
@@ -452,7 +450,8 @@ static void swapactive()
 }
 
 
-void ipf_frsync()
+void
+ipf_frsync(void)
 {
 	int frsyn = 0;
 
@@ -463,7 +462,8 @@ void ipf_frsync()
 }
 
 
-void zerostats()
+void
+zerostats(void)
 {
 	ipfobj_t	obj;
 	friostat_t	fio;
@@ -488,8 +488,8 @@ void zerostats()
 /*
  * read the kernel stats for packets blocked and passed
  */
-static void showstats(fp)
-	friostat_t	*fp;
+static void
+showstats(friostat_t *fp)
 {
 	printf("bad packets:\t\tin %lu\tout %lu\n",
 			fp->f_st[0].fr_bad, fp->f_st[1].fr_bad);
@@ -508,7 +508,8 @@ static void showstats(fp)
 }
 
 
-static int showversion()
+static int
+showversion(void)
 {
 	struct friostat fio;
 	ipfobj_t ipfo;
@@ -526,13 +527,13 @@ static int showversion()
 
 	if ((vfd = open(ipfname, O_RDONLY)) == -1) {
 		perror("open device");
-		return 1;
+		return (1);
 	}
 
 	if (ioctl(vfd, SIOCGETFS, &ipfo)) {
 		ipferror(vfd, "ioctl(SIOCGETFS)");
 		close(vfd);
-		return 1;
+		return (1);
 	}
 	close(vfd);
 	flags = get_flags();
@@ -573,5 +574,5 @@ static int showversion()
 	printf("Active list: %d\n", fio.f_active);
 	printf("Feature mask: %#x\n", fio.f_features);
 
-	return 0;
+	return (0);
 }

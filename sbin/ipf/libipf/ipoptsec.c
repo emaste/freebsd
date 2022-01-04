@@ -24,13 +24,13 @@ struct	ipopt_names	secclass[] = {
 };
 
 
-u_char seclevel(slevel)
-	char *slevel;
+u_char
+seclevel(char *slevel)
 {
 	struct ipopt_names *so;
 
 	if (slevel == NULL || *slevel == '\0')
-		return 0;
+		return (0);
 
 	for (so = secclass; so->on_name; so++)
 		if (!strcasecmp(slevel, so->on_name))
@@ -38,14 +38,14 @@ u_char seclevel(slevel)
 
 	if (!so->on_name) {
 		fprintf(stderr, "no such security level: '%s'\n", slevel);
-		return 0;
+		return (0);
 	}
 	return (u_char)so->on_value;
 }
 
 
-u_char secbit(class)
-	int class;
+u_char
+secbit(int class)
 {
 	struct ipopt_names *so;
 
@@ -55,7 +55,7 @@ u_char secbit(class)
 
 	if (!so->on_name) {
 		fprintf(stderr, "no such security class: %d.\n", class);
-		return 0;
+		return (0);
 	}
 	return (u_char)so->on_bit;
 }

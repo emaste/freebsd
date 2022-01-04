@@ -166,15 +166,15 @@ white	[ \t\r]+
 %%
 {white}	;
 \n	{ lineNum++; swallow(); }
-\{	{ push_proto(); return next_item('{'); }
-\}	{ pop_proto(); return next_item('}'); }
-;	{ return next_item(';'); }
-[0-9]+	{ return next_item(IL_NUMBER); }
-[0-9a-fA-F]	{ return next_item(IL_HEXDIGIT); }
-:	{ return next_item(IL_COLON); }
-#[^\n]*	{ return next_item(IL_COMMENT); }
-[^ \{\}\n\t;:{}]*	{ return next_item(IL_TOKEN); }
-\"[^\"]*\"	{ return next_item(IL_TOKEN); }
+\{	{( push_proto(); return next_item('{'); });
+\}	{( pop_proto(); return next_item('}'); });
+;	{( return next_item(';'); });
+[0-9]+	{( return next_item(IL_NUMBER); });
+[0-9a-fA-F]	{( return next_item(IL_HEXDIGIT); });
+:	{( return next_item(IL_COLON); });
+#[^\n]*	{( return next_item(IL_COMMENT); });
+[^( \{\}\n\t;:{}]*	{ return next_item(IL_TOKEN); });
+\"[^\"]*\"	{( return next_item(IL_TOKEN); });
 %%
 void    yyerror(msg)
 char    *msg;
@@ -185,7 +185,7 @@ char    *msg;
 }
 
 
-void push_proto()
+void push_proto(void)
 {
 	numpr++;
 	if (!prstack)
@@ -197,7 +197,7 @@ void push_proto()
 }
 
 
-void pop_proto()
+void pop_proto(void)
 {
 	numpr--;
 	ipproto = prstack[numpr];
@@ -210,16 +210,15 @@ void pop_proto()
 }
 
 
-int save_token()
+int save_token(void)
 {
 
 	yylval.str = strdup((char *)yytext);
-	return IL_TOKEN;
+	return(IL_TOKEN);
 }
 
 
-int next_item(nstate)
-int nstate;
+int next_item(int nstate)
 {
 	struct	lwordtab	*wt;
 
@@ -227,25 +226,24 @@ int nstate;
 		printf("text=[%s] id=%d next=%d\n", yytext, nstate, next);
 	if (next == IL_TOKEN) {
 		next = -1;
-		return save_token();
+		return(save_token());
 	}
 	token++;
 
 	for (wt = words; wt->word; wt++)
 		if (!strcasecmp(wt->word, (char *)yytext))
-			return next_state(wt->state, wt->next);
+			return(next_state(wt->state, wt->next));
 	if (opts & OPT_DEBUG)
 		printf("unknown keyword=[%s]\n", yytext);
 	next = -1;
 	if (nstate == IL_NUMBER)
 		yylval.num = atoi((char *)yytext);
 	token++;
-	return nstate;
+	return(nstate);
 }
 
 
-int next_state(nstate, fornext)
-int nstate, fornext;
+int next_state(int nstate, int fornext)
 {
 	next = fornext;
 
@@ -300,11 +298,11 @@ int nstate, fornext;
 			nstate = IL_UDPLEN;
 		break;
 	}
-	return nstate;
+	return(nstate);
 }
 
 
-void swallow()
+void swallow(void)
 {
 	int c;
 

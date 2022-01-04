@@ -33,22 +33,19 @@ nothing_parse(char **strings)
 
 	ctx = calloc(1, sizeof(void *));
 
-	return ctx;
+	return (ctx);
 }
 
 
 static void
-nothing_destroy(ctx)
-	void *ctx;
+nothing_destroy(void *ctx)
 {
 	free(ctx);
 }
 
 
 static int
-nothing_send(ctx, msg)
-	void *ctx;
-	ipmon_msg_t *msg;
+nothing_send(void *ctx, ipmon_msg_t *msg)
 {
 #if 0
 	ctx = ctx;	/* gcc -Wextra */
@@ -57,6 +54,6 @@ nothing_send(ctx, msg)
 	/*
 	 * Do nothing
 	 */
-	return 0;
+	return (0);
 }
 

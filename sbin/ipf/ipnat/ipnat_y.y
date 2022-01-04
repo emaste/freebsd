@@ -819,7 +819,7 @@ to:	IPNY_TO				{ yyexpectaddr = 1; }
 	;
 
 ifnames:
-	ifname family			{ yyexpectaddr = 1; } 
+	ifname family			{ yyexpectaddr = 1; }
 	| ifname ',' otherifname family	{ yyexpectaddr = 1; }
 	;
 
@@ -1213,7 +1213,7 @@ ipaddr:	ipv4				{ $$ = $1; }
 ipv4:	YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER
 		{ if ($1 > 255 || $3 > 255 || $5 > 255 || $7 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  bzero((char *)&$$, sizeof($$));
 		  $$.a.in4.s_addr = ($1 << 24) | ($3 << 16) | ($5 << 8) | $7;
@@ -1294,11 +1294,8 @@ static	wordtab_t	yywords[] = {
 
 
 int
-ipnat_parsefile(fd, addfunc, ioctlfunc, filename)
-	int fd;
-	addfunc_t addfunc;
-	ioctlfunc_t ioctlfunc;
-	char *filename;
+ipnat_parsefile(int fd, addfunc_t addfunc, ioctlfunc_t ioctlfunc,
+	char *filename)
 {
 	FILE *fp = NULL;
 	int rval;
@@ -1319,7 +1316,7 @@ ipnat_parsefile(fd, addfunc, ioctlfunc, filename)
 		if (!fp) {
 			FPRINTF(stderr, "fopen(%s) failed: %s\n", filename,
 				STRERROR(errno));
-			return -1;
+			return(-1);
 		}
 	} else
 		fp = stdin;
@@ -1332,16 +1329,13 @@ ipnat_parsefile(fd, addfunc, ioctlfunc, filename)
 		rval = 0;
 	else if (rval != 0)
 		rval = 1;
-	return rval;
+	return(rval);
 }
 
 
 int
-ipnat_parsesome(fd, addfunc, ioctlfunc, fp)
-	int fd;
-	addfunc_t addfunc;
-	ioctlfunc_t ioctlfunc;
-	FILE *fp;
+ipnat_parsesome(int fd, addfunc_t addfunc, ioctlfunc_t ioctlfunc,
+	FILE *fp)
 {
 	char *s;
 	int i;
@@ -1352,14 +1346,14 @@ ipnat_parsesome(fd, addfunc, ioctlfunc, fp)
 	natioctlfunc = ioctlfunc;
 
 	if (feof(fp))
-		return -1;
+		return(-1);
 	i = fgetc(fp);
 	if (i == EOF)
-		return -1;
+		return(-1);
 	if (ungetc(i, fp) == EOF)
-		return -1;
+		return(-1);
 	if (feof(fp))
-		return -1;
+		return(-1);
 	s = getenv("YYDEBUG");
 	if (s)
 		yydebug = atoi(s);
@@ -1368,12 +1362,12 @@ ipnat_parsesome(fd, addfunc, ioctlfunc, fp)
 
 	yyin = fp;
 	yyparse();
-	return parser_error;
+	return(parser_error);
 }
 
 
 static void
-newnatrule()
+newnatrule(void)
 {
 	ipnat_t *n;
 
@@ -1402,8 +1396,7 @@ newnatrule()
 
 
 static void
-setnatproto(p)
-	int p;
+setnatproto(int p)
 {
 	nat->in_pr[0] = p;
 	nat->in_pr[1] = p;
@@ -1466,10 +1459,7 @@ setnatproto(p)
 
 
 int
-ipnat_addrule(fd, ioctlfunc, ptr)
-	int fd;
-	ioctlfunc_t ioctlfunc;
-	void *ptr;
+ipnat_addrule(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 {
 	ioctlcmd_t add, del;
 	ipfobj_t obj;
@@ -1509,7 +1499,7 @@ ipnat_addrule(fd, ioctlfunc, ptr)
 
 				snprintf(msg, sizeof(msg), "%d:ioctl(zero nat rule)",
 					ipn->in_flineno);
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		} else {
 			PRINTF("hits %lu ", ipn->in_hits);
@@ -1529,7 +1519,7 @@ ipnat_addrule(fd, ioctlfunc, ptr)
 
 				snprintf(msg, sizeof(msg), "%d:ioctl(delete nat rule)",
 					ipn->in_flineno);
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		}
 	} else {
@@ -1544,11 +1534,11 @@ ipnat_addrule(fd, ioctlfunc, ptr)
 					snprintf(msg + strlen_msg, sizeof(msg) -strlen_msg, "(line %d)",
 						ipn->in_flineno);
 				}
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		}
 	}
-	return 0;
+	return(0);
 }
 
 
@@ -1571,7 +1561,7 @@ setmapifnames()
 
 
 static void
-setrdrifnames()
+setrdrifnames(void)
 {
 	if ((suggest_port == 1) && (nat->in_flags & IPN_TCPUDP) == 0)
 		nat->in_flags |= IPN_TCPUDP;
@@ -1586,8 +1576,7 @@ setrdrifnames()
 
 
 static void
-proxy_setconfig(proxy)
-	int proxy;
+proxy_setconfig(int proxy)
 {
 	if (proxy == IPNY_DNS) {
 		yysetfixeddict(dnswords);
@@ -1596,15 +1585,14 @@ proxy_setconfig(proxy)
 
 
 static void
-proxy_unsetconfig()
+proxy_unsetconfig(void)
 {
 	yyresetdict();
 }
 
 
 static namelist_t *
-proxy_dns_add_pass(prefix, name)
-	char *prefix, *name;
+proxy_dns_add_pass(char *prefix, char *name)
 {
 	namelist_t *n;
 
@@ -1618,13 +1606,12 @@ proxy_dns_add_pass(prefix, name)
 			strcat(n->na_name, name);
 		}
 	}
-	return n;
+	return(n);
 }
 
 
 static namelist_t *
-proxy_dns_add_block(prefix, name)
-	char *prefix, *name;
+proxy_dns_add_block(char *prefix, char *name)
 {
 	namelist_t *n;
 
@@ -1639,15 +1626,12 @@ proxy_dns_add_block(prefix, name)
 		}
 		n->na_value = 1;
 	}
-	return n;
+	return(n);
 }
 
 
 static void
-proxy_addconfig(proxy, proto, conf, list)
-	char *proxy, *conf;
-	int proto;
-	namelist_t *list;
+proxy_addconfig(char *proxy, int proto, char *conf, namelist_t *list)
 {
 	proxyrule_t *pr;
 
@@ -1664,10 +1648,7 @@ proxy_addconfig(proxy, proto, conf, list)
 
 
 static void
-proxy_loadrules(fd, ioctlfunc, rules)
-	int fd;
-	ioctlfunc_t ioctlfunc;
-	proxyrule_t *rules;
+proxy_loadrules(int fd, ioctlfunc_t ioctlfunc, proxyrule_t *rules)
 {
 	proxyrule_t *pr;
 
@@ -1682,12 +1663,8 @@ proxy_loadrules(fd, ioctlfunc, rules)
 
 
 static void
-proxy_loadconfig(fd, ioctlfunc, proxy, proto, conf, list)
-	int fd;
-	ioctlfunc_t ioctlfunc;
-	char *proxy, *conf;
-	int proto;
-	namelist_t *list;
+proxy_loadconfig(int fd, ioctlfunc_t ioctlfunc, char *proxy, int proto,
+	char *conf, namelist_t *list)
 {
 	namelist_t *na;
 	ipfobj_t obj;
@@ -1733,10 +1710,7 @@ proxy_loadconfig(fd, ioctlfunc, proxy, proto, conf, list)
 
 
 static void
-setifname(np, idx, name)
-	ipnat_t **np;
-	int idx;
-	char *name;
+setifname(ipnat_t **np, int idx, char *name)
 {
 	int pos;
 
@@ -1748,9 +1722,7 @@ setifname(np, idx, name)
 
 
 static int
-addname(np, name)
-	ipnat_t **np;
-	char *name;
+addname(ipnat_t **np, char *name)
 {
 	ipnat_t *n;
 	int nlen;
@@ -1762,7 +1734,7 @@ addname(np, name)
 		nattop = n;
 	*np = n;
 	if (n == NULL)
-		return -1;
+		return(-1);
 	if (n->in_pnext != NULL)
 		*n->in_pnext = n;
 	n->in_size += nlen;
@@ -1770,5 +1742,5 @@ addname(np, name)
 	n->in_namelen += nlen;
 	strcpy(n->in_names + pos, name);
 	n->in_names[n->in_namelen] = '\0';
-	return pos;
+	return(pos);
 }

@@ -16,15 +16,15 @@ static int poolfd = -1;
 
 
 int
-pool_open()
+pool_open(void)
 {
 
 	if ((opts & OPT_DONTOPEN) != 0)
-		return 0;
+		return (0);
 
 	if (poolfd == -1)
 		poolfd = open(IPLOOKUP_NAME, O_RDWR);
-	return poolfd;
+	return (poolfd);
 }
 
 int
@@ -38,7 +38,7 @@ pool_ioctl(iocfunc, cmd, ptr)
 
 
 void
-pool_close()
+pool_close(void)
 {
 	if (poolfd != -1) {
 		close(poolfd);
@@ -47,7 +47,7 @@ pool_close()
 }
 
 int
-pool_fd()
+pool_fd(void)
 {
-	return poolfd;
+	return (poolfd);
 }

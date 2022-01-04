@@ -35,11 +35,10 @@
  * its IP address in address
  * (4 bytes)
  */
-int	resolve(host, address)
-	char	*host, *address;
+int	resolve(char *host, char *address)
 {
-        struct	hostent	*hp;
-        u_long	add;
+	struct	hostent	*hp;
+	u_long	add;
 
 	add = inet_addr(host);
 	if (add == -1)
@@ -47,18 +46,17 @@ int	resolve(host, address)
 		if (!(hp = gethostbyname(host)))
 		    {
 			fprintf(stderr, "unknown host: %s\n", host);
-			return -1;
+			return (-1);
 		    }
 		bcopy((char *)hp->h_addr, (char *)address, 4);
-		return 0;
+		return (0);
 	}
 	bcopy((char*)&add, address, 4);
-	return 0;
+	return (0);
 }
 
 
-int	arp(addr, eaddr)
-	char	*addr, *eaddr;
+int	arp(char *addr, char *eaddr)
 {
 	int	mib[6];
 	size_t	needed;
@@ -69,11 +67,11 @@ int	arp(addr, eaddr)
 
 #ifdef	IPSEND
 	if (arp_getipv4(addr, ether) == 0)
-		return 0;
+		return (0);
 #endif
 
 	if (!addr)
-		return -1;
+		return (-1);
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
@@ -111,8 +109,8 @@ int	arp(addr, eaddr)
 			  sizeof(struct in_addr)))
 		    {
 			bcopy(LLADDR(sdl), eaddr, sdl->sdl_alen);
-			return 0;
+			return (0);
 		    }
 	    }
-	return -1;
+	return (-1);
 }

@@ -170,36 +170,12 @@ static int	udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
 		    struct mbuf *, struct thread *, int);
 #endif
 
+INPCBSTORAGE_DEFINE(udpcbstor, "udpinp", "udp_inpcb", "udp", "udphash");
+INPCBSTORAGE_DEFINE(udplitecbstor, "udpliteinp", "udplite_inpcb", "udplite",
+    "udplitehash");
+
 static void
-udp_zone_change(void *tag)
-{
-
-	uma_zone_set_max(V_udbinfo.ipi_zone, maxsockets);
-	uma_zone_set_max(V_udpcb_zone, maxsockets);
-}
-
-static int
-udp_inpcb_init(void *mem, int size, int flags)
-{
-	struct inpcb *inp;
-
-	inp = mem;
-	INP_LOCK_INIT(inp, "inp", "udpinp");
-	return (0);
-}
-
-static int
-udplite_inpcb_init(void *mem, int size, int flags)
-{
-	struct inpcb *inp;
-
-	inp = mem;
-	INP_LOCK_INIT(inp, "inp", "udpliteinp");
-	return (0);
-}
-
-void
-udp_init(void)
+udp_init(void *arg __unused)
 {
 
 	/*
@@ -209,23 +185,17 @@ udp_init(void)
 	 * Once we can calculate the flowid that way and re-establish
 	 * a 4-tuple, flip this to 4-tuple.
 	 */
-	in_pcbinfo_init(&V_udbinfo, "udp", UDBHASHSIZE, UDBHASHSIZE,
-	    "udp_inpcb", udp_inpcb_init);
+	in_pcbinfo_init(&V_udbinfo, &udpcbstor, UDBHASHSIZE, UDBHASHSIZE);
 	V_udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(V_udpcb_zone, maxsockets);
 	uma_zone_set_warning(V_udpcb_zone, "kern.ipc.maxsockets limit reached");
-	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
-	    EVENTHANDLER_PRI_ANY);
-}
 
-void
-udplite_init(void)
-{
-
-	in_pcbinfo_init(&V_ulitecbinfo, "udplite", UDBHASHSIZE,
-	    UDBHASHSIZE, "udplite_inpcb", udplite_inpcb_init);
+	/* Additional pcbinfo for UDP-Lite */
+	in_pcbinfo_init(&V_ulitecbinfo, &udplitecbstor, UDBHASHSIZE,
+	    UDBHASHSIZE);
 }
+VNET_SYSINIT(udp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, udp_init, NULL);
 
 /*
  * Kernel module interface for updating udpstat.  The argument is an index
@@ -780,7 +750,7 @@ udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
 
 	if (PRC_IS_REDIRECT(cmd)) {
 		/* signal EHOSTDOWN, as it flushes the cached route */
-		in_pcbnotifyall(&V_udbinfo, faddr, EHOSTDOWN, udp_notify);
+		in_pcbnotifyall(pcbinfo, faddr, EHOSTDOWN, udp_notify);
 		return;
 	}
 

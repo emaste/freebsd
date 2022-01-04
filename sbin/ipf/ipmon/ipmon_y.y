@@ -243,7 +243,7 @@ typeopt:
 ipv4:   YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER
 		{ if ($1 > 255 || $3 > 255 || $5 > 255 || $7 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  $$.s_addr = ($1 << 24) | ($3 << 16) | ($5 << 8) | $7;
 		  $$.s_addr = htonl($$.s_addr);
@@ -302,8 +302,7 @@ static int macflags[17][2] = {
 };
 
 static opt_t *
-new_opt(type)
-	int type;
+new_opt(int type)
 {
 	opt_t *o;
 
@@ -312,13 +311,11 @@ new_opt(type)
 	o->o_line = yylineNum;
 	o->o_logfac = -1;
 	o->o_logpri = -1;
-	return o;
+	return(o);
 }
 
 static void
-build_action(olist, todo)
-	opt_t *olist;
-	ipmon_doing_t *todo;
+build_action(opt_t *olist, ipmon_doing_t *todo)
 {
 	ipmon_action_t *a;
 	opt_t *o;
@@ -430,9 +427,7 @@ build_action(olist, todo)
 
 
 int
-check_action(buf, log, opts, lvl)
-	char *buf, *log;
-	int opts, lvl;
+check_action(char *buf, char *log, int opts, int lvl)
 {
 	ipmon_action_t *a;
 	struct timeval tv;
@@ -625,13 +620,12 @@ check_action(buf, log, opts, lvl)
 			(*d->ipmd_store)(d->ipmd_token, &msg);
 	}
 
-	return matched;
+	return(matched);
 }
 
 
 static void
-free_action(a)
-	ipmon_action_t *a;
+free_action(ipmon_action_t *a)
 {
 	ipmon_doing_t *d;
 
@@ -651,8 +645,7 @@ free_action(a)
 
 
 int
-load_config(file)
-	char *file;
+load_config(char *file)
 {
 	FILE *fp;
 	char *s;
@@ -672,18 +665,18 @@ load_config(file)
 	fp = fopen(file, "r");
 	if (!fp) {
 		perror("load_config:fopen:");
-		return -1;
+		return(-1);
 	}
 	yyin = fp;
 	while (!feof(fp))
 		yyparse();
 	fclose(fp);
-	return 0;
+	return(0);
 }
 
 
 void
-unload_config()
+unload_config(void)
 {
 	ipmon_saver_int_t *sav, **imsip;
 	ipmon_saver_t *is;
@@ -716,7 +709,7 @@ unload_config()
 
 
 void
-dump_config()
+dump_config(void)
 {
 	ipmon_action_t *a;
 
@@ -729,8 +722,7 @@ dump_config()
 
 
 static void
-print_action(a)
-	ipmon_action_t *a;
+print_action(ipmon_action_t *a)
 {
 	ipmon_doing_t *d;
 
@@ -752,42 +744,38 @@ print_action(a)
 
 
 void *
-add_doing(saver)
-	ipmon_saver_t *saver;
+add_doing(ipmon_saver_t *saver)
 {
 	ipmon_saver_int_t *it;
 
 	if (find_doing(saver->ims_name) == IPM_DOING)
-		return NULL;
+		return(NULL);
 
 	it = calloc(1, sizeof(*it));
 	if (it == NULL)
-		return NULL;
+		return(NULL);
 	it->imsi_stor = saver;
 	it->imsi_next = saverlist;
 	saverlist = it;
-	return it;
+	return(it);
 }
 
 
 static int
-find_doing(string)
-	char *string;
+find_doing(char *string)
 {
 	ipmon_saver_int_t *it;
 
 	for (it = saverlist; it != NULL; it = it->imsi_next) {
 		if (!strcmp(it->imsi_stor->ims_name, string))
-			return IPM_DOING;
+			return(IPM_DOING);
 	}
-	return 0;
+	return(0);
 }
 
 
 static ipmon_doing_t *
-build_doing(target, options)
-	char *target;
-	char *options;
+build_doing(char *target, char *options)
 {
 	ipmon_saver_int_t *it;
 	char *strarray[2];
@@ -797,7 +785,7 @@ build_doing(target, options)
 
 	d = calloc(1, sizeof(*d));
 	if (d == NULL)
-		return NULL;
+		return(NULL);
 
 	for (it = saverlist; it != NULL; it = it->imsi_next) {
 		if (!strcmp(it->imsi_stor->ims_name, target))
@@ -805,7 +793,7 @@ build_doing(target, options)
 	}
 	if (it == NULL) {
 		free(d);
-		return NULL;
+		return(NULL);
 	}
 
 	strarray[0] = options;
@@ -814,7 +802,7 @@ build_doing(target, options)
 	d->ipmd_token = (*it->imsi_stor->ims_parse)(strarray);
 	if (d->ipmd_token == NULL) {
 		free(d);
-		return NULL;
+		return(NULL);
 	}
 
 	save = it->imsi_stor;
@@ -839,13 +827,12 @@ build_doing(target, options)
 		}
 	}
 
-	return d;
+	return(d);
 }
 
 
 static void
-print_match(a)
-	ipmon_action_t *a;
+print_match(ipmon_action_t *a)
 {
 	char *coma = "";
 
@@ -980,19 +967,18 @@ print_match(a)
 
 
 static int
-install_saver(name, path)
-	char *name, *path;
+install_saver(char *name, char *path)
 {
 	ipmon_saver_int_t *isi;
 	ipmon_saver_t *is;
 	char nbuf[80];
 
 	if (find_doing(name) == IPM_DOING)
-		return -1;
+		return(-1);
 
 	isi = calloc(1, sizeof(*isi));
 	if (isi == NULL)
-		return -1;
+		return(-1);
 
 	is = calloc(1, sizeof(*is));
 	if (is == NULL)
@@ -1040,7 +1026,7 @@ install_saver(name, path)
 	isi->imsi_next = saverlist;
 	saverlist = isi;
 
-	return 0;
+	return(0);
 
 loaderror:
 	if (isi->imsi_handle != NULL)
@@ -1048,5 +1034,5 @@ loaderror:
 	free(isi);
 	if (is != NULL)
 		free(is);
-	return -1;
+	return(-1);
 }

@@ -52,9 +52,8 @@ static const char rcsid[] = "@(#)$Id$";
  * Be careful to only include those defined in the flags option for the
  * interface are included in the header size.
  */
-int	initdevice(device, tout)
-	char	*device;
-	int	tout;
+int
+initdevice(char *device, int tout)
 {
 	char	devname[16], *s, buf[256];
 	int	i, fd;
@@ -120,14 +119,15 @@ int	initdevice(device, tout)
 		exit(-1);
 	    }
 #endif
-	return fd;
+	return (fd);
 }
 
 
 /*
  * output an IP packet onto a fd opened for /dev/nit
  */
-int	sendip(fd, pkt, len)
+int
+sendip(int fd, char *pkt, int len)
 	int	fd, len;
 	char	*pkt;
 {
@@ -154,13 +154,13 @@ int	sendip(fd, pkt, len)
 	if (putmsg(fd, cp, dp, pri) == -1)
 	    {
 		perror("putmsg");
-		return -1;
+		return (-1);
 	    }
 	if (ioctl(fd, I_FLUSH, FLUSHW) == -1)
 	    {
 		perror("I_FLUSHW");
-		return -1;
+		return (-1);
 	    }
-	return len;
+	return (len);
 }
 

@@ -46,46 +46,43 @@ ipmon_saver_t snmpv1saver = {
 
 
 static int
-snmpv1_match(ctx1, ctx2)
-	void *ctx1, *ctx2;
+snmpv1_match(void *ctx1, void *ctx2)
 {
 	snmpv1_opts_t *s1 = ctx1, *s2 = ctx2;
 
 	if (s1->v6 != s2->v6)
-		return 1;
+		return (1);
 
 	if (strcmp(s1->community, s2->community))
-		return 1;
+		return (1);
 
 #ifdef USE_INET6
 	if (s1->v6 == 1) {
 		if (memcmp(&s1->sin6, &s2->sin6, sizeof(s1->sin6)))
-			return 1;
+			return (1);
 	} else
 #endif
 	{
 		if (memcmp(&s1->sin, &s2->sin, sizeof(s1->sin)))
-			return 1;
+			return (1);
 	}
 
-	return 0;
+	return (0);
 }
 
 
 static void *
-snmpv1_dup(ctx)
-	void *ctx;
+snmpv1_dup(void *ctx)
 {
 	snmpv1_opts_t *s = ctx;
 
 	s->ref++;
-	return s;
+	return (s);
 }
 
 
 static void
-snmpv1_print(ctx)
-	void *ctx;
+snmpv1_print(void *ctx)
 {
 	snmpv1_opts_t *snmpv1 = ctx;
 
@@ -113,16 +110,16 @@ snmpv1_parse(char **strings)
 	char *s;
 
 	if (strings[0] == NULL || strings[0][0] == '\0')
-		return NULL;
+		return (NULL);
 
 	if (strchr(*strings, ' ') == NULL)
-		return NULL;
+		return (NULL);
 
 	str = strdup(*strings);
 
 	ctx = calloc(1, sizeof(*ctx));
 	if (ctx == NULL)
-		return NULL;
+		return (NULL);
 
 	ctx->fd = -1;
 
@@ -135,7 +132,7 @@ snmpv1_parse(char **strings)
 	if (!*s) {
 		free(str);
 		free(ctx);
-		return NULL;
+		return (NULL);
 	}
 
 #ifdef USE_INET6
@@ -150,7 +147,7 @@ snmpv1_parse(char **strings)
 					    (struct sockaddr *)&ctx->sin,
 					    sizeof(ctx->sin)) != 0) {
 						snmpv1_destroy(ctx);
-						return NULL;
+						return (NULL);
 				}
 			}
 		}
@@ -166,7 +163,7 @@ snmpv1_parse(char **strings)
 					    (struct sockaddr *)&ctx->sin6,
 					    sizeof(ctx->sin6)) != 0) {
 						snmpv1_destroy(ctx);
-						return NULL;
+						return (NULL);
 				}
 			}
 		}
@@ -181,7 +178,7 @@ snmpv1_parse(char **strings)
 			if (connect(ctx->fd, (struct sockaddr *)&ctx->sin,
 				    sizeof(ctx->sin)) != 0) {
 					snmpv1_destroy(ctx);
-					return NULL;
+					return (NULL);
 			}
 		}
 	}
@@ -190,18 +187,17 @@ snmpv1_parse(char **strings)
 	if (result != 1) {
 		free(str);
 		free(ctx);
-		return NULL;
+		return (NULL);
 	}
 
 	ctx->ref = 1;
 
-	return ctx;
+	return (ctx);
 }
 
 
 static void
-snmpv1_destroy(ctx)
-	void *ctx;
+snmpv1_destroy(void *ctx)
 {
 	snmpv1_opts_t *v1 = ctx;
 
@@ -218,29 +214,25 @@ snmpv1_destroy(ctx)
 
 
 static int
-snmpv1_send(ctx, msg)
-	void *ctx;
-	ipmon_msg_t *msg;
+snmpv1_send(void *ctx, ipmon_msg_t *msg)
 {
 	snmpv1_opts_t *v1 = ctx;
 
-	return sendtrap_v1_0(v1->fd, v1->community,
-			     msg->imm_msg, msg->imm_msglen, msg->imm_when);
+	return (sendtrap_v1_0(v1->fd, v1->community,
+			     msg->imm_msg, msg->imm_msglen, msg->imm_when));
 }
 
 static char def_community[] = "public";	/* ublic */
 
 static int
-writelength(buffer, value)
-	u_char *buffer;
-	u_int value;
+writelength(u_char *buffer, u_int value)
 {
 	u_int n = htonl(value);
 	int len;
 
 	if (value < 128) {
 		*buffer = value;
-		return 1;
+		return (1);
 	}
 	if (value > 0xffffff)
 		len = 4;
@@ -255,21 +247,19 @@ writelength(buffer, value)
 
 	bcopy((u_char *)&n + 4 - len, buffer + 1, len);
 
-	return len + 1;
+	return (len + 1);
 }
 
 
 static int
-writeint(buffer, value)
-	u_char *buffer;
-	int value;
+writeint(u_char *buffer, int value)
 {
 	u_char *s = buffer;
 	u_int n = value;
 
 	if (value == 0) {
 		*buffer = 0;
-		return 1;
+		return (1);
 	}
 
 	if (n >  4194304) {
@@ -286,7 +276,7 @@ writeint(buffer, value)
 	}
 	*s++ = (u_char)n;
 
-	return s - buffer;
+	return (s - buffer);
 }
 
 
@@ -296,14 +286,8 @@ writeint(buffer, value)
  * 1.3.6.1.4.1.9932.1.1
  */
 static int
-maketrap_v1(community, buffer, bufsize, msg, msglen, ipaddr, when)
-	char *community;
-	u_char *buffer;
-	int bufsize;
-	u_char *msg;
-	int msglen;
-	u_32_t ipaddr;
-	time_t when;
+maketrap_v1(char *community, u_char *buffer, int bufsize, u_char *msg,
+	int msglen, u_32_t ipaddr, time_t when)
 {
 	u_char *s = buffer, *t, *pdulen, *varlen;
 	int basesize = 73;
@@ -319,7 +303,7 @@ maketrap_v1(community, buffer, bufsize, msg, msglen, ipaddr, when)
 	basesize += strlen(community) + msglen;
 
 	if (basesize + 8 > bufsize)
-		return 0;
+		return (0);
 
 	memset(buffer, 0xff, bufsize);
 	*s++ = 0x30;		/* Sequence */
@@ -361,7 +345,7 @@ maketrap_v1(community, buffer, bufsize, msg, msglen, ipaddr, when)
 	*s++ = 0x2;
 	n = writeint(s + 1, 6);
 	if (n == 0)
-		return 0;
+		return (0);
 	*s = n;
 	s += n + 1;
 
@@ -369,7 +353,7 @@ maketrap_v1(community, buffer, bufsize, msg, msglen, ipaddr, when)
 	*s++ = 0x2;
 	n = writeint(s + 1, 0);
 	if (n == 0)
-		return 0;
+		return (0);
 	*s = n;
 	s += n + 1;
 
@@ -438,16 +422,12 @@ maketrap_v1(community, buffer, bufsize, msg, msglen, ipaddr, when)
 	len = t - buffer - baselensz - 1;
 	writelength(buffer + 1, len);	/* length of trap */
 
-	return t - buffer;
+	return (t - buffer);
 }
 
 
 int
-sendtrap_v1_0(fd, community, msg, msglen, when)
-	int fd;
-	char *community, *msg;
-	int msglen;
-	time_t when;
+sendtrap_v1_0(int fd, char *community, char *msg, int msglen, time_t when)
 {
 
 	u_char buffer[1500];
@@ -456,8 +436,8 @@ sendtrap_v1_0(fd, community, msg, msglen, when)
 	n = maketrap_v1(community, buffer, sizeof(buffer),
 			(u_char *)msg, msglen, 0, when);
 	if (n > 0) {
-		return send(fd, buffer, n, 0);
+		return (send(fd, buffer, n, 0));
 	}
 
-	return 0;
+	return (0);
 }

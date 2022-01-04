@@ -12,10 +12,7 @@
 #include "netinet/ipl.h"
 #include <sys/ioctl.h>
 
-void ipf_dotuning(fd, tuneargs, iocfn)
-	int fd;
-	char *tuneargs;
-	ioctlfunc_t iocfn;
+void ipf_dotuning(int fd, char *tuneargs, ioctlfunc_t iocfn)
 {
 	ipfobj_t obj;
 	ipftune_t tu;
@@ -31,7 +28,7 @@ void ipf_dotuning(fd, tuneargs, iocfn)
 		if (!strcmp(s, "list")) {
 			while (1) {
 				if ((*iocfn)(fd, SIOCIPFGETNEXT, &obj) == -1) {
-					ipf_perror_fd(fd, iocfn, 
+					ipf_perror_fd(fd, iocfn,
 						      "ioctl(SIOCIPFGETNEXT)");
 					break;
 				}
@@ -47,7 +44,7 @@ void ipf_dotuning(fd, tuneargs, iocfn)
 			strncpy(tu.ipft_name, s, sizeof(tu.ipft_name));
 			if (sscanf(t, "%lu", &tu.ipft_vlong) == 1) {
 				if ((*iocfn)(fd, SIOCIPFSET, &obj) == -1) {
-					ipf_perror_fd(fd, iocfn, 
+					ipf_perror_fd(fd, iocfn,
 						      "ioctl(SIOCIPFSET)");
 					return;
 				}

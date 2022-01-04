@@ -52,9 +52,8 @@ static	u_char	*buf = NULL;
 static	int	bufsize = 0, timeout = 1;
 
 
-int	initdevice(device, tout)
-	char	*device;
-	int	tout;
+int
+initdevice(char *device, int tout)
 {
 	struct	bpf_version bv;
 	struct	timeval to;
@@ -66,7 +65,7 @@ int	initdevice(device, tout)
 	if ((fd = open(bpfname, O_RDWR)) < 0)
 	    {
 		fprintf(stderr, "no bpf devices available as /dev/bpfxx\n");
-		return -1;
+		return (-1);
 	    }
 #else
 	char	bpfname[16];
@@ -81,14 +80,14 @@ int	initdevice(device, tout)
 	if (i == 16)
 	    {
 		fprintf(stderr, "no bpf devices available as /dev/bpfxx\n");
-		return -1;
+		return (-1);
 	    }
 #endif
 
 	if (ioctl(fd, BIOCVERSION, (caddr_t)&bv) < 0)
 	    {
 		perror("BIOCVERSION");
-		return -1;
+		return (-1);
 	    }
 	if (bv.bv_major != BPF_MAJOR_VERSION ||
 	    bv.bv_minor < BPF_MINOR_VERSION)
@@ -97,7 +96,7 @@ int	initdevice(device, tout)
 			bv.bv_major, bv.bv_minor);
 		fprintf(stderr, "current version: %d.%d\n",
 			BPF_MAJOR_VERSION, BPF_MINOR_VERSION);
-		return -1;
+		return (-1);
 	    }
 
 	(void) strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
@@ -129,22 +128,21 @@ int	initdevice(device, tout)
 	    }
 
 	(void) ioctl(fd, BIOCFLUSH, 0);
-	return fd;
+	return (fd);
 }
 
 
 /*
  * output an IP packet onto a fd opened for /dev/bpf
  */
-int	sendip(fd, pkt, len)
-	int	fd, len;
-	char	*pkt;
+int
+sendip(int fd, char *pkt, int len)
 {
 	if (write(fd, pkt, len) == -1)
 	    {
 		perror("send");
-		return -1;
+		return (-1);
 	    }
 
-	return len;
+	return (len);
 }

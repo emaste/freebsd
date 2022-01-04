@@ -58,26 +58,23 @@ typedef struct {
 
 
 void *
-ipf_p_dns_soft_create(softc)
-	ipf_main_softc_t *softc;
+ipf_p_dns_soft_create(ipf_main_softc_t *softc)
 {
 	ipf_dns_softc_t *softd;
 
 	KMALLOC(softd, ipf_dns_softc_t *);
 	if (softd == NULL)
-		return NULL;
+		return (NULL);
 
 	bzero((char *)softd, sizeof(*softd));
 	RWLOCK_INIT(&softd->ipf_p_dns_rwlock, "ipf dns rwlock");
 
-	return softd;
+	return (softd);
 }
 
 
 void
-ipf_p_dns_soft_destroy(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_p_dns_soft_destroy(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_dns_softc_t *softd = arg;
 	ipf_dns_filter_t *idns;
@@ -96,10 +93,7 @@ ipf_p_dns_soft_destroy(softc, arg)
 
 
 int
-ipf_p_dns_ctl(softc, arg, ctl)
-	ipf_main_softc_t *softc;
-	void *arg;
-	ap_ctl_t *ctl;
+ipf_p_dns_ctl(ipf_main_softc_t *softc, void *arg, ap_ctl_t *ctl)
 {
 	ipf_dns_softc_t *softd = arg;
 	ipf_dns_filter_t *tmp, *idns, **idnsp;
@@ -168,38 +162,34 @@ ipf_p_dns_ctl(softc, arg, ctl)
 		tmp = NULL;
 	}
 
-	return error;
+	return (error);
 }
 
 
 /* ARGSUSED */
 int
-ipf_p_dns_new(arg, fin, aps, nat)
-	void *arg;
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_dns_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	dnsinfo_t *di;
 	int dlen;
 
 	if (fin->fin_v != 4)
-		return -1;
+		return (-1);
 
 	dlen = fin->fin_dlen - sizeof(udphdr_t);
 	if (dlen < sizeof(ipf_dns_hdr_t)) {
 		/*
 		 * No real DNS packet is smaller than that.
 		 */
-		return -1;
+		return (-1);
 	}
 
 	aps->aps_psiz = sizeof(dnsinfo_t);
 	KMALLOCS(di, dnsinfo_t *, sizeof(dnsinfo_t));
 	if (di == NULL) {
 		printf("ipf_dns_new:KMALLOCS(%d) failed\n", sizeof(*di));
-		return -1;
-        }
+		return (-1);
+	}
 
 	MUTEX_INIT(&di->dnsi_lock, "dns lock");
 
@@ -209,15 +199,13 @@ ipf_p_dns_new(arg, fin, aps, nat)
 	COPYDATA(fin->fin_m, fin->fin_hlen + sizeof(udphdr_t),
 		 MIN(dlen, sizeof(di->dnsi_buffer)), di->dnsi_buffer);
 	di->dnsi_id = (di->dnsi_buffer[0] << 8) | di->dnsi_buffer[1];
-	return 0;
+	return (0);
 }
 
 
 /* ARGSUSED */
 void
-ipf_p_dns_del(softc, aps)
-	ipf_main_softc_t *softc;
-	ap_session_t *aps;
+ipf_p_dns_del(ipf_main_softc_t *softc, ap_session_t *aps)
 {
 #ifdef USE_MUTEXES
 	dnsinfo_t *di = aps->aps_data;
@@ -234,10 +222,7 @@ ipf_p_dns_del(softc, aps)
  * Tries to match the base string (in our ACL) with the query from a packet.
  */
 int
-ipf_p_dns_match_names(idns, query, qlen)
-	ipf_dns_filter_t *idns;
-	char *query;
-	int qlen;
+ipf_p_dns_match_names(ipf_dns_filter_t *idns, char *query, int qlen)
 {
 	int blen;
 	char *base;
@@ -246,10 +231,10 @@ ipf_p_dns_match_names(idns, query, qlen)
 	base = idns->idns_name;
 
 	if (blen > qlen)
-		return 1;
+		return (1);
 
 	if (blen == qlen)
-		return strncasecmp(base, query, qlen);
+		return (strncasecmp(base, query, qlen));
 
 	/*
 	 * If the base string string is shorter than the query, allow the
@@ -263,19 +248,15 @@ ipf_p_dns_match_names(idns, query, qlen)
 		base++;
 		blen--;
 	} else if (*base != '.')
-		return 1;
+		return (1);
 
-	return strncasecmp(base, query + qlen - blen, blen);
+	return (strncasecmp(base, query + qlen - blen, blen));
 }
 
 
 int
-ipf_p_dns_get_name(softd, start, len, buffer, buflen)
-	ipf_dns_softc_t *softd;
-	char *start;
-	int len;
-	char *buffer;
-	int buflen;
+ipf_p_dns_get_name(ipf_dns_softc_t *softd, char *start, int len,
+	char *buffer, int buflen)
 {
 	char *s, *t, clen;
 	int slen, blen;
@@ -289,15 +270,15 @@ ipf_p_dns_get_name(softd, start, len, buffer, buflen)
 		clen = *s;
 		if ((clen & 0xc0) == 0xc0) {	/* Doesn't do compression */
 			softd->ipf_p_dns_compress++;
-			return 0;
+			return (0);
 		}
 		if (clen > slen) {
 			softd->ipf_p_dns_toolong++;
-			return 0;	/* Does the name run off the end? */
+			return (0);	/* Does the name run off the end? */
 		}
 		if ((clen + 1) > blen) {
 			softd->ipf_p_dns_nospace++;
-			return 0;	/* Enough room for name+.? */
+			return (0);	/* Enough room for name+.? */
 		}
 		s++;
 		bcopy(s, t, clen);
@@ -309,14 +290,12 @@ ipf_p_dns_get_name(softd, start, len, buffer, buflen)
 	}
 
 	*(t - 1) = '\0';
-	return s - start;
+	return (s - start);
 }
 
 
 int
-ipf_p_dns_allow_query(softd, dnsi)
-	ipf_dns_softc_t *softd;
-	dnsinfo_t *dnsi;
+ipf_p_dns_allow_query(ipf_dns_softc_t *softd, dnsinfo_t *dnsi)
 {
 	ipf_dns_filter_t *idns;
 	int len;
@@ -325,18 +304,14 @@ ipf_p_dns_allow_query(softd, dnsi)
 
 	for (idns = softd->ipf_p_dns_list; idns != NULL; idns = idns->idns_next)
 		if (ipf_p_dns_match_names(idns, dnsi->dnsi_buffer, len) == 0)
-			return idns->idns_pass;
-	return 0;
+			return (idns->idns_pass);
+	return (0);
 }
 
 
 /* ARGSUSED */
 int
-ipf_p_dns_inout(arg, fin, aps, nat)
-	void *arg;
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_dns_inout(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	ipf_dns_softc_t *softd = arg;
 	ipf_dns_hdr_t *dns;
@@ -345,7 +320,7 @@ ipf_p_dns_inout(arg, fin, aps, nat)
 	int dlen, q, rc = 0;
 
 	if (fin->fin_dlen < sizeof(*dns))
-		return APR_ERR(1);
+		return (APR_ERR(1));
 
 	dns = (ipf_dns_hdr_t *)((char *)fin->fin_dp + sizeof(udphdr_t));
 
@@ -377,25 +352,22 @@ ipf_p_dns_inout(arg, fin, aps, nat)
 	MUTEX_EXIT(&di->dnsi_lock);
 	RWLOCK_EXIT(&softd->ipf_p_dns_rwlock);
 
-	return APR_ERR(rc);
+	return (APR_ERR(rc));
 }
 
 
 /* ARGSUSED */
 int
-ipf_p_dns_match(fin, aps, nat)
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_dns_match(fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	dnsinfo_t *di = aps->aps_data;
 	ipf_dns_hdr_t *dnh;
 
 	if ((fin->fin_dlen < sizeof(u_short)) || (fin->fin_flx & FI_FRAG))
-                return -1;
+(                return (-1);
 
 	dnh = (ipf_dns_hdr_t *)((char *)fin->fin_dp + sizeof(udphdr_t));
 	if (((dnh->dns_id[0] << 8) | dnh->dns_id[1]) != di->dnsi_id)
-		return -1;
-	return 0;
+		return (-1);
+	return (0);
 }

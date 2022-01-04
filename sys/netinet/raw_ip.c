@@ -182,38 +182,15 @@ rip_delhash(struct inpcb *inp)
 }
 #endif /* INET */
 
-/*
- * Raw interface to IP protocol.
- */
+INPCBSTORAGE_DEFINE(ripcbstor, "rawinp", "ripcb", "rip", "riphash");
 
-/*
- * Initialize raw connection block q.
- */
 static void
-rip_zone_change(void *tag)
+rip_init(void *arg __unused)
 {
 
-	uma_zone_set_max(V_ripcbinfo.ipi_zone, maxsockets);
+	in_pcbinfo_init(&V_ripcbinfo, &ripcbstor, INP_PCBHASH_RAW_SIZE, 1);
 }
-
-static int
-rip_inpcb_init(void *mem, int size, int flags)
-{
-	struct inpcb *inp = mem;
-
-	INP_LOCK_INIT(inp, "inp", "rawinp");
-	return (0);
-}
-
-void
-rip_init(void)
-{
-
-	in_pcbinfo_init(&V_ripcbinfo, "rip", INP_PCBHASH_RAW_SIZE, 1, "ripcb",
-	    rip_inpcb_init);
-	EVENTHANDLER_REGISTER(maxsockets_change, rip_zone_change, NULL,
-	    EVENTHANDLER_PRI_ANY);
-}
+VNET_SYSINIT(rip_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rip_init, NULL);
 
 #ifdef VIMAGE
 static void

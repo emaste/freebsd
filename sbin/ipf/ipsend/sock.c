@@ -99,10 +99,8 @@ struct	proc	*proc;
 static	struct	kinfo_proc	*getproc(void);
 
 
-int	kmemcpy(buf, pos, n)
-	char	*buf;
-	void	*pos;
-	int	n;
+int
+kmemcpy(char *buf, void *pos, int n)
 {
 	static	int	kfd = -1;
 	off_t	offset = (u_long)pos;
@@ -113,14 +111,14 @@ int	kmemcpy(buf, pos, n)
 	if (lseek(kfd, offset, SEEK_SET) == -1)
 	    {
 		perror("lseek");
-		return -1;
+		return (-1);
 	    }
 	if (read(kfd, buf, n) == -1)
 	    {
 		perror("read");
-		return -1;
+		return (-1);
 	    }
-	return n;
+	return (n);
 }
 
 struct	nlist	names[4] = {
@@ -130,7 +128,8 @@ struct	nlist	names[4] = {
 	{ NULL }
 	};
 
-static struct kinfo_proc *getproc()
+static struct
+kinfo_proc *getproc(void)
 {
 	static	struct	kinfo_proc kp;
 	pid_t	pid = getpid();
@@ -146,15 +145,14 @@ static struct kinfo_proc *getproc()
 	if (sysctl(mib, 4, &kp, &n, NULL, 0) == -1)
 	    {
 		perror("sysctl");
-		return NULL;
+		return (NULL);
 	    }
-	return &kp;
+	return (&kp);
 }
 
 
-struct	tcpcb	*find_tcp(tfd, ti)
-	int	tfd;
-	struct	tcpiphdr *ti;
+struct tcpcb *
+find_tcp(int tfd, struct  tcpiphdr *ti)
 {
 	struct	tcpcb	*t;
 	struct	inpcb	*i;
@@ -164,18 +162,18 @@ struct	tcpcb	*find_tcp(tfd, ti)
 	struct	file	*f, **o;
 
 	if (!(p = getproc()))
-		return NULL;
+		return (NULL);
 
 	fd = (struct filedesc *)malloc(sizeof(*fd));
 	if (fd == NULL)
-		return NULL;
+		return (NULL);
 #if defined( __FreeBSD__)
 	if (KMCPY(fd, p->ki_fd, sizeof(*fd)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx) failed\n",
 			(u_long)p, (u_long)p->ki_fd);
 		free(fd);
-		return NULL;
+		return (NULL);
 	    }
 #else
 	if (KMCPY(fd, p->kp_proc.p_fd, sizeof(*fd)) == -1)
@@ -183,7 +181,7 @@ struct	tcpcb	*find_tcp(tfd, ti)
 		fprintf(stderr, "read(%#lx,%#lx) failed\n",
 			(u_long)p, (u_long)p->kp_proc.p_fd);
 		free(fd);
-		return NULL;
+		return (NULL);
 	    }
 #endif
 
@@ -244,14 +242,11 @@ finderror:
 		free(i);
 	if (t != NULL)
 		free(t);
-	return NULL;
+	return (NULL);
 }
 
-int	do_socket(dev, mtu, ti, gwip)
-	char	*dev;
-	int	mtu;
-	struct	tcpiphdr *ti;
-	struct	in_addr	gwip;
+int
+do_socket(char *dev, int mtu, struct  tcpiphdr *ti, struct  in_addr gwip)
 {
 	struct	sockaddr_in	rsin, lsin;
 	struct	tcpcb	*t, tcb;
@@ -264,13 +259,13 @@ int	do_socket(dev, mtu, ti, gwip)
 	if (fd == -1)
 	    {
 		perror("socket");
-		return -1;
+		return (-1);
 	    }
 
 	if (fcntl(fd, F_SETFL, FNDELAY) == -1)
 	    {
 		perror("fcntl");
-		return -1;
+		return (-1);
 	    }
 
 	bzero((char *)&lsin, sizeof(lsin));
@@ -280,7 +275,7 @@ int	do_socket(dev, mtu, ti, gwip)
 	if (bind(fd, (struct sockaddr *)&lsin, sizeof(lsin)) == -1)
 	    {
 		perror("bind");
-		return -1;
+		return (-1);
 	    }
 	len = sizeof(lsin);
 	(void) getsockname(fd, (struct sockaddr *)&lsin, &len);
@@ -289,10 +284,10 @@ int	do_socket(dev, mtu, ti, gwip)
 
 	nfd = initdevice(dev, 1);
 	if (nfd == -1)
-		return -1;
+		return (-1);
 
 	if (!(t = find_tcp(fd, ti)))
-		return -1;
+		return (-1);
 
 	bzero((char *)&rsin, sizeof(rsin));
 	rsin.sin_family = AF_INET;
@@ -303,7 +298,7 @@ int	do_socket(dev, mtu, ti, gwip)
 	    errno != EINPROGRESS)
 	    {
 		perror("connect");
-		return -1;
+		return (-1);
 	    }
 	KMCPY(&tcb, t, sizeof(tcb));
 	ti->ti_win = tcb.rcv_adv;
@@ -311,9 +306,9 @@ int	do_socket(dev, mtu, ti, gwip)
 	ti->ti_ack = tcb.rcv_nxt;
 
 	if (send_tcp(nfd, mtu, (ip_t *)ti, gwip) == -1)
-		return -1;
+		return (-1);
 	(void)write(fd, "Hello World\n", 12);
 	sleep(2);
 	close(fd);
-	return 0;
+	return (0);
 }

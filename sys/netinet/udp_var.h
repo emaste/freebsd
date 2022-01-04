@@ -36,6 +36,9 @@
 #ifndef _NETINET_UDP_VAR_H_
 #define	_NETINET_UDP_VAR_H_
 
+#include <netinet/ip_var.h>
+#include <netinet/udp.h>
+
 /*
  * UDP kernel structures and variables.
  */
@@ -167,8 +170,6 @@ void		udp_discardcb(struct udpcb *);
 void		udp_ctlinput(int, struct sockaddr *, void *);
 void		udplite_ctlinput(int, struct sockaddr *, void *);
 int		udp_ctloutput(struct socket *, struct sockopt *);
-void		udp_init(void);
-void		udplite_init(void);
 int		udp_input(struct mbuf **, int *, int);
 void		udplite_input(struct mbuf *, int);
 struct inpcb	*udp_notify(struct inpcb *inp, int errno);

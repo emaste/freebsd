@@ -27,12 +27,12 @@ struct	ipread	iphex = { hex_open, hex_close, hex_readip, 0 };
 static	FILE	*tfp = NULL;
 static	int	tfd = -1;
 
-static	int	hex_open(fname)
-	char	*fname;
+static int
+hex_open(char *fname)
 {
 	if (tfp && tfd != -1) {
 		rewind(tfp);
-		return tfd;
+		return (tfd);
 	}
 
 	if (!strcmp(fname, "-")) {
@@ -43,23 +43,22 @@ static	int	hex_open(fname)
 		if (tfd != -1)
 			tfp = fdopen(tfd, "r");
 	}
-	return tfd;
+	return (tfd);
 }
 
 
-static	int	hex_close()
+static int
+hex_close(void)
 {
 	int	cfd = tfd;
 
 	tfd = -1;
-	return close(cfd);
+	return (close(cfd));
 }
 
 
-static	int	hex_readip(mb, ifn, dir)
-	mb_t	*mb;
-	char	**ifn;
-	int	*dir;
+static int
+hex_readip(mb_t *mb, char **ifn, int *dir)
 {
 	register char *s, *t, *u;
 	char	line[513];
@@ -80,7 +79,7 @@ static	int	hex_readip(mb, ifn, dir)
 		if ((s = strchr(line, '\n'))) {
 			if (s == line) {
 				mb->mb_len = (char *)ip - buf;
-				return mb->mb_len;
+				return (mb->mb_len);
 			}
 			*s = '\0';
 		}
@@ -148,13 +147,13 @@ static	int	hex_readip(mb, ifn, dir)
 		}
 	}
 	if (feof(tfp))
-		return 0;
-	return -1;
+		return (0);
+	return (-1);
 }
 
 
-static	char	*readhex(src, dst)
-register char	*src, *dst;
+static char
+*readhex(register char *src, register char *dst)
 {
 	int	state = 0;
 	char	c;
@@ -179,5 +178,5 @@ register char	*src, *dst;
 		} else
 			break;
 	}
-	return dst;
+	return (dst);
 }

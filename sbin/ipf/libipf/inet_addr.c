@@ -88,13 +88,11 @@ int inet_aton(const char *, struct in_addr *);
  * Check whether "cp" is a valid ascii representation
  * of an Internet address and convert to a binary address.
  * Returns 1 if the address is valid, 0 if not.
- * This replaces inet_addr, the return value from which
+* This replaces inet_addr, the return value from which
  * cannot distinguish between failure and a local broadcast address.
  */
 int
-inet_aton(cp, addr)
-	register const char *cp;
-	struct in_addr *addr;
+inet_aton(register const char *cp, struct in_addr *addr)
 {
 	register u_long val;
 	register int base, n;
@@ -192,8 +190,7 @@ inet_aton(cp, addr)
  * The value returned is in network order.
  */
 #if 0
-inet_addr(cp)
-	const char *cp;
+inet_addr(const char *cp)
 {
 	struct in_addr val;
 

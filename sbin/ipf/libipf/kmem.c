@@ -40,38 +40,36 @@ static const char rcsid[] = "@(#)$Id$";
 static	kvm_t	*kvm_f = NULL;
 
 
-int	openkmem(kern, core)
-	char	*kern, *core;
+int
+openkmem(char *kern, char *core)
 {
 	kvm_f = kvm_open(kern, core, NULL, O_RDONLY, NULL);
 	if (kvm_f == NULL)
 	    {
 		perror("openkmem:open");
-		return -1;
+		return (-1);
 	    }
-	return kvm_f != NULL;
+	return (kvm_f != NULL);
 }
 
-int	kmemcpy(buf, pos, n)
-	register char	*buf;
-	long	pos;
-	register int	n;
+int
+kmemcpy(register char *buf, long pos, register int n)
 {
 	register int	r;
 
 	if (!n)
-		return 0;
+		return (0);
 
 	if (kvm_f == NULL)
 		if (openkmem(NULL, NULL) == -1)
-			return -1;
+			return (-1);
 
 	while ((r = kvm_read(kvm_f, pos, buf, n)) < n)
 		if (r <= 0)
 		    {
 			fprintf(stderr, "pos=0x%lx ", (u_long)pos);
 			perror("kmemcpy:read");
-			return -1;
+			return (-1);
 		    }
 		else
 		    {
@@ -79,22 +77,20 @@ int	kmemcpy(buf, pos, n)
 			pos += r;
 			n -= r;
 		    }
-	return 0;
+	return (0);
 }
 
-int	kstrncpy(buf, pos, n)
-	register char	*buf;
-	long	pos;
-	register int	n;
+int
+kstrncpy(register char *buf, long pos, register int n)
 {
 	register int	r;
 
 	if (!n)
-		return 0;
+		return (0);
 
 	if (kvm_f == NULL)
 		if (openkmem(NULL, NULL) == -1)
-			return -1;
+			return (-1);
 
 	while (n > 0)
 	    {
@@ -103,7 +99,7 @@ int	kstrncpy(buf, pos, n)
 		    {
 			fprintf(stderr, "pos=0x%lx ", (u_long)pos);
 			perror("kmemcpy:read");
-			return -1;
+			return (-1);
 		    }
 		else
 		    {
@@ -114,5 +110,5 @@ int	kstrncpy(buf, pos, n)
 			n--;
 		    }
 	    }
-	return 0;
+	return (0);
 }

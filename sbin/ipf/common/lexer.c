@@ -60,8 +60,8 @@ static	char		*yytexttostr(int, int);
 static	void		yystrtotext(char *);
 static	char		*yytexttochar(void);
 
-static int yygetc(docont)
-	int docont;
+static int
+yygetc(int docont)
 {
 	int c;
 
@@ -69,11 +69,11 @@ static int yygetc(docont)
 		c = yytext[yypos++];
 		if (c == '\n')
 			yylineNum++;
-		return c;
+		return (c);
 	}
 
 	if (yypos == YYBUFSIZ)
-		return TOOLONG;
+		return (TOOLONG);
 
 	if (pos >= string_start && pos <= string_end) {
 		c = string_val[pos - string_start];
@@ -94,12 +94,12 @@ static int yygetc(docont)
 	yylast = yypos;
 	yytext[yypos] = '\0';
 
-	return c;
+	return (c);
 }
 
 
-static void yyunputc(c)
-	int c;
+static void
+yyunputc(int c)
 {
 	if (c == '\n')
 		yylineNum--;
@@ -107,8 +107,8 @@ static void yyunputc(c)
 }
 
 
-static int yyswallow(last)
-	int last;
+static int
+yyswallow(int last)
 {
 	int c;
 
@@ -118,24 +118,25 @@ static int yyswallow(last)
 	if (c != EOF)
 		yyunputc(c);
 	if (c == last)
-		return 0;
-	return -1;
+		return (0);
+	return (-1);
 }
 
 
-static char *yytexttochar()
+static char *
+yytexttochar(void)
 {
 	int i;
 
 	for (i = 0; i < yypos; i++)
 		yychars[i] = (char)(yytext[i] & 0xff);
 	yychars[i] = '\0';
-	return yychars;
+	return (yychars);
 }
 
 
-static void yystrtotext(str)
-	char *str;
+static void
+yystrtotext(char *str)
 {
 	int len;
 	char *s;
@@ -150,8 +151,8 @@ static void yystrtotext(str)
 }
 
 
-static char *yytexttostr(offset, max)
-	int offset, max;
+static char *
+yytexttostr(int offset, int max)
 {
 	char *str;
 	int i;
@@ -170,11 +171,12 @@ static char *yytexttostr(offset, max)
 			str[i - offset] = (char)(yytext[i] & 0xff);
 		str[i - offset] = '\0';
 	}
-	return str;
+	return (str);
 }
 
 
-int yylex()
+int
+yylex(void)
 {
 	static int prior = 0;
 	static int priornum = 0;
@@ -240,7 +242,7 @@ nextchar:
 		lnext = 0;
 		if ((isbuilding == 0) && !ISALNUM(c)) {
 			prior = c;
-			return c;
+			return (c);
 		}
 		goto nextchar;
 	}
@@ -331,7 +333,7 @@ nextchar:
 		if (yydebug)
 			fprintf(stderr, "reset at EOF\n");
 		prior = 0;
-		return 0;
+		return (0);
 	}
 
 	if (strchr("=,/;{}()@", c) != NULL) {
@@ -597,7 +599,7 @@ done:
 	if (rval == YY_NUMBER)
 		priornum = yylval.num;
 	prior = rval;
-	return rval;
+	return (rval);
 }
 
 
@@ -607,43 +609,43 @@ static wordtab_t *yyfindkey(key)
 	wordtab_t *w;
 
 	if (yywordtab == NULL)
-		return NULL;
+		return (NULL);
 
 	for (w = yywordtab; w->w_word != 0; w++)
 		if (strcasecmp(key, w->w_word) == 0)
-			return w;
-	return NULL;
+			return (w);
+	return (NULL);
 }
 
 
-char *yykeytostr(num)
-	int num;
+char *
+yykeytostr(int num)
 {
 	wordtab_t *w;
 
 	if (yywordtab == NULL)
-		return "<unknown>";
+		return ("<unknown>");
 
 	for (w = yywordtab; w->w_word; w++)
 		if (w->w_value == num)
-			return w->w_word;
-	return "<unknown>";
+			return (w->w_word);
+	return ("<unknown>");
 }
 
 
-wordtab_t *yysettab(words)
-	wordtab_t *words;
+wordtab_t *
+yysettab(wordtab_t *words)
 {
 	wordtab_t *save;
 
 	save = yywordtab;
 	yywordtab = words;
-	return save;
+	return (save);
 }
 
 
-void yyerror(msg)
-	char *msg;
+void
+yyerror(char *msg)
 {
 	char *txt, letter[2];
 	int freetxt = 0;
@@ -669,8 +671,8 @@ void yyerror(msg)
 }
 
 
-void yysetfixeddict(newdict)
-	wordtab_t *newdict;
+void
+yysetfixeddict(wordtab_t *newdict)
 {
 	if (yydebug)
 		printf("yysetfixeddict(%lx)\n", (u_long)newdict);
@@ -688,8 +690,8 @@ void yysetfixeddict(newdict)
 }
 
 
-void yysetdict(newdict)
-	wordtab_t *newdict;
+void
+yysetdict(wordtab_t *newdict)
 {
 	if (yydebug)
 		printf("yysetdict(%lx)\n", (u_long)newdict);
@@ -705,7 +707,8 @@ void yysetdict(newdict)
 		printf("yysavedepth++ => %d\n", yysavedepth);
 }
 
-void yyresetdict()
+void
+yyresetdict(void)
 {
 	if (yydebug)
 		printf("yyresetdict(%d)\n", yysavedepth);
@@ -720,9 +723,8 @@ void yyresetdict()
 
 
 #ifdef	TEST_LEXER
-int main(argc, argv)
-	int argc;
-	char *argv[];
+int
+main(int argc, char *argv[])
 {
 	int n;
 

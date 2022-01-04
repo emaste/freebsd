@@ -105,6 +105,16 @@ static uint64_t pci_emul_membase32;
 static uint64_t pci_emul_membase64;
 static uint64_t pci_emul_memlim64;
 
+struct pci_bar_allocation {
+	TAILQ_ENTRY(pci_bar_allocation) chain;
+	struct pci_devinst *pdi;
+	int idx;
+	enum pcibar_type type;
+	uint64_t size;
+};
+TAILQ_HEAD(pci_bar_list, pci_bar_allocation) pci_bars = TAILQ_HEAD_INITIALIZER(
+    pci_bars);
+
 #define	PCI_EMUL_IOBASE		0x2000
 #define	PCI_EMUL_IOLIMIT	0x10000
 
@@ -639,10 +649,6 @@ int
 pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, enum pcibar_type type,
     uint64_t size)
 {
-	int error;
-	uint64_t *baseptr, limit, addr, mask, lobits, bar;
-	uint16_t cmd, enbit;
-
 	assert(idx >= 0 && idx <= PCI_BARMAX);
 
 	if ((size & (size - 1)) != 0)
@@ -657,17 +663,88 @@ pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, enum pcibar_type type,
 			size = 16;
 	}
 
+	/*
+	 * To reduce fragmentation of the MMIO space, we allocate the BARs by
+	 * size. Therefore, don't allocate the BAR yet. We create a list of all
+	 * BAR allocation which is sorted by BAR size. When all PCI devices are
+	 * initialized, we will assign an address to the BARs.
+	 */
+
+	/* create a new list entry */
+	struct pci_bar_allocation *const new_bar = malloc(sizeof(*new_bar));
+	memset(new_bar, 0, sizeof(*new_bar));
+	new_bar->pdi = pdi;
+	new_bar->idx = idx;
+	new_bar->type = type;
+	new_bar->size = size;
+
+	/*
+	 * Search for a BAR which size is lower than the size of our newly
+	 * allocated BAR.
+	 */
+	struct pci_bar_allocation *bar = NULL;
+	TAILQ_FOREACH(bar, &pci_bars, chain) {
+		if (bar->size < size) {
+			break;
+		}
+	}
+
+	if (bar == NULL) {
+		/*
+		 * Either the list is empty or new BAR is the smallest BAR of
+		 * the list. Append it to the end of our list.
+		 */
+		TAILQ_INSERT_TAIL(&pci_bars, new_bar, chain);
+	} else {
+		/*
+		 * The found BAR is smaller than our new BAR. For that reason,
+		 * insert our new BAR before the found BAR.
+		 */
+		TAILQ_INSERT_BEFORE(bar, new_bar, chain);
+	}
+
+	/*
+	 * pci_passthru devices synchronize their physical and virtual command
+	 * register on init. For that reason, the virtual cmd reg should be
+	 * updated as early as possible.
+	 */
+	uint16_t enbit = 0;
+	switch (type) {
+	case PCIBAR_IO:
+		enbit = PCIM_CMD_PORTEN;
+		break;
+	case PCIBAR_MEM64:
+	case PCIBAR_MEM32:
+		enbit = PCIM_CMD_MEMEN;
+		break;
+	default:
+		enbit = 0;
+		break;
+	}
+
+	const uint16_t cmd = pci_get_cfgdata16(pdi, PCIR_COMMAND);
+	pci_set_cfgdata16(pdi, PCIR_COMMAND, cmd | enbit);
+
+	return (0);
+}
+
+static int
+pci_emul_assign_bar(struct pci_devinst *const pdi, const int idx,
+    const enum pcibar_type type, const uint64_t size)
+{
+	int error;
+	uint64_t *baseptr, limit, addr, mask, lobits, bar;
+
 	switch (type) {
 	case PCIBAR_NONE:
 		baseptr = NULL;
-		addr = mask = lobits = enbit = 0;
+		addr = mask = lobits = 0;
 		break;
 	case PCIBAR_IO:
 		baseptr = &pci_emul_iobase;
 		limit = PCI_EMUL_IOLIMIT;
 		mask = PCIM_BAR_IO_BASE;
 		lobits = PCIM_BAR_IO_SPACE;
-		enbit = PCIM_CMD_PORTEN;
 		break;
 	case PCIBAR_MEM64:
 		/*
@@ -689,14 +766,12 @@ pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, enum pcibar_type type,
 			mask = PCIM_BAR_MEM_BASE;
 			lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_64;
 		}
-		enbit = PCIM_CMD_MEMEN;
 		break;
 	case PCIBAR_MEM32:
 		baseptr = &pci_emul_membase32;
 		limit = PCI_EMUL_MEMLIMIT32;
 		mask = PCIM_BAR_MEM_BASE;
 		lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_32;
-		enbit = PCIM_CMD_MEMEN;
 		break;
 	default:
 		printf("pci_emul_alloc_base: invalid bar type %d\n", type);
@@ -732,9 +807,6 @@ pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, enum pcibar_type type,
 		pci_set_cfgdata32(pdi, PCIR_BAR(idx + 1), bar >> 32);
 	}
 
-	cmd = pci_get_cfgdata16(pdi, PCIR_COMMAND);
-	if ((cmd & enbit) != enbit)
-		pci_set_cfgdata16(pdi, PCIR_COMMAND, cmd | enbit);
 	register_bar(pdi, idx);
 
 	return (0);
@@ -1146,7 +1218,8 @@ pci_ecfg_base(void)
 }
 
 #define	BUSIO_ROUNDUP		32
-#define	BUSMEM_ROUNDUP		(1024 * 1024)
+#define	BUSMEM32_ROUNDUP	(1024 * 1024)
+#define	BUSMEM64_ROUNDUP	(512 * 1024 * 1024)
 
 int
 init_pci(struct vmctx *ctx)
@@ -1189,6 +1262,7 @@ init_pci(struct vmctx *ctx)
 		bi->membase32 = pci_emul_membase32;
 		bi->membase64 = pci_emul_membase64;
 
+		/* first run: init devices */
 		for (slot = 0; slot < MAXSLOTS; slot++) {
 			si = &bi->slotinfo[slot];
 			for (func = 0; func < MAXFUNCS; func++) {
@@ -1228,6 +1302,16 @@ init_pci(struct vmctx *ctx)
 			}
 		}
 
+		/* second run: assign BARs and free list */
+		struct pci_bar_allocation *bar;
+		struct pci_bar_allocation *bar_tmp;
+		TAILQ_FOREACH_SAFE(bar, &pci_bars, chain, bar_tmp) {
+			pci_emul_assign_bar(bar->pdi, bar->idx, bar->type,
+			    bar->size);
+			free(bar);
+		}
+		TAILQ_INIT(&pci_bars);
+
 		/*
 		 * Add some slop to the I/O and memory resources decoded by
 		 * this bus to give a guest some flexibility if it wants to
@@ -1237,14 +1321,14 @@ init_pci(struct vmctx *ctx)
 		pci_emul_iobase = roundup2(pci_emul_iobase, BUSIO_ROUNDUP);
 		bi->iolimit = pci_emul_iobase;
 
-		pci_emul_membase32 += BUSMEM_ROUNDUP;
+		pci_emul_membase32 += BUSMEM32_ROUNDUP;
 		pci_emul_membase32 = roundup2(pci_emul_membase32,
-		    BUSMEM_ROUNDUP);
+		    BUSMEM32_ROUNDUP);
 		bi->memlimit32 = pci_emul_membase32;
 
-		pci_emul_membase64 += BUSMEM_ROUNDUP;
+		pci_emul_membase64 += BUSMEM64_ROUNDUP;
 		pci_emul_membase64 = roundup2(pci_emul_membase64,
-		    BUSMEM_ROUNDUP);
+		    BUSMEM64_ROUNDUP);
 		bi->memlimit64 = pci_emul_membase64;
 	}
 

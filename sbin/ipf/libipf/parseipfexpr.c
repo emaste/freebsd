@@ -32,9 +32,7 @@ static ipfopentry_t opwords[17] = {
 
 
 int *
-parseipfexpr(line, errorptr)
-	char *line;
-	char **errorptr;
+parseipfexpr(char *line, char **errorptr)
 {
 	int not, items, asize, *oplist, osize, i;
 	char *temp, *arg, *s, *t, *ops, *error;
@@ -270,7 +268,7 @@ parseipfexpr(line, errorptr)
 	oplist[0] = asize + 2;
 	oplist[asize + 1] = IPF_EXP_END;
 
-	return oplist;
+	return (oplist);
 
 parseerror:
 	if (errorptr != NULL)
@@ -279,5 +277,5 @@ parseerror:
 		free(oplist);
 	if (temp != NULL)
 		free(temp);
-	return NULL;
+	return (NULL);
 }

@@ -66,17 +66,14 @@ u_short ipseclevel(slevel)
 
 	if (!so->on_name) {
 		fprintf(stderr, "no such security level: %s\n", slevel);
-		return 0;
+		return (0);
 	}
-	return so->on_value;
+	return (so->on_value);
 }
 
 
-int addipopt(op, io, len, class)
-	char *op;
-	struct ipopt_names *io;
-	int len;
-	char *class;
+int
+addipopt(char *op, struct ipopt_names *io, int len, char *class)
 {
 	struct in_addr ipadr;
 	int olen = len, srr = 0;
@@ -86,7 +83,7 @@ int addipopt(op, io, len, class)
 
 	if ((len + io->on_siz) > 48) {
 		fprintf(stderr, "options too long\n");
-		return 0;
+		return (0);
 	}
 	len += io->on_siz;
 	*op++ = io->on_value;
@@ -139,11 +136,12 @@ int addipopt(op, io, len, class)
 		else
 			op += io->on_siz - 3;
 	}
-	return len - olen;
+	return (len - olen);
 }
 
 
-u_32_t buildopts(cp, op, len)
+u_32_t
+buildopts(char *cp, char *op, int len)
 	char *cp, *op;
 	int len;
 {
@@ -168,7 +166,7 @@ u_32_t buildopts(cp, op, len)
 		}
 		if (!io->on_name) {
 			fprintf(stderr, "unknown IP option name %s\n", s);
-			return 0;
+			return (0);
 		}
 	}
 
@@ -190,5 +188,5 @@ u_32_t buildopts(cp, op, len)
 			}
 		}
 	}
-	return len;
+	return (len);
 }

@@ -26,7 +26,7 @@ int	raudio_proxy_init = 0;
  * Real Audio application proxy initialization.
  */
 void
-ipf_p_raudio_main_load()
+ipf_p_raudio_main_load(void)
 {
 	bzero((char *)&raudiofr, sizeof(raudiofr));
 	raudiofr.fr_ref = 1;
@@ -37,7 +37,7 @@ ipf_p_raudio_main_load()
 
 
 void
-ipf_p_raudio_main_unload()
+ipf_p_raudio_main_unload(void)
 {
 	if (raudio_proxy_init == 1) {
 		MUTEX_DESTROY(&raudiofr.fr_lock);
@@ -50,38 +50,30 @@ ipf_p_raudio_main_unload()
  * Setup for a new proxy to handle Real Audio.
  */
 int
-ipf_p_raudio_new(arg, fin, aps, nat)
-	void *arg;
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_raudio_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	raudio_t *rap;
 
 	nat = nat;	/* LINT */
 
 	if (fin->fin_v != 4)
-		return -1;
+		return (-1);
 
 	KMALLOCS(aps->aps_data, void *, sizeof(raudio_t));
 	if (aps->aps_data == NULL)
-		return -1;
+		return (-1);
 
 	bzero(aps->aps_data, sizeof(raudio_t));
 	rap = aps->aps_data;
 	aps->aps_psiz = sizeof(raudio_t);
 	rap->rap_mode = RAP_M_TCP;	/* default is for TCP */
-	return 0;
+	return (0);
 }
 
 
 
 int
-ipf_p_raudio_out(arg, fin, aps, nat)
-	void *arg;
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_raudio_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	raudio_t *rap = aps->aps_data;
 	unsigned char membuf[512 + 1], *s;
@@ -98,7 +90,7 @@ ipf_p_raudio_out(arg, fin, aps, nat)
 	 * for the proxy to do.
 	 */
 	if (rap->rap_eos == 1)
-		return 0;
+		return (0);
 
 	m = fin->fin_m;
 	tcp = (tcphdr_t *)fin->fin_dp;
@@ -107,7 +99,7 @@ ipf_p_raudio_out(arg, fin, aps, nat)
 
 	dlen = MSGDSIZE(m) - off;
 	if (dlen <= 0)
-		return 0;
+		return (0);
 
 	if (dlen > sizeof(membuf))
 		dlen = sizeof(membuf);
@@ -124,7 +116,7 @@ ipf_p_raudio_out(arg, fin, aps, nat)
 	if (rap->rap_seenpna == 0) {
 		s = (u_char *)memstr("PNA", (char *)membuf, 3, dlen);
 		if (s == NULL)
-			return 0;
+			return (0);
 		s += 3;
 		rap->rap_seenpna = 1;
 	} else
@@ -140,7 +132,7 @@ ipf_p_raudio_out(arg, fin, aps, nat)
 			s += 2;
 			rap->rap_seenver = 1;
 		} else
-			return 0;
+			return (0);
 	}
 
 	/*
@@ -176,16 +168,12 @@ ipf_p_raudio_out(arg, fin, aps, nat)
 			rap->rap_gotid = 0;
 		}
 	}
-	return 0;
+	return (0);
 }
 
 
 int
-ipf_p_raudio_in(arg, fin, aps, nat)
-	void *arg;
-	fr_info_t *fin;
-	ap_session_t *aps;
-	nat_t *nat;
+ipf_p_raudio_in(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	unsigned char membuf[IPF_MAXPORTLEN + 1], *s;
 	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
@@ -211,7 +199,7 @@ ipf_p_raudio_in(arg, fin, aps, nat)
 	 * then data is sent back on the same channel that is already open.
 	 */
 	if (rap->rap_sdone != 0)
-		return 0;
+		return (0);
 
 	m = fin->fin_m;
 	tcp = (tcphdr_t *)fin->fin_dp;
@@ -220,7 +208,7 @@ ipf_p_raudio_in(arg, fin, aps, nat)
 
 	dlen = MSGDSIZE(m) - off;
 	if (dlen <= 0)
-		return 0;
+		return (0);
 
 	if (dlen > sizeof(membuf))
 		dlen = sizeof(membuf);
@@ -236,7 +224,7 @@ ipf_p_raudio_in(arg, fin, aps, nat)
 	if (rap->rap_sseq == 0) {
 		s = (u_char *)memstr("PNA", (char *)membuf, 3, dlen);
 		if (s == NULL)
-			return 0;
+			return (0);
 		a1 = s - membuf;
 		dlen -= a1;
 		a1 = 0;
@@ -252,7 +240,7 @@ ipf_p_raudio_in(arg, fin, aps, nat)
 		a2 -= a1;
 		s = membuf;
 	} else
-		return 0;
+		return (0);
 
 	for (a3 = a1, a4 = a2; (a4 > 0) && (a3 < 19) && (a3 >= 0); a4--,a3++) {
 		rap->rap_sbf |= (1 << a3);
@@ -260,7 +248,7 @@ ipf_p_raudio_in(arg, fin, aps, nat)
 	}
 
 	if ((rap->rap_sbf != 0x7ffff) || (!rap->rap_eos))	/* 19 bits */
-		return 0;
+		return (0);
 	rap->rap_sdone = 1;
 
 	s = (u_char *)rap->rap_svr + 11;
@@ -341,5 +329,5 @@ ipf_p_raudio_in(arg, fin, aps, nat)
 	ip->ip_len = slen;
 	ip->ip_src = swa;
 	ip->ip_dst = swb;
-	return 0;
+	return (0);
 }

@@ -520,8 +520,7 @@ log" },
 
 
 static ipf_error_entry_t *
-find_error(errnum)
-	int errnum;
+find_error(int errnum)
 {
 	ipf_error_entry_t *ie;
 
@@ -531,7 +530,7 @@ find_error(errnum)
 	while (step != 0) {
 		ie = ipf_errors + l + step;
 		if (ie->iee_number == errnum)
-			return ie;
+			return (ie);
 		step = l + step;
 		if (ie->iee_number > errnum)
 			r = step;
@@ -540,13 +539,11 @@ find_error(errnum)
 		step = (r - l) / 2;;
 	}
 
-	return NULL;
+	return (NULL);
 }
 
 char *
-ipf_geterror(fd, func)
-	int fd;
-	ioctlfunc_t *func;
+ipf_geterror(int fd, ioctlfunc_t *func)
 {
 	static char text[80];
 	ipf_error_entry_t *ie;
@@ -556,18 +553,17 @@ ipf_geterror(fd, func)
 
 		ie = find_error(errnum);
 		if (ie != NULL)
-			return ie->iee_text;
+			return (ie->iee_text);
 		snprintf(text, sizeof(text), "unknown error %d", errnum);
 	} else {
 		snprintf(text, sizeof(text), "retrieving error number failed (%d)", errno);
 	}
-	return text;
+	return (text);
 }
 
 
 char *
-ipf_strerror(errnum)
-	int errnum;
+ipf_strerror(int errnum)
 {
 	static char text[80];
 	ipf_error_entry_t *ie;
@@ -575,8 +571,8 @@ ipf_strerror(errnum)
 
 	ie = find_error(errnum);
 	if (ie != NULL)
-		return ie->iee_text;
+		return (ie->iee_text);
 
 	snprintf(text, sizeof(text), "unknown error %d", errnum);
-	return text;
+	return (text);
 }

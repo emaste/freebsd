@@ -8,22 +8,17 @@
 
 
 ippool_dst_t *
-printdstlist(pp, copyfunc, name, opts, nodes, fields)
-	ippool_dst_t *pp;
-	copyfunc_t copyfunc;
-	char *name;
-	int opts;
-	ipf_dstnode_t *nodes;
-	wordtab_t *fields;
+printdstlist( ippool_dst_t *pp, copyfunc_t copyfunc, char *name, int opts,
+	ipf_dstnode_t *nodes, wordtab_t *fields)
 {
 	ipf_dstnode_t *node;
 	ippool_dst_t dst;
 
 	if ((*copyfunc)(pp, &dst, sizeof(dst)))
-		return NULL;
+		return (NULL);
 
 	if ((name != NULL) && strncmp(name, dst.ipld_name, FR_GROUPLEN))
-		return dst.ipld_next;
+		return (dst.ipld_next);
 
 	if (fields == NULL)
 		printdstlistdata(&dst, opts);
@@ -44,7 +39,7 @@ printdstlist(pp, copyfunc, name, opts, nodes, fields)
 				break;
 			if ((*copyfunc)(node, n, node->ipfd_size)) {
 				free(n);
-				return NULL;
+				return (NULL);
 			}
 
 			node = printdstlistnode(n, bcopywrap, opts, fields);
@@ -56,5 +51,5 @@ printdstlist(pp, copyfunc, name, opts, nodes, fields)
 	if ((opts & OPT_DEBUG) == 0)
 		PRINTF(" };\n");
 
-	return dst.ipld_next;
+	return (dst.ipld_next);
 }

@@ -33,16 +33,15 @@ execute_parse(char **strings)
 
 	} else {
 		free(ctx);
-		return NULL;
+		return (NULL);
 	}
 
-	return ctx;
+	return (ctx);
 }
 
 
 static void
-execute_print(ctx)
-	void *ctx;
+execute_print(void *ctx)
 {
 	execute_opts_t *exe = ctx;
 
@@ -51,8 +50,7 @@ execute_print(ctx)
 
 
 static void
-execute_destroy(ctx)
-	void *ctx;
+execute_destroy(void *ctx)
 {
 	execute_opts_t *exe = ctx;
 
@@ -63,9 +61,7 @@ execute_destroy(ctx)
 
 
 static int
-execute_send(ctx, msg)
-	void *ctx;
-	ipmon_msg_t *msg;
+execute_send(void *ctx, ipmon_msg_t *msg)
 {
 	execute_opts_t *exe = ctx;
 	FILE *fp;
@@ -75,6 +71,6 @@ execute_send(ctx, msg)
 		fwrite(msg->imm_msg, msg->imm_msglen, 1, fp);
 		pclose(fp);
 	}
-	return 0;
+	return (0);
 }
 

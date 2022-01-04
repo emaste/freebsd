@@ -14,11 +14,8 @@
 
 
 int
-load_dstlistnode(role, name, node, iocfunc)
-	int role;
-	char *name;
-	ipf_dstnode_t *node;
-	ioctlfunc_t iocfunc;
+load_dstlistnode(int role, char *name, ipf_dstnode_t *node,
+	ioctlfunc_t iocfunc)
 {
 	iplookupop_t op;
 	frdest_t *dst;
@@ -26,11 +23,11 @@ load_dstlistnode(role, name, node, iocfunc)
 	int err;
 
 	if (pool_open() == -1)
-		return -1;
+		return (-1);
 
 	dst = calloc(1, sizeof(*dst) + node->ipfd_dest.fd_name);
 	if (dst == NULL)
-		return -1;
+		return (-1);
 
 	op.iplo_unit = role;
 	op.iplo_type = IPLT_DSTLIST;
@@ -62,9 +59,9 @@ load_dstlistnode(role, name, node, iocfunc)
 			char msg[80];
 
 			(void) snprintf(msg, sizeof(msg), "%s lookup node", what);
-			return ipf_perror_fd(pool_fd(), iocfunc, msg);
+			return (ipf_perror_fd(pool_fd(), iocfunc, msg));
 		}
 	}
 
-	return 0;
+	return (0);
 }

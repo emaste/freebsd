@@ -117,8 +117,6 @@ VNET_DEFINE_STATIC(struct inpcbinfo, divcbinfo);
 static u_long	div_sendspace = DIVSNDQ;	/* XXX sysctl ? */
 static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
 
-static eventhandler_tag ip_divert_event_tag;
-
 static int div_output_inbound(int fmaily, struct socket *so, struct mbuf *m,
     struct sockaddr_in *sin);
 static int div_output_outbound(int family, struct socket *so, struct mbuf *m);
@@ -126,24 +124,10 @@ static int div_output_outbound(int family, struct socket *so, struct mbuf *m);
 /*
  * Initialize divert connection block queue.
  */
-static void
-div_zone_change(void *tag)
-{
-
-	uma_zone_set_max(V_divcbinfo.ipi_zone, maxsockets);
-}
-
-static int
-div_inpcb_init(void *mem, int size, int flags)
-{
-	struct inpcb *inp = mem;
-
-	INP_LOCK_INIT(inp, "inp", "divinp");
-	return (0);
-}
+INPCBSTORAGE_DEFINE(divcbstor, "divinp", "divcb", "div", "divhash");
 
 static void
-div_init(void)
+div_init(void *arg __unused)
 {
 
 	/*
@@ -151,8 +135,9 @@ div_init(void)
 	 * allocate one-entry hash lists than it is to check all over the
 	 * place for hashbase == NULL.
 	 */
-	in_pcbinfo_init(&V_divcbinfo, "div", 1, 1, "divcb", div_inpcb_init);
+	in_pcbinfo_init(&V_divcbinfo, &divcbstor, 1, 1);
 }
+VNET_SYSINIT(div_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, div_init, NULL);
 
 static void
 div_destroy(void *unused __unused)
@@ -160,8 +145,7 @@ div_destroy(void *unused __unused)
 
 	in_pcbinfo_destroy(&V_divcbinfo);
 }
-VNET_SYSUNINIT(divert, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY,
-    div_destroy, NULL);
+VNET_SYSUNINIT(divert, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, div_destroy, NULL);
 
 /*
  * IPPROTO_DIVERT is not in the real IP protocol number space; this
@@ -775,7 +759,6 @@ struct protosw div_protosw = {
 	.pr_protocol =		IPPROTO_DIVERT,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_input =		div_input,
-	.pr_init =		div_init,
 	.pr_usrreqs =		&div_usrreqs
 };
 
@@ -795,8 +778,6 @@ div_modevent(module_t mod, int type, void *unused)
 		if (err != 0)
 			return (err);
 		ip_divert_ptr = divert_packet;
-		ip_divert_event_tag = EVENTHANDLER_REGISTER(maxsockets_change,
-		    div_zone_change, NULL, EVENTHANDLER_PRI_ANY);
 		break;
 	case MOD_QUIESCE:
 		/*
@@ -830,7 +811,6 @@ div_modevent(module_t mod, int type, void *unused)
 #ifndef VIMAGE
 		div_destroy(NULL);
 #endif
-		EVENTHANDLER_DEREGISTER(maxsockets_change, ip_divert_event_tag);
 		break;
 	default:
 		err = EOPNOTSUPP;

@@ -375,8 +375,8 @@ void	in_pcbtoxinpcb(const struct inpcb *, struct xinpcb *);
 
 #ifdef _KERNEL
 /*
- * Global data structure for each high-level protocol (UDP, TCP, ...) in both
- * IPv4 and IPv6.  Holds inpcb lists and information for managing them.
+ * Per-VNET pcb database for each high-level protocol (UDP, TCP, ...) in both
+ * IPv4 and IPv6.
  *
  * The pcbs are protected with SMR section and thus all lists in inpcbinfo
  * are CK-lists.  Locking is required to insert a pcb into database. Two
@@ -446,6 +446,41 @@ struct inpcbinfo {
 };
 
 /*
+ * Global allocation storage for each high-level protocol (UDP, TCP, ...).
+ * Each corresponding per-VNET inpcbinfo points into this one.
+ */
+struct inpcbstorage {
+	uma_zone_t	ips_zone;
+	uma_zone_t	ips_portzone;
+	uma_init	ips_pcbinit;
+	const char *	ips_zone_name;
+	const char *	ips_portzone_name;
+	const char *	ips_infolock_name;
+	const char *	ips_hashlock_name;
+};
+
+#define INPCBSTORAGE_DEFINE(prot, lname, zname, iname, hname)		\
+static int								\
+prot##_inpcb_init(void *mem, int size __unused, int flags __unused)	\
+{									\
+	struct inpcb *inp = mem;					\
+									\
+	rw_init_flags(&inp->inp_lock, lname, RW_RECURSE | RW_DUPOK);	\
+	return (0);							\
+}									\
+static struct inpcbstorage prot = {					\
+	.ips_pcbinit = prot##_inpcb_init,				\
+	.ips_zone_name = zname,						\
+	.ips_portzone_name = zname " ports",				\
+	.ips_infolock_name = iname,					\
+	.ips_hashlock_name = hname,					\
+};									\
+SYSINIT(prot##_inpcbstorage_init, SI_SUB_PROTO_DOMAIN,			\
+    SI_ORDER_SECOND, in_pcbstorage_init, &prot);			\
+SYSUNINIT(prot##_inpcbstorage_uninit, SI_SUB_PROTO_DOMAIN,		\
+    SI_ORDER_SECOND, in_pcbstorage_destroy, &prot)
+
+/*
  * Load balance groups used for the SO_REUSEPORT_LB socket option. Each group
  * (or unique address:port combination) can be re-used at most
  * INPCBLBGROUP_SIZMAX (256) times. The inpcbs are stored in il_inp which
@@ -466,8 +501,6 @@ struct inpcblbgroup {
 	struct inpcb	*il_inp[];			/* (h) */
 };
 
-#define INP_LOCK_INIT(inp, d, t) \
-	rw_init_flags(&(inp)->inp_lock, (t), RW_RECURSE | RW_DUPOK)
 #define INP_LOCK_DESTROY(inp)	rw_destroy(&(inp)->inp_lock)
 #define INP_RLOCK(inp)		rw_rlock(&(inp)->inp_lock)
 #define INP_WLOCK(inp)		rw_wlock(&(inp)->inp_lock)
@@ -688,9 +721,11 @@ VNET_DECLARE(int, ipport_tcpallocs);
 #define	V_ipport_stoprandom	VNET(ipport_stoprandom)
 #define	V_ipport_tcpallocs	VNET(ipport_tcpallocs)
 
+void	in_pcbinfo_init(struct inpcbinfo *, struct inpcbstorage *,
+	    u_int, u_int);
 void	in_pcbinfo_destroy(struct inpcbinfo *);
-void	in_pcbinfo_init(struct inpcbinfo *, const char *, u_int, int, char *,
-	    uma_init);
+void	in_pcbstorage_init(void *);
+void	in_pcbstorage_destroy(void *);
 
 int	in_pcbbind_check_bindmulti(const struct inpcb *ni,
 	    const struct inpcb *oi);

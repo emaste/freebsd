@@ -80,11 +80,11 @@ static int	ipf_scan_inited = 0;
 
 
 int
-ipf_scan_init()
+ipf_scan_init(void)
 {
 	RWLOCK_INIT(&ipf_scan_rwlock, "ip scan rwlock");
 	ipf_scan_inited = 1;
-	return 0;
+	return (0);
 }
 
 
@@ -99,8 +99,7 @@ ipf_scan_unload(ipf_main_softc_t *arg)
 
 
 int
-ipf_scan_add(data)
-	caddr_t data;
+ipf_scan_add(caddr_t data)
 {
 	ipscan_t *i, *isc;
 	int err;
@@ -108,13 +107,13 @@ ipf_scan_add(data)
 	KMALLOC(isc, ipscan_t *);
 	if (!isc) {
 		ipf_interror = 90001;
-		return ENOMEM;
+		return (ENOMEM);
 	}
 
 	err = copyinptr(data, isc, sizeof(*isc));
 	if (err) {
 		KFREE(isc);
-		return err;
+		return (err);
 	}
 
 	WRITE_ENTER(&ipf_scan_rwlock);
@@ -124,7 +123,7 @@ ipf_scan_add(data)
 		RWLOCK_EXIT(&ipf_scan_rwlock);
 		KFREE(isc);
 		ipf_interror = 90002;
-		return EEXIST;
+		return (EEXIST);
 	}
 
 	if (ipf_scan_tail) {
@@ -145,20 +144,19 @@ ipf_scan_add(data)
 
 	ipf_scan_stat.iscs_entries++;
 	RWLOCK_EXIT(&ipf_scan_rwlock);
-	return 0;
+	return (0);
 }
 
 
 int
-ipf_scan_remove(data)
-	caddr_t data;
+ipf_scan_remove(caddr_t data)
 {
 	ipscan_t isc, *i;
 	int err;
 
 	err = copyinptr(data, &isc, sizeof(isc));
 	if (err)
-		return err;
+		return (err);
 
 	WRITE_ENTER(&ipf_scan_rwlock);
 
@@ -169,7 +167,7 @@ ipf_scan_remove(data)
 		if (i->ipsc_fref) {
 			RWLOCK_EXIT(&ipf_scan_rwlock);
 			ipf_interror = 90003;
-			return EBUSY;
+			return (EBUSY);
 		}
 
 		*i->ipsc_pnext = i->ipsc_next;
@@ -186,26 +184,24 @@ ipf_scan_remove(data)
 		KFREE(i);
 	}
 	RWLOCK_EXIT(&ipf_scan_rwlock);
-	return err;
+	return (err);
 }
 
 
 struct ipscan *
-ipf_scan_lookup(tag)
-	char *tag;
+ipf_scan_lookup(char *tag)
 {
 	ipscan_t *i;
 
 	for (i = ipf_scan_list; i; i = i->ipsc_next)
 		if (!strcmp(i->ipsc_tag, tag))
-			return i;
-	return NULL;
+			return (i);
+	return (NULL);
 }
 
 
 int
-ipf_scan_attachfr(fr)
-	struct frentry *fr;
+ipf_scan_attachfr(struct frentry *fr)
 {
 	ipscan_t *i;
 
@@ -218,17 +214,16 @@ ipf_scan_attachfr(fr)
 		RWLOCK_EXIT(&ipf_scan_rwlock);
 		if (i == NULL) {
 			ipf_interror = 90004;
-			return ENOENT;
+			return (ENOENT);
 		}
 		fr->fr_isc = i;
 	}
-	return 0;
+	return (0);
 }
 
 
 int
-ipf_scan_attachis(is)
-	struct ipstate *is;
+ipf_scan_attachis(struct ipstate *is)
 {
 	frentry_t *fr;
 	ipscan_t *i;
@@ -251,13 +246,12 @@ ipf_scan_attachis(is)
 		}
 	}
 	RWLOCK_EXIT(&ipf_scan_rwlock);
-	return 0;
+	return (0);
 }
 
 
 int
-ipf_scan_detachfr(fr)
-	struct frentry *fr;
+ipf_scan_detachfr(struct frentry *fr)
 {
 	ipscan_t *i;
 
@@ -265,7 +259,7 @@ ipf_scan_detachfr(fr)
 	if (i != NULL) {
 		ATOMIC_DEC32(i->ipsc_fref);
 	}
-	return 0;
+	return (0);
 }
 
 
@@ -282,7 +276,7 @@ ipf_scan_detachis(is)
 		is->is_flags &= ~(IS_SC_CLIENT|IS_SC_SERVER);
 	}
 	RWLOCK_EXIT(&ipf_scan_rwlock);
-	return 0;
+	return (0);
 }
 
 
@@ -290,10 +284,7 @@ ipf_scan_detachis(is)
  * 'string' compare for scanning
  */
 int
-ipf_scan_matchstr(sp, str, n)
-	sinfo_t *sp;
-	char *str;
-	int n;
+ipf_scan_matchstr(sinfo_t *sp, char *str, int n)
 {
 	char *s, *t, *up;
 	int i = n;
@@ -307,16 +298,16 @@ ipf_scan_matchstr(sp, str, n)
 		{
 		case '.' :
 			if (*s != *up)
-				return 1;
+				return (1);
 			break;
 		case '?' :
 			if (!ISALPHA(*up) || ((*s & 0x5f) != (*up & 0x5f)))
-				return 1;
+				return (1);
 			break;
 		case '*' :
 			break;
 		}
-	return 0;
+	return (0);
 }
 
 
@@ -325,10 +316,7 @@ ipf_scan_matchstr(sp, str, n)
  * 1 if just client
  */
 int
-ipf_scan_matchisc(isc, is, cl, sl, maxm)
-	ipscan_t *isc;
-	ipstate_t *is;
-	int cl, sl, maxm[2];
+ipf_scan_matchisc(ipscan_t *isc, ipstate_t *is, int cl, int sl, int maxm[2])
 {
 	int i, j, k, n, ret = 0, flags;
 
@@ -340,9 +328,9 @@ ipf_scan_matchisc(isc, is, cl, sl, maxm)
 	 */
 	if (maxm != NULL) {
 		if (isc->ipsc_clen < maxm[0])
-			return 0;
+			return (0);
 		if (isc->ipsc_slen < maxm[1])
-			return 0;
+			return (0);
 		j = maxm[0];
 		k = maxm[1];
 	} else {
@@ -388,13 +376,12 @@ ipf_scan_matchisc(isc, is, cl, sl, maxm)
 		maxm[0] = j;
 		maxm[1] = k;
 	}
-	return ret;
+	return (ret);
 }
 
 
 int
-ipf_scan_match(is)
-	ipstate_t *is;
+ipf_scan_match(ipstate_t *is)
 {
 	int i, j, k, n, cl, sl, maxm[2];
 	ipscan_t *isc, *lm;
@@ -448,7 +435,7 @@ ipf_scan_match(is)
 		if (k == 1)
 			isc = lm;
 		if (isc == NULL)
-			return 0;
+			return (0);
 
 		/*
 		 * No matches or partial matches, so reset the respective
@@ -513,7 +500,7 @@ ipf_scan_match(is)
 		break;
 	}
 
-	return i;
+	return (i);
 }
 
 
@@ -521,9 +508,7 @@ ipf_scan_match(is)
  * check if a packet matches what we're scanning for
  */
 int
-ipf_scan_packet(fin, is)
-	fr_info_t *fin;
-	ipstate_t *is;
+ipf_scan_packet(fr_info_t *fin, ipstate_t *is)
 {
 	int i, j, rv, dlen, off, thoff;
 	u_32_t seq, s0;
@@ -534,7 +519,7 @@ ipf_scan_packet(fin, is)
 	seq = ntohl(tcp->th_seq);
 
 	if (!is->is_s0[rv])
-		return 1;
+		return (1);
 
 	/*
 	 * check if this packet has more data that falls within the first
@@ -543,11 +528,11 @@ ipf_scan_packet(fin, is)
 	s0 = is->is_s0[rv];
 	off = seq - s0;
 	if ((off > 15) || (off < 0))
-		return 1;
+		return (1);
 	thoff = TCP_OFF(tcp) << 2;
 	dlen = fin->fin_dlen - thoff;
 	if (dlen <= 0)
-		return 1;
+		return (1);
 	if (dlen > 16)
 		dlen = 16;
 	if (off + dlen > 16)
@@ -563,7 +548,7 @@ ipf_scan_packet(fin, is)
 	for (j = 0, i = is->is_smsk[rv]; i & 1; i >>= 1)
 		j++;
 	if (j == 0)
-		return 1;
+		return (1);
 
 	(void) ipf_scan_match(is);
 #if 0
@@ -576,16 +561,12 @@ ipf_scan_packet(fin, is)
 	if (!(is->is_flags & IS_SC_SERVER))
 		bzero(is->is_sbuf[1], sizeof(is->is_sbuf[1]));
 #endif
-	return 0;
+	return (0);
 }
 
 
 int
-ipf_scan_ioctl(data, cmd, mode, uid, ctx)
-	caddr_t data;
-	ioctlcmd_t cmd;
-	int mode, uid;
-	void *ctx;
+ipf_scan_ioctl(caddr_t data, ioctlcmd_t cmd, int mode, int uid, void *ctx)
 {
 	ipscanstat_t ipscs;
 	int err = 0;
@@ -612,6 +593,6 @@ ipf_scan_ioctl(data, cmd, mode, uid, ctx)
 		break;
 	}
 
-	return err;
+	return (err);
 }
 #endif	/* IPFILTER_SCAN */

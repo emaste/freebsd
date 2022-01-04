@@ -120,7 +120,7 @@ extern	int	blockreason;
 #define	LBUMP(x)	softc->x++
 #define	LBUMPD(x, y)	do { softc->x.y++; DT(y); } while (0)
 
-static	INLINE int	ipf_check_ipf(fr_info_t *, frentry_t *, int);
+static	inline int	ipf_check_ipf(fr_info_t *, frentry_t *, int);
 static	u_32_t		ipf_checkcipso(fr_info_t *, u_char *, int);
 static	u_32_t		ipf_checkripso(u_char *);
 static	u_32_t		ipf_decaps(fr_info_t *, u_32_t, int);
@@ -152,16 +152,16 @@ static	int		ipf_grpmapinit(struct ipf_main_softc_s *,
 static	frentry_t	*ipf_nextrule(ipf_main_softc_t *, int, int,
 					   frentry_t *, int);
 static	int		ipf_portcheck(frpcmp_t *, u_32_t);
-static	INLINE int	ipf_pr_ah(fr_info_t *);
-static	INLINE void	ipf_pr_esp(fr_info_t *);
-static	INLINE void	ipf_pr_gre(fr_info_t *);
-static	INLINE void	ipf_pr_udp(fr_info_t *);
-static	INLINE void	ipf_pr_tcp(fr_info_t *);
-static	INLINE void	ipf_pr_icmp(fr_info_t *);
-static	INLINE void	ipf_pr_ipv4hdr(fr_info_t *);
-static	INLINE void	ipf_pr_short(fr_info_t *, int);
-static	INLINE int	ipf_pr_tcpcommon(fr_info_t *);
-static	INLINE int	ipf_pr_udpcommon(fr_info_t *);
+static	inline int	ipf_pr_ah(fr_info_t *);
+static	inline void	ipf_pr_esp(fr_info_t *);
+static	inline void	ipf_pr_gre(fr_info_t *);
+static	inline void	ipf_pr_udp(fr_info_t *);
+static	inline void	ipf_pr_tcp(fr_info_t *);
+static	inline void	ipf_pr_icmp(fr_info_t *);
+static	inline void	ipf_pr_ipv4hdr(fr_info_t *);
+static	inline void	ipf_pr_short(fr_info_t *, int);
+static	inline int	ipf_pr_tcpcommon(fr_info_t *);
+static	inline int	ipf_pr_udpcommon(fr_info_t *);
 static	void		ipf_rule_delete(ipf_main_softc_t *, frentry_t *f,
 					     int, int);
 static	void		ipf_rule_expire_insert(ipf_main_softc_t *,
@@ -392,20 +392,20 @@ static ipftuneable_t ipf_main_tuneables[] = {
  * adding more code to a growing switch statement.
  */
 #ifdef USE_INET6
-static	INLINE int	ipf_pr_ah6(fr_info_t *);
-static	INLINE void	ipf_pr_esp6(fr_info_t *);
-static	INLINE void	ipf_pr_gre6(fr_info_t *);
-static	INLINE void	ipf_pr_udp6(fr_info_t *);
-static	INLINE void	ipf_pr_tcp6(fr_info_t *);
-static	INLINE void	ipf_pr_icmp6(fr_info_t *);
-static	INLINE void	ipf_pr_ipv6hdr(fr_info_t *);
-static	INLINE void	ipf_pr_short6(fr_info_t *, int);
-static	INLINE int	ipf_pr_hopopts6(fr_info_t *);
-static	INLINE int	ipf_pr_mobility6(fr_info_t *);
-static	INLINE int	ipf_pr_routing6(fr_info_t *);
-static	INLINE int	ipf_pr_dstopts6(fr_info_t *);
-static	INLINE int	ipf_pr_fragment6(fr_info_t *);
-static	INLINE struct ip6_ext *ipf_pr_ipv6exthdr(fr_info_t *, int, int);
+static	inline int	ipf_pr_ah6(fr_info_t *);
+static	inline void	ipf_pr_esp6(fr_info_t *);
+static	inline void	ipf_pr_gre6(fr_info_t *);
+static	inline void	ipf_pr_udp6(fr_info_t *);
+static	inline void	ipf_pr_tcp6(fr_info_t *);
+static	inline void	ipf_pr_icmp6(fr_info_t *);
+static	inline void	ipf_pr_ipv6hdr(fr_info_t *);
+static	inline void	ipf_pr_short6(fr_info_t *, int);
+static	inline int	ipf_pr_hopopts6(fr_info_t *);
+static	inline int	ipf_pr_mobility6(fr_info_t *);
+static	inline int	ipf_pr_routing6(fr_info_t *);
+static	inline int	ipf_pr_dstopts6(fr_info_t *);
+static	inline int	ipf_pr_fragment6(fr_info_t *);
+static	inline struct ip6_ext *ipf_pr_ipv6exthdr(fr_info_t *, int, int);
 
 
 /* ------------------------------------------------------------------------ */
@@ -419,10 +419,8 @@ static	INLINE struct ip6_ext *ipf_pr_ipv6exthdr(fr_info_t *, int, int);
 /* for IPv6 and marks the packet with FI_SHORT if so.  See function comment */
 /* for ipf_pr_short() for more details.                                     */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_short6(fin, xmin)
-	fr_info_t *fin;
-	int xmin;
+static inline void
+ipf_pr_short6(fr_info_t *fin, int xmin)
 {
 
 	if (fin->fin_dlen < xmin)
@@ -441,9 +439,8 @@ ipf_pr_short6(fin, xmin)
 /* analyzer may pullup or free the packet itself so we need to be vigiliant */
 /* of that possibility arising.                                             */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_ipv6hdr(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_ipv6hdr(fr_info_t *fin)
 {
 	ip6_t *ip6 = (ip6_t *)fin->fin_ip;
 	int p, go = 1, i, hdrcount;
@@ -613,10 +610,8 @@ ipf_pr_ipv6hdr(fin)
 /* big enough for it to be in, checking if it is repeated and setting a     */
 /* flag to indicate its presence.                                           */
 /* ------------------------------------------------------------------------ */
-static INLINE struct ip6_ext *
-ipf_pr_ipv6exthdr(fin, multiple, proto)
-	fr_info_t *fin;
-	int multiple, proto;
+static inline struct ip6_ext *
+ipf_pr_ipv6exthdr(fr_info_t *fin, int multiple, int proto)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	struct ip6_ext *hdr;
@@ -629,12 +624,12 @@ ipf_pr_ipv6exthdr(fin, multiple, proto)
 	if ((fin->fin_dlen - 8) < 0) {
 		fin->fin_flx |= FI_SHORT;
 		LBUMPD(ipf_stats[fin->fin_out], fr_v6_ext_short);
-		return NULL;
+		return (NULL);
 	}
 
 	if (ipf_pr_pullup(fin, 8) == -1) {
 		LBUMPD(ipf_stats[fin->fin_out], fr_v6_ext_pullup);
-		return NULL;
+		return (NULL);
 	}
 
 	hdr = fin->fin_dp;
@@ -652,7 +647,7 @@ ipf_pr_ipv6exthdr(fin, multiple, proto)
 		fin->fin_flx |= FI_BAD;
 		DT3(ipf_fi_bad_pr_ipv6exthdr_len, fr_info_t *, fin, u_short, shift, u_short, fin->fin_dlen);
 		LBUMPD(ipf_stats[fin->fin_out], fr_v6_ext_hlen);
-		return NULL;
+		return (NULL);
 	}
 
 	fin->fin_dp = (char *)fin->fin_dp + shift;
@@ -664,7 +659,7 @@ ipf_pr_ipv6exthdr(fin, multiple, proto)
 	 * end result until after it has been defragmented.
 	 */
 	if (fin->fin_flx & FI_FRAG)
-		return hdr;
+		return (hdr);
 
 	for (i = 0; ip6exthdr[i].ol_bit != 0; i++)
 		if (ip6exthdr[i].ol_val == proto) {
@@ -680,7 +675,7 @@ ipf_pr_ipv6exthdr(fin, multiple, proto)
 			break;
 		}
 
-	return hdr;
+	return (hdr);
 }
 
 
@@ -692,16 +687,15 @@ ipf_pr_ipv6exthdr(fin, multiple, proto)
 /* IPv6 Only                                                                */
 /* This is function checks pending hop by hop options extension header      */
 /* ------------------------------------------------------------------------ */
-static INLINE int
-ipf_pr_hopopts6(fin)
-	fr_info_t *fin;
+static inline int
+ipf_pr_hopopts6(fr_info_t *fin)
 {
 	struct ip6_ext *hdr;
 
 	hdr = ipf_pr_ipv6exthdr(fin, 0, IPPROTO_HOPOPTS);
 	if (hdr == NULL)
-		return IPPROTO_NONE;
-	return hdr->ip6e_nxt;
+		return (IPPROTO_NONE);
+	return (hdr->ip6e_nxt);
 }
 
 
@@ -713,16 +707,15 @@ ipf_pr_hopopts6(fin)
 /* IPv6 Only                                                                */
 /* This is function checks the IPv6 mobility extension header               */
 /* ------------------------------------------------------------------------ */
-static INLINE int
-ipf_pr_mobility6(fin)
-	fr_info_t *fin;
+static inline int
+ipf_pr_mobility6(fr_info_t *fin)
 {
 	struct ip6_ext *hdr;
 
 	hdr = ipf_pr_ipv6exthdr(fin, 0, IPPROTO_MOBILITY);
 	if (hdr == NULL)
-		return IPPROTO_NONE;
-	return hdr->ip6e_nxt;
+		return (IPPROTO_NONE);
+	return (hdr->ip6e_nxt);
 }
 
 
@@ -734,15 +727,14 @@ ipf_pr_mobility6(fin)
 /* IPv6 Only                                                                */
 /* This is function checks pending routing extension header                 */
 /* ------------------------------------------------------------------------ */
-static INLINE int
-ipf_pr_routing6(fin)
-	fr_info_t *fin;
+static inline int
+ipf_pr_routing6(fr_info_t *fin)
 {
 	struct ip6_routing *hdr;
 
 	hdr = (struct ip6_routing *)ipf_pr_ipv6exthdr(fin, 0, IPPROTO_ROUTING);
 	if (hdr == NULL)
-		return IPPROTO_NONE;
+		return (IPPROTO_NONE);
 
 	switch (hdr->ip6r_type)
 	{
@@ -757,7 +749,7 @@ ipf_pr_routing6(fin)
 			fin->fin_flx |= FI_BAD;
 			DT1(ipf_fi_bad_routing6, fr_info_t *, fin);
 			LBUMPD(ipf_stats[fin->fin_out], fr_v6_rh_bad);
-			return IPPROTO_NONE;
+			return (IPPROTO_NONE);
 		}
 		break;
 
@@ -765,7 +757,7 @@ ipf_pr_routing6(fin)
 		break;
 	}
 
-	return hdr->ip6r_nxt;
+	return (hdr->ip6r_nxt);
 }
 
 
@@ -798,9 +790,8 @@ ipf_pr_routing6(fin)
 /* headers must always be in a packet that has the offset field set to 0    */
 /* and no packet is allowed to overlay that where offset = 0.               */
 /* ------------------------------------------------------------------------ */
-static INLINE int
-ipf_pr_fragment6(fin)
-	fr_info_t *fin;
+static inline int
+ipf_pr_fragment6(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	struct ip6_frag *frag;
@@ -810,7 +801,7 @@ ipf_pr_fragment6(fin)
 	frag = (struct ip6_frag *)ipf_pr_ipv6exthdr(fin, 0, IPPROTO_FRAGMENT);
 	if (frag == NULL) {
 		LBUMPD(ipf_stats[fin->fin_out], fr_v6_frag_bad);
-		return IPPROTO_NONE;
+		return (IPPROTO_NONE);
 	}
 
 	if ((frag->ip6f_offlg & IP6F_MORE_FRAG) != 0) {
@@ -841,11 +832,11 @@ ipf_pr_fragment6(fin)
 	/*
 	 * We don't know where the transport layer header (or whatever is next
 	 * is), as it could be behind destination options (amongst others) so
-	 * return the fragment header as the type of packet this is.  Note that
+	* return the fragment header as the type of packet this is.  Note that
 	 * this effectively disables the fragment cache for > 1 protocol at a
 	 * time.
 	 */
-	return frag->ip6f_nxt;
+	return (frag->ip6f_nxt);
 }
 
 
@@ -857,9 +848,8 @@ ipf_pr_fragment6(fin)
 /* IPv6 Only                                                                */
 /* This is function checks pending destination options extension header     */
 /* ------------------------------------------------------------------------ */
-static INLINE int
-ipf_pr_dstopts6(fin)
-	fr_info_t *fin;
+static inline int
+ipf_pr_dstopts6(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	struct ip6_ext *hdr;
@@ -867,9 +857,9 @@ ipf_pr_dstopts6(fin)
 	hdr = ipf_pr_ipv6exthdr(fin, 0, IPPROTO_DSTOPTS);
 	if (hdr == NULL) {
 		LBUMPD(ipf_stats[fin->fin_out], fr_v6_dst_bad);
-		return IPPROTO_NONE;
+		return (IPPROTO_NONE);
 	}
-	return hdr->ip6e_nxt;
+	return (hdr->ip6e_nxt);
 }
 
 
@@ -882,9 +872,8 @@ ipf_pr_dstopts6(fin)
 /* This routine is mainly concerned with determining the minimum valid size */
 /* for an ICMPv6 packet.                                                    */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_icmp6(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_icmp6(fr_info_t *fin)
 {
 	int minicmpsz = sizeof(struct icmp6_hdr);
 	struct icmp6_hdr *icmp6;
@@ -970,9 +959,8 @@ ipf_pr_icmp6(fin)
 /* Analyse the packet for IPv6/UDP properties.                              */
 /* Is not expected to be called for fragmented packets.                     */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_udp6(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_udp6(fr_info_t *fin)
 {
 
 	if (ipf_pr_udpcommon(fin) == 0) {
@@ -994,9 +982,8 @@ ipf_pr_udp6(fin)
 /* Analyse the packet for IPv6/TCP properties.                              */
 /* Is not expected to be called for fragmented packets.                     */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_tcp6(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_tcp6(fr_info_t *fin)
 {
 
 	if (ipf_pr_tcpcommon(fin) == 0) {
@@ -1021,9 +1008,8 @@ ipf_pr_tcp6(fin)
 /* is 32bits as well, it is not possible(?) to determine the version from a */
 /* simple packet header.                                                    */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_esp6(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_esp6(fr_info_t *fin)
 {
 
 	if ((fin->fin_off == 0) && (ipf_pr_pullup(fin, 8) == -1)) {
@@ -1045,9 +1031,8 @@ ipf_pr_esp6(fin)
 /* The minimum length is taken to be the combination of all fields in the   */
 /* header being present and no authentication data (null algorithm used.)   */
 /* ------------------------------------------------------------------------ */
-static INLINE int
-ipf_pr_ah6(fin)
-	fr_info_t *fin;
+static inline int
+ipf_pr_ah6(fr_info_t *fin)
 {
 	authhdr_t *ah;
 
@@ -1058,7 +1043,7 @@ ipf_pr_ah6(fin)
 		ipf_main_softc_t *softc = fin->fin_main_soft;
 
 		LBUMPD(ipf_stats[fin->fin_out], fr_v6_ah_bad);
-		return IPPROTO_NONE;
+		return (IPPROTO_NONE);
 	}
 
 	ipf_pr_short6(fin, sizeof(*ah));
@@ -1067,7 +1052,7 @@ ipf_pr_ah6(fin)
 	 * No need for another pullup, ipf_pr_ipv6exthdr() will pullup
 	 * enough data to satisfy ah_next (the very first one.)
 	 */
-	return ah->ah_next;
+	return (ah->ah_next);
 }
 
 
@@ -1078,9 +1063,8 @@ ipf_pr_ah6(fin)
 /*                                                                          */
 /* Analyse the packet for GRE properties.                                   */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_gre6(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_gre6(fr_info_t *fin)
 {
 	grehdr_t *gre;
 
@@ -1117,9 +1101,7 @@ ipf_pr_gre6(fin)
 /* - fin_ip) to what is passed through.                                     */
 /* ------------------------------------------------------------------------ */
 int
-ipf_pr_pullup(fin, plen)
-	fr_info_t *fin;
-	int plen;
+ipf_pr_pullup(fr_info_t *fin, int plen)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 
@@ -1133,7 +1115,7 @@ ipf_pr_pullup(fin, plen)
 			if (ipf_pullup(fin->fin_m, fin, plen) == NULL) {
 				DT(ipf_pullup_fail);
 				LBUMP(ipf_stats[fin->fin_out].fr_pull[1]);
-				return -1;
+				return (-1);
 			}
 			LBUMP(ipf_stats[fin->fin_out].fr_pull[0]);
 #else
@@ -1145,11 +1127,11 @@ ipf_pr_pullup(fin, plen)
 			*fin->fin_mp = NULL;
 			fin->fin_m = NULL;
 			fin->fin_ip = NULL;
-			return -1;
+			return (-1);
 #endif
 		}
 	}
-	return 0;
+	return (0);
 }
 
 
@@ -1165,10 +1147,8 @@ ipf_pr_pullup(fin, plen)
 /* start within the layer 4 header (hdrmin) or if it is at offset 0, the    */
 /* entire layer 4 header must be present (min).                             */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_short(fin, xmin)
-	fr_info_t *fin;
-	int xmin;
+static inline void
+ipf_pr_short(fr_info_t *fin, int xmin)
 {
 
 	if (fin->fin_off == 0) {
@@ -1193,9 +1173,8 @@ ipf_pr_short(fin, xmin)
 /*                                                                          */
 /* XXX - other ICMP sanity checks?                                          */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_icmp(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_icmp(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	int minicmpsz = sizeof(struct icmp);
@@ -1313,9 +1292,8 @@ ipf_pr_icmp(fin)
 /* If compiled with IPFILTER_CKSUM, check to see if the TCP checksum is     */
 /* valid and mark the packet as bad if not.                                 */
 /* ------------------------------------------------------------------------ */
-static INLINE int
-ipf_pr_tcpcommon(fin)
-	fr_info_t *fin;
+static inline int
+ipf_pr_tcpcommon(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	int flags, tlen;
@@ -1324,12 +1302,12 @@ ipf_pr_tcpcommon(fin)
 	fin->fin_flx |= FI_TCPUDP;
 	if (fin->fin_off != 0) {
 		LBUMPD(ipf_stats[fin->fin_out], fr_tcp_frag);
-		return 0;
+		return (0);
 	}
 
 	if (ipf_pr_pullup(fin, sizeof(*tcp)) == -1) {
 		LBUMPD(ipf_stats[fin->fin_out], fr_tcp_pullup);
-		return -1;
+		return (-1);
 	}
 
 	tcp = fin->fin_dp;
@@ -1340,7 +1318,7 @@ ipf_pr_tcpcommon(fin)
 
 	if ((fin->fin_flx & FI_SHORT) != 0) {
 		LBUMPD(ipf_stats[fin->fin_out], fr_tcp_short);
-		return 1;
+		return (1);
 	}
 
 	/*
@@ -1352,7 +1330,7 @@ ipf_pr_tcpcommon(fin)
 		LBUMPD(ipf_stats[fin->fin_out], fr_tcp_small);
 		fin->fin_flx |= FI_BAD;
 		DT3(ipf_fi_bad_tlen, fr_info_t, fin, u_int, tlen, u_int, sizeof(tcphdr_t));
-		return 1;
+		return (1);
 	}
 
 	flags = tcp->th_flags;
@@ -1418,7 +1396,7 @@ ipf_pr_tcpcommon(fin)
 	}
 	if (fin->fin_flx & FI_BAD) {
 		LBUMPD(ipf_stats[fin->fin_out], fr_tcp_bad_flags);
-		return 1;
+		return (1);
 	}
 
 	/*
@@ -1430,12 +1408,12 @@ ipf_pr_tcpcommon(fin)
 	 * then that might add some weight to adding this...
 	 */
 	if (tlen == sizeof(tcphdr_t)) {
-		return 0;
+		return (0);
 	}
 
 	if (ipf_pr_pullup(fin, tlen) == -1) {
 		LBUMPD(ipf_stats[fin->fin_out], fr_tcp_pullup);
-		return -1;
+		return (-1);
 	}
 
 #if 0
@@ -1477,7 +1455,7 @@ ipf_pr_tcpcommon(fin)
 	}
 #endif /* 0 */
 
-	return 0;
+	return (0);
 }
 
 
@@ -1490,9 +1468,8 @@ ipf_pr_tcpcommon(fin)
 /* Extract the UDP source and destination ports, if present.  If compiled   */
 /* with IPFILTER_CKSUM, check to see if the UDP checksum is valid.          */
 /* ------------------------------------------------------------------------ */
-static INLINE int
-ipf_pr_udpcommon(fin)
-	fr_info_t *fin;
+static inline int
+ipf_pr_udpcommon(fr_info_t *fin)
 {
 	udphdr_t *udp;
 
@@ -1504,7 +1481,7 @@ ipf_pr_udpcommon(fin)
 
 			fin->fin_flx |= FI_SHORT;
 			LBUMPD(ipf_stats[fin->fin_out], fr_udp_pullup);
-			return 1;
+			return (1);
 		}
 
 		udp = fin->fin_dp;
@@ -1513,7 +1490,7 @@ ipf_pr_udpcommon(fin)
 		fin->fin_dport = ntohs(udp->uh_dport);
 	}
 
-	return 0;
+	return (0);
 }
 
 
@@ -1525,9 +1502,8 @@ ipf_pr_udpcommon(fin)
 /* IPv4 Only                                                                */
 /* Analyse the packet for IPv4/TCP properties.                              */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_tcp(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_tcp(fr_info_t *fin)
 {
 
 	ipf_pr_short(fin, sizeof(tcphdr_t));
@@ -1545,9 +1521,8 @@ ipf_pr_tcp(fin)
 /* IPv4 Only                                                                */
 /* Analyse the packet for IPv4/UDP properties.                              */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_udp(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_udp(fr_info_t *fin)
 {
 
 	ipf_pr_short(fin, sizeof(udphdr_t));
@@ -1568,9 +1543,8 @@ ipf_pr_udp(fin)
 /* is 32bits as well, it is not possible(?) to determine the version from a */
 /* simple packet header.                                                    */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_esp(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_esp(fr_info_t *fin)
 {
 
 	if (fin->fin_off == 0) {
@@ -1593,9 +1567,8 @@ ipf_pr_esp(fin)
 /* The minimum length is taken to be the combination of all fields in the   */
 /* header being present and no authentication data (null algorithm used.)   */
 /* ------------------------------------------------------------------------ */
-static INLINE int
-ipf_pr_ah(fin)
-	fr_info_t *fin;
+static inline int
+ipf_pr_ah(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	authhdr_t *ah;
@@ -1606,13 +1579,13 @@ ipf_pr_ah(fin)
 
 	if (((fin->fin_flx & FI_SHORT) != 0) || (fin->fin_off != 0)) {
 		LBUMPD(ipf_stats[fin->fin_out], fr_v4_ah_bad);
-		return IPPROTO_NONE;
+		return (IPPROTO_NONE);
 	}
 
 	if (ipf_pr_pullup(fin, sizeof(*ah)) == -1) {
 		DT(fr_v4_ah_pullup_1);
 		LBUMP(ipf_stats[fin->fin_out].fr_v4_ah_pullup);
-		return IPPROTO_NONE;
+		return (IPPROTO_NONE);
 	}
 
 	ah = (authhdr_t *)fin->fin_dp;
@@ -1622,7 +1595,7 @@ ipf_pr_ah(fin)
 	if (ipf_pr_pullup(fin, len) == -1) {
 		DT(fr_v4_ah_pullup_2);
 		LBUMP(ipf_stats[fin->fin_out].fr_v4_ah_pullup);
-		return IPPROTO_NONE;
+		return (IPPROTO_NONE);
 	}
 
 	/*
@@ -1631,7 +1604,7 @@ ipf_pr_ah(fin)
 	 */
 	fin->fin_dp = (char *)fin->fin_dp + len;
 	fin->fin_dlen -= len;
-	return ah->ah_next;
+	return (ah->ah_next);
 }
 
 
@@ -1642,9 +1615,8 @@ ipf_pr_ah(fin)
 /*                                                                          */
 /* Analyse the packet for GRE properties.                                   */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_gre(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_gre(fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	grehdr_t *gre;
@@ -1676,9 +1648,8 @@ ipf_pr_gre(fin)
 /* Analyze the IPv4 header and set fields in the fr_info_t structure.       */
 /* Check all options present and flag their presence if any exist.          */
 /* ------------------------------------------------------------------------ */
-static INLINE void
-ipf_pr_ipv4hdr(fin)
-	fr_info_t *fin;
+static inline void
+ipf_pr_ipv4hdr(fr_info_t *fin)
 {
 	u_short optmsk = 0, secmsk = 0, auth = 0;
 	int hlen, ol, mv, p, i;
@@ -1884,8 +1855,7 @@ ipf_pr_ipv4hdr(fin)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 static u_32_t
-ipf_checkripso(s)
-	u_char *s;
+ipf_checkripso(u_char *s)
 {
 	const struct optlist *sp;
 	u_short secmsk = 0, auth = 0;
@@ -1929,10 +1899,7 @@ ipf_checkripso(s)
 /* end nodes.                                                               */
 /* ------------------------------------------------------------------------ */
 static u_32_t
-ipf_checkcipso(fin, s, ol)
-	fr_info_t *fin;
-	u_char *s;
-	int ol;
+ipf_checkcipso(fr_info_t *fin, u_char *s, int ol)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	fr_ip_t *fi;
@@ -1944,7 +1911,7 @@ ipf_checkcipso(fin, s, ol)
 		LBUMPD(ipf_stats[fin->fin_out], fr_v4_cipso_bad);
 		fin->fin_flx |= FI_BAD;
 		DT2(ipf_fi_bad_checkcipso_ol, fr_info_t *, fin, u_int, ol);
-		return 0;
+		return (0);
 	}
 
 	fi = &fin->fin_fi;
@@ -1962,7 +1929,7 @@ ipf_checkcipso(fin, s, ol)
 			LBUMPD(ipf_stats[fin->fin_out], fr_v4_cipso_tlen);
 			fin->fin_flx |= FI_BAD;
 			DT2(ipf_fi_bad_checkcipso_tlen, fr_info_t *, fin, u_int, tlen);
-			return 0;
+			return (0);
 		}
 
 		sensitivity = 0;
@@ -2014,7 +1981,7 @@ ipf_checkcipso(fin, s, ol)
 			fi->fi_sensitivity = sensitivity;
 	}
 
-	return doi;
+	return (doi);
 }
 
 
@@ -2031,10 +1998,7 @@ ipf_checkcipso(fin, s, ol)
 /* this function will be called with either an IPv4 or IPv6 packet.         */
 /* ------------------------------------------------------------------------ */
 int
-ipf_makefrip(hlen, ip, fin)
-	int hlen;
-	ip_t *ip;
-	fr_info_t *fin;
+ipf_makefrip(int hlen, ip_t *ip, fr_info_t *fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	int v;
@@ -2063,9 +2027,9 @@ ipf_makefrip(hlen, ip, fin)
 	}
 	if (fin->fin_ip == NULL) {
 		LBUMP(ipf_stats[fin->fin_out].fr_ip_freed);
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
 
@@ -2078,10 +2042,8 @@ ipf_makefrip(hlen, ip, fin)
 /* Perform a comparison of a port number against some other(s), using a     */
 /* structure with compare information stored in it.                         */
 /* ------------------------------------------------------------------------ */
-static INLINE int
-ipf_portcheck(frp, pop)
-	frpcmp_t *frp;
-	u_32_t pop;
+static inline int
+ipf_portcheck(frpcmp_t *frp, u_32_t pop)
 {
 	int err = 1;
 	u_32_t po;
@@ -2132,7 +2094,7 @@ ipf_portcheck(frp, pop)
 	default :
 		break;
 	}
-	return err;
+	return (err);
 }
 
 
@@ -2146,9 +2108,7 @@ ipf_portcheck(frp, pop)
 /* structure containing information that we want to match against.          */
 /* ------------------------------------------------------------------------ */
 int
-ipf_tcpudpchk(fi, ft)
-	fr_ip_t *fi;
-	frtuc_t *ft;
+ipf_tcpudpchk(fr_ip_t *fi, frtuc_t *ft)
 {
 	int err = 1;
 
@@ -2175,7 +2135,7 @@ ipf_tcpudpchk(fi, ft)
 	 */
 	if (err && (fi->fi_p == IPPROTO_TCP)) {
 		if (fi->fi_flx & FI_SHORT)
-			return !(ft->ftu_tcpf | ft->ftu_tcpfm);
+			return (!(ft->ftu_tcpf | ft->ftu_tcpfm));
 		/*
 		 * Match the flags ?  If not, abort this match.
 		 */
@@ -2186,7 +2146,7 @@ ipf_tcpudpchk(fi, ft)
 			err = 0;
 		}
 	}
-	return err;
+	return (err);
 }
 
 
@@ -2202,11 +2162,8 @@ ipf_tcpudpchk(fi, ft)
 /* port numbers, etc, for "standard" IPFilter rules are all orchestrated in */
 /* this function.                                                           */
 /* ------------------------------------------------------------------------ */
-static INLINE int
-ipf_check_ipf(fin, fr, portcmp)
-	fr_info_t *fin;
-	frentry_t *fr;
-	int portcmp;
+static inline int
+ipf_check_ipf(fr_info_t *fin, frentry_t *fr, int portcmp)
 {
 	u_32_t	*ld, *lm, *lip;
 	fripf_t *fri;
@@ -2227,7 +2184,7 @@ ipf_check_ipf(fin, fr, portcmp)
 	FR_DEBUG(("0. %#08x & %#08x != %#08x\n",
 		   ntohl(*lip), ntohl(*lm), ntohl(*ld)));
 	if (i)
-		return 1;
+		return (1);
 
 	/*
 	 * Next 32 bits is a constructed bitmask indicating which IP options
@@ -2238,7 +2195,7 @@ ipf_check_ipf(fin, fr, portcmp)
 	FR_DEBUG(("1. %#08x & %#08x != %#08x\n",
 		   ntohl(*lip), ntohl(*lm), ntohl(*ld)));
 	if (i != 0)
-		return 1;
+		return (1);
 
 	lip++, lm++, ld++;
 	/*
@@ -2251,7 +2208,7 @@ ipf_check_ipf(fin, fr, portcmp)
 		i = (*fr->fr_srcfunc)(fin->fin_main_soft, fr->fr_srcptr,
 				      fi->fi_v, lip, fin->fin_plen);
 		if (i == -1)
-			return 1;
+			return (1);
 		lip += 3;
 		lm += 3;
 		ld += 3;
@@ -2280,7 +2237,7 @@ ipf_check_ipf(fin, fr, portcmp)
 	}
 	i ^= (fr->fr_flags & FR_NOTSRCIP) >> 6;
 	if (i != 0)
-		return 1;
+		return (1);
 
 	/*
 	 * Check the destination address.
@@ -2290,7 +2247,7 @@ ipf_check_ipf(fin, fr, portcmp)
 		i = (*fr->fr_dstfunc)(fin->fin_main_soft, fr->fr_dstptr,
 				      fi->fi_v, lip, fin->fin_plen);
 		if (i == -1)
-			return 1;
+			return (1);
 		lip += 3;
 		lm += 3;
 		ld += 3;
@@ -2319,7 +2276,7 @@ ipf_check_ipf(fin, fr, portcmp)
 	}
 	i ^= (fr->fr_flags & FR_NOTDSTIP) >> 7;
 	if (i != 0)
-		return 1;
+		return (1);
 	/*
 	 * IP addresses matched.  The next 32bits contains:
 	 * mast of old IP header security & authentication bits.
@@ -2362,7 +2319,7 @@ ipf_check_ipf(fin, fr, portcmp)
 			}
 		}
 	}
-	return i;
+	return (i);
 }
 
 
@@ -2383,9 +2340,7 @@ ipf_check_ipf(fin, fr, portcmp)
 /* or can't easily change, the kernel source code to .                      */
 /* ------------------------------------------------------------------------ */
 int
-ipf_scanlist(fin, pass)
-	fr_info_t *fin;
-	u_32_t pass;
+ipf_scanlist(fr_info_t *fin, u_32_t pass)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	int rulen, portcmp, off, skip;
@@ -2396,15 +2351,15 @@ ipf_scanlist(fin, pass)
 	 * Do not allow nesting deeper than 16 levels.
 	 */
 	if (fin->fin_depth >= 16)
-		return pass;
+		return (pass);
 
 	fr = fin->fin_fr;
 
 	/*
-	 * If there are no rules in this list, return now.
+	* If there are no rules in this list, return now.
 	 */
 	if (fr == NULL)
-		return pass;
+		return (pass);
 
 	skip = 0;
 	portcmp = 0;
@@ -2621,7 +2576,7 @@ ipf_scanlist(fin, pass)
 		}
 	}
 	fin->fin_depth--;
-	return pass;
+	return (pass);
 }
 
 
@@ -2638,9 +2593,7 @@ ipf_scanlist(fin, pass)
 /* functions called from the IPFilter "mainline" in ipf_check().            */
 /* ------------------------------------------------------------------------ */
 frentry_t *
-ipf_acctpkt(fin, passp)
-	fr_info_t *fin;
-	u_32_t *passp;
+ipf_acctpkt(fr_info_t *fin, u_32_t *passp)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	char group[FR_GROUPLEN];
@@ -2663,7 +2616,7 @@ ipf_acctpkt(fin, passp)
 		bcopy(group, fin->fin_group, FR_GROUPLEN);
 		fin->fin_rule = rulen;
 	}
-	return NULL;
+	return (NULL);
 }
 
 
@@ -2681,9 +2634,7 @@ ipf_acctpkt(fin, passp)
 /* rule - except logging.                                                   */
 /* ------------------------------------------------------------------------ */
 static frentry_t *
-ipf_firewall(fin, passp)
-	fr_info_t *fin;
-	u_32_t *passp;
+ipf_firewall(fr_info_t *fin, u_32_t *passp)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	frentry_t *fr;
@@ -2768,7 +2719,7 @@ ipf_firewall(fin, passp)
 	fr = fin->fin_fr;
 	*passp = pass;
 
-	return fr;
+	return (fr);
 }
 
 
@@ -2804,19 +2755,12 @@ ipf_firewall(fin, passp)
 /* by "mp" changed to a new buffer.                                         */
 /* ------------------------------------------------------------------------ */
 int
-ipf_check(ctx, ip, hlen, ifp, out
+ipf_check(void *ctx, ip_t *ip, int hlen, struct ifnet *ifp, int out
 #if defined(_KERNEL) && SOLARIS
-	, qif, mp)
-	void *qif;
+	, void* qif, mb_t **mp)
 #else
-	, mp)
+	, mb_t **mp)
 #endif
-	mb_t **mp;
-	ip_t *ip;
-	int hlen;
-	struct ifnet *ifp;
-	int out;
-	void *ctx;
 {
 	/*
 	 * The above really sucks, but short of writing a diff
@@ -2842,14 +2786,14 @@ ipf_check(ctx, ip, hlen, ifp, out
 
 #  ifdef __sparc
 	if ((u_int)ip & 0x3)
-		return 2;
+		return (2);
 #  endif
 # else
 	SPL_INT(s);
 # endif
 
 	if (softc->ipf_running <= 0) {
-		return 0;
+		return (0);
 	}
 
 	bzero((char *)fin, sizeof(*fin));
@@ -3035,7 +2979,7 @@ ipf_check(ctx, ip, hlen, ifp, out
 	/*
 	 * If we've asked to track state for this packet, set it up.
 	 * Here rather than ipf_firewall because ipf_checkauth may decide
-	 * to return a packet for "keep state"
+	* to return a packet for "keep state"
 	 */
 	if ((pass & FR_KEEPSTATE) && (fin->fin_m != NULL) &&
 	    !(fin->fin_flx & FI_STATE)) {
@@ -3126,7 +3070,7 @@ filterdone:
 
 	if ((pass & FR_RETMASK) != 0) {
 		/*
-		 * Should we return an ICMP packet to indicate error
+		* Should we return an ICMP packet to indicate error
 		 * status passing through the packet filter ?
 		 * WARNING: ICMP error packets AND TCP RST packets should
 		 * ONLY be sent in repsonse to incoming packets.  Sending
@@ -3180,7 +3124,7 @@ filterdone:
 	 * If we didn't drop off the bottom of the list of rules (and thus
 	 * the 'current' rule fr is not NULL), then we may have some extra
 	 * instructions about what to do with a packet.
-	 * Once we're finished return to our caller, freeing the packet if
+	* Once we're finished return to our caller, freeing the packet if
 	 * we are dropping it.
 	 */
 	if (fr != NULL) {
@@ -3238,9 +3182,9 @@ finished:
 
 #ifdef _KERNEL
 	if (FR_ISPASS(pass))
-		return 0;
+		return (0);
 	LBUMP(ipf_stats[out].fr_blocked[fin->fin_reason]);
-	return fin->fin_error;
+	return (fin->fin_error);
 #else /* _KERNEL */
 	if (*mp != NULL)
 		(*mp)->mb_ifp = fin->fin_ifp;
@@ -3248,33 +3192,33 @@ finished:
 	FR_VERBOSE(("fin_flx %#x pass %#x ", fin->fin_flx, pass));
 	/*if ((pass & FR_CMDMASK) == (softc->ipf_pass & FR_CMDMASK))*/
 		if ((pass & FR_NOMATCH) != 0)
-			return 1;
+			return (1);
 
 	if ((pass & FR_RETMASK) != 0)
 		switch (pass & FR_RETMASK)
 		{
 		case FR_RETRST :
-			return 3;
+			return (3);
 		case FR_RETICMP :
-			return 4;
+			return (4);
 		case FR_FAKEICMP :
-			return 5;
+			return (5);
 		}
 
 	switch (pass & FR_CMDMASK)
 	{
 	case FR_PASS :
-		return 0;
+		return (0);
 	case FR_BLOCK :
-		return -1;
+		return (-1);
 	case FR_AUTH :
-		return -2;
+		return (-2);
 	case FR_ACCOUNT :
-		return -3;
+		return (-3);
 	case FR_PREAUTH :
-		return -4;
+		return (-4);
 	}
-	return 2;
+	return (2);
 #endif /* _KERNEL */
 }
 
@@ -3290,9 +3234,7 @@ finished:
 /* logged.  Adjust statistics based on its success or not.                  */
 /* ------------------------------------------------------------------------ */
 frentry_t *
-ipf_dolog(fin, passp)
-	fr_info_t *fin;
-	u_32_t *passp;
+ipf_dolog(fr_info_t *fin, u_32_t *passp)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	u_32_t pass;
@@ -3335,7 +3277,7 @@ logit:
 		*passp = pass;
 	}
 
-	return fin->fin_fr;
+	return (fin->fin_fr);
 }
 #endif /* IPFILTER_LOG */
 
@@ -3351,9 +3293,7 @@ logit:
 /* N.B.: addr should be 16bit aligned.                                      */
 /* ------------------------------------------------------------------------ */
 u_short
-ipf_cksum(addr, len)
-	u_short *addr;
-	int len;
+ipf_cksum(u_short *addr, int len)
 {
 	u_32_t sum = 0;
 
@@ -3391,11 +3331,7 @@ ipf_cksum(addr, len)
 /* Expects ip_len and ip_off to be in network byte order when called.       */
 /* ------------------------------------------------------------------------ */
 u_short
-fr_cksum(fin, ip, l4proto, l4hdr)
-	fr_info_t *fin;
-	ip_t *ip;
-	int l4proto;
-	void *l4hdr;
+fr_cksum(fr_info_t *fin, ip_t *ip, int l4proto, void *l4hdr)
 {
 	u_short *sp, slen, sumsave, *csump;
 	u_int sum, sum2;
@@ -3436,9 +3372,9 @@ fr_cksum(fin, ip, l4proto, l4hdr)
 		ip6 = (ip6_t *)ip;
 		off = ((caddr_t)ip6 - m->m_data) + sizeof(struct ip6_hdr);
 		int len = ntohs(ip6->ip6_plen) - (off - sizeof(*ip6));
-		return(ipf_pcksum6(m, ip6, off, len));
+		return (ipf_pcksum6(m, ip6, off, len));
 	} else {
-		return 0xffff;
+		return (0xffff);
 	}
 #endif
 
@@ -3472,7 +3408,7 @@ fr_cksum(fin, ip, l4proto, l4hdr)
 	sum2 = ipf_pcksum(fin, off, sum);
 	if (csump != NULL)
 		*csump = sumsave;
-	return sum2;
+	return (sum2);
 }
 
 
@@ -3490,12 +3426,8 @@ fr_cksum(fin, ip, l4proto, l4hdr)
 /* Search amongst the defined groups for a particular group number.         */
 /* ------------------------------------------------------------------------ */
 frgroup_t *
-ipf_findgroup(softc, group, unit, set, fgpp)
-	ipf_main_softc_t *softc;
-	char *group;
-	minor_t unit;
-	int set;
-	frgroup_t ***fgpp;
+ipf_findgroup(ipf_main_softc_t *softc, char *group, minor_t unit, int set,
+	frgroup_t ***fgpp)
 {
 	frgroup_t *fg, **fgp;
 
@@ -3513,7 +3445,7 @@ ipf_findgroup(softc, group, unit, set, fgpp)
 	}
 	if (fgpp != NULL)
 		*fgpp = fgp;
-	return fg;
+	return (fg);
 }
 
 
@@ -3533,22 +3465,17 @@ ipf_findgroup(softc, group, unit, set, fgpp)
 /* count to it.                                                             */
 /* ------------------------------------------------------------------------ */
 frgroup_t *
-ipf_group_add(softc, group, head, flags, unit, set)
-	ipf_main_softc_t *softc;
-	char *group;
-	void *head;
-	u_32_t flags;
-	minor_t unit;
-	int set;
+ipf_group_add(ipf_main_softc_t *softc, char *group, void *head, u_32_t flags,
+	minor_t unit, int set)
 {
 	frgroup_t *fg, **fgp;
 	u_32_t gflags;
 
 	if (group == NULL)
-		return NULL;
+		return (NULL);
 
 	if (unit == IPL_LOGIPF && *group == '\0')
-		return NULL;
+		return (NULL);
 
 	fgp = NULL;
 	gflags = flags & FR_INOUT;
@@ -3560,9 +3487,9 @@ ipf_group_add(softc, group, head, flags, unit, set)
 		if (fg->fg_flags == 0)
 			fg->fg_flags = gflags;
 		else if (gflags != fg->fg_flags)
-			return NULL;
+			return (NULL);
 		fg->fg_ref++;
-		return fg;
+		return (fg);
 	}
 
 	KMALLOC(fg, frgroup_t *);
@@ -3576,7 +3503,7 @@ ipf_group_add(softc, group, head, flags, unit, set)
 		fg->fg_set = &softc->ipf_groups[unit][set];
 		*fgp = fg;
 	}
-	return fg;
+	return (fg);
 }
 
 
@@ -3594,10 +3521,7 @@ ipf_group_add(softc, group, head, flags, unit, set)
 /* purpose of knowing when the head rule is being deleted.                  */
 /* ------------------------------------------------------------------------ */
 void
-ipf_group_del(softc, group, fr)
-	ipf_main_softc_t *softc;
-	frgroup_t *group;
-	frentry_t *fr;
+ipf_group_del(ipf_main_softc_t *softc, frgroup_t *group, frentry_t *fr)
 {
 
 	if (group->fg_head == fr)
@@ -3617,8 +3541,7 @@ ipf_group_del(softc, group, fr)
 /* Remove the group from the list of groups and free it.                    */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_group_free(group)
-	frgroup_t *group;
+ipf_group_free(frgroup_t *group)
 {
 	frgroup_t **gp;
 
@@ -3641,15 +3564,13 @@ ipf_group_free(group)
 /* Remove all of the rules that currently are listed under the given group. */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_group_flush(softc, group)
-	ipf_main_softc_t *softc;
-	frgroup_t *group;
+ipf_group_flush(ipf_main_softc_t *softc, frgroup_t *group)
 {
 	int gone = 0;
 
 	(void) ipf_flushlist(softc, &gone, &group->fg_start);
 
-	return gone;
+	return (gone);
 }
 
 
@@ -3666,23 +3587,19 @@ ipf_group_flush(softc, group)
 /* group # g doesn't exist or there are less than n rules in the group.     */
 /* ------------------------------------------------------------------------ */
 frentry_t *
-ipf_getrulen(softc, unit, group, n)
-	ipf_main_softc_t *softc;
-	int unit;
-	char *group;
-	u_32_t n;
+ipf_getrulen(ipf_main_softc_t *softc, int unit, char *group, u_32_t n)
 {
 	frentry_t *fr;
 	frgroup_t *fg;
 
 	fg = ipf_findgroup(softc, group, unit, softc->ipf_active, NULL);
 	if (fg == NULL)
-		return NULL;
+		return (NULL);
 	for (fr = fg->fg_start; fr && n; fr = fr->fr_next, n--)
 		;
 	if (n != 0)
-		return NULL;
-	return fr;
+		return (NULL);
+	return (fr);
 }
 
 
@@ -3704,10 +3621,7 @@ ipf_getrulen(softc, unit, group, n)
 /* NOTE: Rules not loaded from user space cannot be flushed.                */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_flushlist(softc, nfreedp, listp)
-	ipf_main_softc_t *softc;
-	int *nfreedp;
-	frentry_t **listp;
+ipf_flushlist(ipf_main_softc_t *softc, int *nfreedp, frentry_t **listp)
 {
 	int freed = 0;
 	frentry_t *fp;
@@ -3743,7 +3657,7 @@ ipf_flushlist(softc, nfreedp, listp)
 			freed++;
 	}
 	*nfreedp += freed;
-	return freed;
+	return (freed);
 }
 
 
@@ -3758,10 +3672,7 @@ ipf_flushlist(softc, nfreedp, listp)
 /* and IPv6) as defined by the value of flags.                              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_flush(softc, unit, flags)
-	ipf_main_softc_t *softc;
-	minor_t unit;
-	int flags;
+ipf_flush(ipf_main_softc_t *softc, minor_t unit, int flags)
 {
 	int flushed = 0, set;
 
@@ -3792,7 +3703,7 @@ ipf_flush(softc, unit, flags)
 		if (tmp >= 0)
 			flushed += tmp;
 	}
-	return flushed;
+	return (flushed);
 }
 
 
@@ -3811,10 +3722,7 @@ ipf_flush(softc, unit, flags)
 /* removed from the group then it is necessary to start again.              */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_flush_groups(softc, grhead, flags)
-	ipf_main_softc_t *softc;
-	frgroup_t **grhead;
-	int flags;
+ipf_flush_groups(ipf_main_softc_t *softc, frgroup_t **grhead, int flags)
 {
 	frentry_t *fr, **frp;
 	frgroup_t *fg, **fgp;
@@ -3845,7 +3753,7 @@ ipf_flush_groups(softc, grhead, flags)
 		if (removed == 0)
 			fgp = &fg->fg_next;
 	}
-	return flushed;
+	return (flushed);
 }
 
 
@@ -3861,10 +3769,7 @@ ipf_flush_groups(softc, grhead, flags)
 /* slen bytes.                                                              */
 /* ------------------------------------------------------------------------ */
 char *
-memstr(src, dst, slen, dlen)
-	const char *src;
-	char *dst;
-	size_t slen, dlen;
+memstr(const char *src, char *dst, size_t slen, size_t dlen)
 {
 	char *s = NULL;
 
@@ -3876,7 +3781,7 @@ memstr(src, dst, slen, dlen)
 		dst++;
 		dlen--;
 	}
-	return s;
+	return (s);
 }
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_fixskip                                                 */
@@ -3891,9 +3796,7 @@ memstr(src, dst, slen, dlen)
 /* where we are inserting to skip to the right place given the change.      */
 /* ------------------------------------------------------------------------ */
 void
-ipf_fixskip(listp, rp, addremove)
-	frentry_t **listp, *rp;
-	int addremove;
+ipf_fixskip(frentry_t **listp, frentry_t *rp, int addremove)
 {
 	int rules, rn;
 	frentry_t *fp;
@@ -3923,8 +3826,7 @@ ipf_fixskip(listp, rp, addremove)
 /* of bits.                                                                 */
 /* ------------------------------------------------------------------------ */
 int
-count4bits(ip)
-	u_32_t	ip;
+count4bits(u_32_t ip)
 {
 	u_32_t	ipn;
 	int	cnt = 0, i, j;
@@ -3942,8 +3844,8 @@ count4bits(ip)
 			ipn++;
 	}
 	if (ipn == ip)
-		return cnt;
-	return -1;
+		return (cnt);
+	return (-1);
 }
 
 
@@ -3957,8 +3859,7 @@ count4bits(ip)
 /* ------------------------------------------------------------------------ */
 # ifdef USE_INET6
 int
-count6bits(msk)
-	u_32_t *msk;
+count6bits(u_32_t *msk)
 {
 	int i = 0, k;
 	u_32_t j;
@@ -3971,7 +3872,7 @@ count6bits(msk)
 				if (j & 0x80000000)
 					i++;
 		}
-	return i;
+	return (i);
 }
 # endif
 #endif /* _KERNEL */
@@ -3994,10 +3895,7 @@ count6bits(msk)
 /* that need to be dropped before returning with an error.                  */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_synclist(softc, fr, ifp)
-	ipf_main_softc_t *softc;
-	frentry_t *fr;
-	void *ifp;
+ipf_synclist(ipf_main_softc_t *softc, frentry_t *fr, void *ifp)
 {
 	frentry_t *frt, *start = fr;
 	frdest_t *fdp;
@@ -4083,7 +3981,7 @@ ipf_synclist(softc, fr, ifp)
 							   &fr->fr_dstfunc);
 		}
 	}
-	return 0;
+	return (0);
 
 unwind:
 	for (frt = start; frt != fr; fr = fr->fr_next) {
@@ -4096,7 +3994,7 @@ unwind:
 				ipf_lookup_deref(softc, frt->fr_dsttype,
 						 frt->fr_dstptr);
 	}
-	return error;
+	return (error);
 }
 
 
@@ -4111,9 +4009,7 @@ unwind:
 /* needs to be changed/updated.                                             */
 /* ------------------------------------------------------------------------ */
 int
-ipf_sync(softc, ifp)
-	ipf_main_softc_t *softc;
-	void *ifp;
+ipf_sync(ipf_main_softc_t *softc, void *ifp)
 {
 	int i;
 
@@ -4139,7 +4035,7 @@ ipf_sync(softc, ifp)
 	}
 	RWLOCK_EXIT(&softc->ipf_mutex);
 
-	return 0;
+	return (0);
 }
 
 
@@ -4160,10 +4056,7 @@ ipf_sync(softc, ifp)
 /* NB: src - pointer to user space pointer, dst - kernel space pointer      */
 /* ------------------------------------------------------------------------ */
 int
-copyinptr(softc, src, dst, size)
-	ipf_main_softc_t *softc;
-	void *src, *dst;
-	size_t size;
+copyinptr(ipf_main_softc_t *softc, void *src, void *dst, size_t size)
 {
 	caddr_t ca;
 	int error;
@@ -4171,7 +4064,7 @@ copyinptr(softc, src, dst, size)
 #if SOLARIS
 	error = COPYIN(src, &ca, sizeof(ca));
 	if (error != 0)
-		return error;
+		return (error);
 #else
 	bcopy(src, (caddr_t)&ca, sizeof(ca));
 #endif
@@ -4180,7 +4073,7 @@ copyinptr(softc, src, dst, size)
 		IPFERROR(3);
 		error = EFAULT;
 	}
-	return error;
+	return (error);
 }
 
 
@@ -4196,10 +4089,7 @@ copyinptr(softc, src, dst, size)
 /* NB: src - kernel space pointer, dst - pointer to user space pointer.     */
 /* ------------------------------------------------------------------------ */
 int
-copyoutptr(softc, src, dst, size)
-	ipf_main_softc_t *softc;
-	void *src, *dst;
-	size_t size;
+copyoutptr(ipf_main_softc_t *softc, void *src, void *dst, size_t size)
 {
 	caddr_t ca;
 	int error;
@@ -4210,7 +4100,7 @@ copyoutptr(softc, src, dst, size)
 		IPFERROR(4);
 		error = EFAULT;
 	}
-	return error;
+	return (error);
 }
 
 
@@ -4224,20 +4114,18 @@ copyoutptr(softc, src, dst, size)
 /* in *lockp.                                                               */
 /* ------------------------------------------------------------------------ */
 int
-ipf_lock(data, lockp)
-	caddr_t data;
-	int *lockp;
+ipf_lock(caddr_t data, int *lockp)
 {
 	int arg, err;
 
 	err = BCOPYIN(data, &arg, sizeof(arg));
 	if (err != 0)
-		return EFAULT;
+		return (EFAULT);
 	err = BCOPYOUT(lockp, data, sizeof(*lockp));
 	if (err != 0)
-		return EFAULT;
+		return (EFAULT);
 	*lockp = arg;
-	return 0;
+	return (0);
 }
 
 
@@ -4257,10 +4145,7 @@ ipf_lock(data, lockp)
 /* ------------------------------------------------------------------------ */
 /*ARGSUSED*/
 static void
-ipf_getstat(softc, fiop, rev)
-	ipf_main_softc_t *softc;
-	friostat_t *fiop;
-	int rev;
+ipf_getstat(ipf_main_softc_t *softc, friostat_t *fiop, int rev)
 {
 	int i;
 
@@ -4376,11 +4261,7 @@ int	icmpreplytype4[ICMP_MAXTYPE + 1];
 /* else return 0 for no match.                                              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_matchicmpqueryreply(v, ic, icmp, rev)
-	int v;
-	icmpinfo_t *ic;
-	icmphdr_t *icmp;
-	int rev;
+ipf_matchicmpqueryreply(int v, icmpinfo_t *ic, icmphdr_t *icmp, int rev)
 {
 	int ictype;
 
@@ -4394,9 +4275,9 @@ ipf_matchicmpqueryreply(v, ic, icmp, rev)
 		if ((!rev && (icmp->icmp_type == ictype)) ||
 		    (rev && (icmpreplytype4[ictype] == icmp->icmp_type))) {
 			if (icmp->icmp_type != ICMP_ECHOREPLY)
-				return 1;
+				return (1);
 			if (icmp->icmp_id == ic->ici_id)
-				return 1;
+				return (1);
 		}
 	}
 #ifdef	USE_INET6
@@ -4404,13 +4285,13 @@ ipf_matchicmpqueryreply(v, ic, icmp, rev)
 		if ((!rev && (icmp->icmp_type == ictype)) ||
 		    (rev && (icmpreplytype6[ictype] == icmp->icmp_type))) {
 			if (icmp->icmp_type != ICMP6_ECHO_REPLY)
-				return 1;
+				return (1);
 			if (icmp->icmp_id == ic->ici_id)
-				return 1;
+				return (1);
 		}
 	}
 #endif
-	return 0;
+	return (0);
 }
 
 
@@ -4476,7 +4357,7 @@ ipf_rule_compare(frentry_t *fr1, frentry_t *fr2)
 		 *	referenced by the same rule doesn't work anyway.
 		 */
 		if (IPF_IFNAMES_DIFFERENT(fr_ifnames[i]))
-			return(5);
+			return (5);
 	}
 
 	if (IPF_FRDEST_DIFFERENT(fr_tif))
@@ -4513,12 +4394,8 @@ ipf_rule_compare(frentry_t *fr1, frentry_t *fr2)
 /* then make sure they are created and initialised before exiting.          */
 /* ------------------------------------------------------------------------ */
 int
-frrequest(softc, unit, req, data, set, makecopy)
-	ipf_main_softc_t *softc;
-	int unit;
-	ioctlcmd_t req;
-	int set, makecopy;
-	caddr_t data;
+frrequest(ipf_main_softc_t *softc, int unit, ioctlcmd_t req, caddr_t data,
+	int set, int makecopy)
 {
 	int error = 0, in, family, need_free = 0;
 	enum {	OP_ADD,		/* add rule */
@@ -4539,23 +4416,23 @@ frrequest(softc, unit, req, data, set, makecopy)
 		bzero(fp, sizeof(frd));
 		error = ipf_inobj(softc, data, NULL, fp, IPFOBJ_FRENTRY);
 		if (error) {
-			return error;
+			return (error);
 		}
 		if ((fp->fr_type & FR_T_BUILTIN) != 0) {
 			IPFERROR(6);
-			return EINVAL;
+			return (EINVAL);
 		}
 		KMALLOCS(f, frentry_t *, fp->fr_size);
 		if (f == NULL) {
 			IPFERROR(131);
-			return ENOMEM;
+			return (ENOMEM);
 		}
 		bzero(f, fp->fr_size);
 		error = ipf_inobjsz(softc, data, f, IPFOBJ_FRENTRY,
 				    fp->fr_size);
 		if (error) {
 			KFREES(f, fp->fr_size);
-			return error;
+			return (error);
 		}
 
 		fp = f;
@@ -4575,7 +4452,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 		fp = (frentry_t *)data;
 		if ((fp->fr_type & FR_T_BUILTIN) == 0) {
 			IPFERROR(7);
-			return EINVAL;
+			return (EINVAL);
 		}
 		fp->fr_flags &= ~FR_COPIED;
 	}
@@ -4736,7 +4613,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 	ftail = NULL;
 	fprev = NULL;
 	if (unit == IPL_LOGAUTH) {
-                if ((fp->fr_tifs[0].fd_ptr != NULL) ||
+		if ((fp->fr_tifs[0].fd_ptr != NULL) ||
 		    (fp->fr_tifs[1].fd_ptr != NULL) ||
 		    (fp->fr_dif.fd_ptr != NULL) ||
 		    (fp->fr_flags & FR_FASTROUTE)) {
@@ -5041,7 +4918,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 			KFREES(fp, fp->fr_size);
 		}
 		RWLOCK_EXIT(&softc->ipf_mutex);
-		return error;
+		return (error);
 	}
 
 	if (f == NULL) {
@@ -5215,10 +5092,7 @@ donenolock:
 /* must use that as the guide for whether or not it can be freed.           */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_rule_delete(softc, f, unit, set)
-	ipf_main_softc_t *softc;
-	frentry_t *f;
-	int unit, set;
+ipf_rule_delete(ipf_main_softc_t *softc, frentry_t *f, int unit, int set)
 {
 
 	/*
@@ -5257,10 +5131,7 @@ ipf_rule_delete(softc, f, unit, set)
 /* expiration interval checks.                                              */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_rule_expire_insert(softc, f, set)
-	ipf_main_softc_t *softc;
-	frentry_t *f;
-	int set;
+ipf_rule_expire_insert(ipf_main_softc_t *softc, frentry_t *f, int set)
 {
 	frentry_t *fr;
 
@@ -5312,11 +5183,8 @@ ipf_rule_expire_insert(softc, f, set)
 /* packet matching quicker.                                                 */
 /* ------------------------------------------------------------------------ */
 static void *
-ipf_findlookup(softc, unit, fr, addrp, maskp)
-	ipf_main_softc_t *softc;
-	int unit;
-	frentry_t *fr;
-	i6addr_t *addrp, *maskp;
+ipf_findlookup(ipf_main_softc_t *softc, int unit, frentry_t *fr,
+	i6addr_t *addrp, i6addr_t *maskp)
 {
 	void *ptr = NULL;
 
@@ -5340,7 +5208,7 @@ ipf_findlookup(softc, unit, fr, addrp, maskp)
 		break;
 	}
 
-	return ptr;
+	return (ptr);
 }
 
 
@@ -5354,9 +5222,7 @@ ipf_findlookup(softc, unit, fr, addrp, maskp)
 /* an init function to be called now the rule has been loaded.              */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_funcinit(softc, fr)
-	ipf_main_softc_t *softc;
-	frentry_t *fr;
+ipf_funcinit(ipf_main_softc_t *softc, frentry_t *fr)
 {
 	ipfunc_resolve_t *ft;
 	int err;
@@ -5371,7 +5237,7 @@ ipf_funcinit(softc, fr)
 				err = (*ft->ipfu_init)(softc, fr);
 			break;
 		}
-	return err;
+	return (err);
 }
 
 
@@ -5386,9 +5252,7 @@ ipf_funcinit(softc, fr)
 /* called for ealier.                                                       */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_funcfini(softc, fr)
-	ipf_main_softc_t *softc;
-	frentry_t *fr;
+ipf_funcfini(ipf_main_softc_t *softc, frentry_t *fr)
 {
 	ipfunc_resolve_t *ft;
 
@@ -5409,15 +5273,14 @@ ipf_funcfini(softc, fr)
 /* Look for a function in the table of known functions.                     */
 /* ------------------------------------------------------------------------ */
 static ipfunc_t
-ipf_findfunc(funcptr)
-	ipfunc_t funcptr;
+ipf_findfunc(ipfunc_t funcptr)
 {
 	ipfunc_resolve_t *ft;
 
 	for (ft = ipf_availfuncs; ft->ipfu_addr != NULL; ft++)
 		if (ft->ipfu_addr == funcptr)
-			return funcptr;
-	return NULL;
+			return (funcptr);
+	return (NULL);
 }
 
 
@@ -5432,9 +5295,7 @@ ipf_findfunc(funcptr)
 /* so that the entire, complete, structure can be copied back to user space.*/
 /* ------------------------------------------------------------------------ */
 int
-ipf_resolvefunc(softc, data)
-	ipf_main_softc_t *softc;
-	void *data;
+ipf_resolvefunc(ipf_main_softc_t *softc, void *data)
 {
 	ipfunc_resolve_t res, *ft;
 	int error;
@@ -5442,7 +5303,7 @@ ipf_resolvefunc(softc, data)
 	error = BCOPYIN(data, &res, sizeof(res));
 	if (error != 0) {
 		IPFERROR(123);
-		return EFAULT;
+		return (EFAULT);
 	}
 
 	if (res.ipfu_addr == NULL && res.ipfu_name[0] != '\0') {
@@ -5453,9 +5314,9 @@ ipf_resolvefunc(softc, data)
 				res.ipfu_init = ft->ipfu_init;
 				if (COPYOUT(&res, data, sizeof(res)) != 0) {
 					IPFERROR(35);
-					return EFAULT;
+					return (EFAULT);
 				}
-				return 0;
+				return (0);
 			}
 	}
 	if (res.ipfu_addr != NULL && res.ipfu_name[0] == '\0') {
@@ -5466,13 +5327,13 @@ ipf_resolvefunc(softc, data)
 				res.ipfu_init = ft->ipfu_init;
 				if (COPYOUT(&res, data, sizeof(res)) != 0) {
 					IPFERROR(36);
-					return EFAULT;
+					return (EFAULT);
 				}
-				return 0;
+				return (0);
 			}
 	}
 	IPFERROR(37);
-	return ESRCH;
+	return (ESRCH);
 }
 
 
@@ -5482,10 +5343,8 @@ ipf_resolvefunc(softc, data)
  * ppsratecheck(): packets (or events) per second limitation.
  */
 int
-ppsratecheck(lasttime, curpps, maxpps)
-	struct timeval *lasttime;
-	int *curpps;
-	int maxpps;	/* maximum pps allowed */
+ppsratecheck(struct timeval *lasttime, int *curpps, int maxpps)
+	/* maxpps: maximum pps allowed */
 {
 	struct timeval tv, delta;
 	int rv;
@@ -5534,9 +5393,7 @@ ppsratecheck(lasttime, curpps, maxpps)
 /* free it and any associated storage space being used by it.               */
 /* ------------------------------------------------------------------------ */
 int
-ipf_derefrule(softc, frp)
-	ipf_main_softc_t *softc;
-	frentry_t **frp;
+ipf_derefrule(ipf_main_softc_t *softc, frentry_t **frp)
 {
 	frentry_t *fr;
 	frdest_t *fdp;
@@ -5585,13 +5442,13 @@ ipf_derefrule(softc, frp)
 				KFREES(fr->fr_data, fr->fr_dsize);
 			}
 			KFREES(fr, fr->fr_size);
-			return 0;
+			return (0);
 		}
-		return 1;
+		return (1);
 	} else {
 		MUTEX_EXIT(&fr->fr_lock);
 	}
-	return -1;
+	return (-1);
 }
 
 
@@ -5604,9 +5461,7 @@ ipf_derefrule(softc, frp)
 /* fr_ptr is later used by ipf_srcgrpmap and ipf_dstgrpmap.                 */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_grpmapinit(softc, fr)
-	ipf_main_softc_t *softc;
-	frentry_t *fr;
+ipf_grpmapinit(ipf_main_softc_t *softc, frentry_t *fr)
 {
 	char name[FR_GROUPLEN];
 	iphtable_t *iph;
@@ -5615,15 +5470,15 @@ ipf_grpmapinit(softc, fr)
 	iph = ipf_lookup_find_htable(softc, IPL_LOGIPF, name);
 	if (iph == NULL) {
 		IPFERROR(38);
-		return ESRCH;
+		return (ESRCH);
 	}
 	if ((iph->iph_flags & FR_INOUT) != (fr->fr_flags & FR_INOUT)) {
 		IPFERROR(39);
-		return ESRCH;
+		return (ESRCH);
 	}
 	iph->iph_ref++;
 	fr->fr_ptr = iph;
-	return 0;
+	return (0);
 }
 
 
@@ -5637,15 +5492,13 @@ ipf_grpmapinit(softc, fr)
 /* be called to undo what ipf_grpmapinit caused to be done.                 */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_grpmapfini(softc, fr)
-	ipf_main_softc_t *softc;
-	frentry_t *fr;
+ipf_grpmapfini(ipf_main_softc_t *softc, frentry_t *fr)
 {
 	iphtable_t *iph;
 	iph = fr->fr_ptr;
 	if (iph != NULL)
 		ipf_lookup_deref(softc, IPLT_HASH, iph);
-	return 0;
+	return (0);
 }
 
 
@@ -5660,9 +5513,7 @@ ipf_grpmapfini(softc, fr)
 /* the packet.                                                              */
 /* ------------------------------------------------------------------------ */
 frentry_t *
-ipf_srcgrpmap(fin, passp)
-	fr_info_t *fin;
-	u_32_t *passp;
+ipf_srcgrpmap(fr_info_t *fin, u_32_t *passp)
 {
 	frgroup_t *fg;
 	void *rval;
@@ -5670,12 +5521,12 @@ ipf_srcgrpmap(fin, passp)
 	rval = ipf_iphmfindgroup(fin->fin_main_soft, fin->fin_fr->fr_ptr,
 				 &fin->fin_src);
 	if (rval == NULL)
-		return NULL;
+		return (NULL);
 
 	fg = rval;
 	fin->fin_fr = fg->fg_start;
 	(void) ipf_scanlist(fin, *passp);
-	return fin->fin_fr;
+	return (fin->fin_fr);
 }
 
 
@@ -5690,9 +5541,7 @@ ipf_srcgrpmap(fin, passp)
 /* rules against  the packet.                                               */
 /* ------------------------------------------------------------------------ */
 frentry_t *
-ipf_dstgrpmap(fin, passp)
-	fr_info_t *fin;
-	u_32_t *passp;
+ipf_dstgrpmap(fr_info_t *fin, u_32_t *passp)
 {
 	frgroup_t *fg;
 	void *rval;
@@ -5700,12 +5549,12 @@ ipf_dstgrpmap(fin, passp)
 	rval = ipf_iphmfindgroup(fin->fin_main_soft, fin->fin_fr->fr_ptr,
 				 &fin->fin_dst);
 	if (rval == NULL)
-		return NULL;
+		return (NULL);
 
 	fg = rval;
 	fin->fin_fr = fg->fg_start;
 	(void) ipf_scanlist(fin, *passp);
-	return fin->fin_fr;
+	return (fin->fin_fr);
 }
 
 /*
@@ -5738,10 +5587,7 @@ ipf_dstgrpmap(fin, passp)
 /* held (exclusively) in the domain that encompases 'parent'.               */
 /* ------------------------------------------------------------------------ */
 ipftq_t *
-ipf_addtimeoutqueue(softc, parent, seconds)
-	ipf_main_softc_t *softc;
-	ipftq_t **parent;
-	u_int seconds;
+ipf_addtimeoutqueue(ipf_main_softc_t *softc, ipftq_t **parent, u_int seconds)
 {
 	ipftq_t *ifq;
 	u_int period;
@@ -5761,7 +5607,7 @@ ipf_addtimeoutqueue(softc, parent, seconds)
 			MUTEX_EXIT(&ifq->ifq_lock);
 			MUTEX_EXIT(&softc->ipf_timeoutlock);
 
-			return ifq;
+			return (ifq);
 		}
 	}
 
@@ -5777,7 +5623,7 @@ ipf_addtimeoutqueue(softc, parent, seconds)
 		softc->ipf_userifqs++;
 	}
 	MUTEX_EXIT(&softc->ipf_timeoutlock);
-	return ifq;
+	return (ifq);
 }
 
 
@@ -5797,8 +5643,7 @@ ipf_addtimeoutqueue(softc, parent, seconds)
 /* this function is called.                                                 */
 /* ------------------------------------------------------------------------ */
 int
-ipf_deletetimeoutqueue(ifq)
-	ipftq_t *ifq;
+ipf_deletetimeoutqueue(ipftq_t *ifq)
 {
 
 	ifq->ifq_ref--;
@@ -5806,7 +5651,7 @@ ipf_deletetimeoutqueue(ifq)
 		ifq->ifq_flags |= IFQF_DELETE;
 	}
 
-	return ifq->ifq_ref;
+	return (ifq->ifq_ref);
 }
 
 
@@ -5824,9 +5669,7 @@ ipf_deletetimeoutqueue(ifq)
 /* tidy up after this is done.                                              */
 /* ------------------------------------------------------------------------ */
 void
-ipf_freetimeoutqueue(softc, ifq)
-	ipf_main_softc_t *softc;
-	ipftq_t *ifq;
+ipf_freetimeoutqueue(ipf_main_softc_t *softc, ipftq_t *ifq)
 {
 
 	if (((ifq->ifq_flags & IFQF_DELETE) == 0) || (ifq->ifq_ref != 0) ||
@@ -5863,8 +5706,7 @@ ipf_freetimeoutqueue(softc, ifq)
 /* the correct lock(s) may not be held that would make it safe to do so.    */
 /* ------------------------------------------------------------------------ */
 void
-ipf_deletequeueentry(tqe)
-	ipftqent_t *tqe;
+ipf_deletequeueentry(ipftqent_t *tqe)
 {
 	ipftq_t *ifq;
 
@@ -5898,8 +5740,7 @@ ipf_deletequeueentry(tqe)
 /* Move a queue entry to the front of the queue, if it isn't already there. */
 /* ------------------------------------------------------------------------ */
 void
-ipf_queuefront(tqe)
-	ipftqent_t *tqe;
+ipf_queuefront(ipftqent_t *tqe)
 {
 	ipftq_t *ifq;
 
@@ -5935,9 +5776,7 @@ ipf_queuefront(tqe)
 /* touched the structure.                                                   */
 /* ------------------------------------------------------------------------ */
 void
-ipf_queueback(ticks, tqe)
-	u_long ticks;
-	ipftqent_t *tqe;
+ipf_queueback(u_long ticks, ipftqent_t *tqe)
 {
 	ipftq_t *ifq;
 
@@ -5980,11 +5819,7 @@ ipf_queueback(ticks, tqe)
 /* touched the structure.                                                   */
 /* ------------------------------------------------------------------------ */
 void
-ipf_queueappend(ticks, tqe, ifq, parent)
-	u_long ticks;
-	ipftqent_t *tqe;
-	ipftq_t *ifq;
-	void *parent;
+ipf_queueappend(u_long ticks, ipftqent_t *tqe, ipftq_t *ifq, void *parent)
 {
 
 	MUTEX_ENTER(&ifq->ifq_lock);
@@ -6013,10 +5848,7 @@ ipf_queueappend(ticks, tqe, ifq, parent)
 /* to move queue, the return.                                               */
 /* ------------------------------------------------------------------------ */
 void
-ipf_movequeue(ticks, tqe, oifq, nifq)
-	u_long ticks;
-	ipftqent_t *tqe;
-	ipftq_t *oifq, *nifq;
+ipf_movequeue(u_long ticks, ipftqent_t *tqe, ipftq_t *oifq, ipftq_t *nifq)
 {
 
 	/*
@@ -6099,8 +5931,7 @@ ipf_movequeue(ticks, tqe, oifq, nifq)
 /* has no match in the cache, return an error.                              */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_updateipid(fin)
-	fr_info_t *fin;
+ipf_updateipid(fr_info_t *fin)
 {
 	u_short id, ido, sums;
 	u_32_t sumd, sum;
@@ -6111,7 +5942,7 @@ ipf_updateipid(fin)
 	if (fin->fin_off != 0) {
 		sum = ipf_frag_ipidknown(fin);
 		if (sum == 0xffffffff)
-			return -1;
+			return (-1);
 		sum &= 0xffff;
 		id = (u_short)sum;
 		ip->ip_id = htons(id);
@@ -6123,7 +5954,7 @@ ipf_updateipid(fin)
 	}
 
 	if (id == ido)
-		return 0;
+		return (0);
 	CALC_SUMD(ido, id, sumd);	/* DESTRUCTIVE MACRO! id,ido change */
 	sum = (~ntohs(ip->ip_sum)) & 0xffff;
 	sum += sumd;
@@ -6131,7 +5962,7 @@ ipf_updateipid(fin)
 	sum = (sum >> 16) + (sum & 0xffff);
 	sums = ~(u_short)sum;
 	ip->ip_sum = htons(sums);
-	return 0;
+	return (0);
 }
 
 
@@ -6147,9 +5978,7 @@ ipf_updateipid(fin)
 /* as a NULL pointer then return a pointer to a static array.               */
 /* ------------------------------------------------------------------------ */
 char *
-ipf_getifname(ifp, buffer)
-	struct ifnet *ifp;
-	char *buffer;
+ipf_getifname(struct ifnet *ifp, char *buffer)
 {
 	static char namebuf[LIFNAMSIZ];
 # if SOLARIS || defined(__FreeBSD__)
@@ -6172,7 +6001,7 @@ ipf_getifname(ifp, buffer)
 		(void) strncpy(s, temp, space);
 	}
 # endif
-	return buffer;
+	return (buffer);
 }
 #endif
 
@@ -6196,11 +6025,8 @@ ipf_getifname(ifp, buffer)
 /* etc.                                                                     */
 /* ------------------------------------------------------------------------ */
 int
-ipf_ioctlswitch(softc, unit, data, cmd, mode, uid, ctx)
-	ipf_main_softc_t *softc;
-	int unit, mode, uid;
-	ioctlcmd_t cmd;
-	void *data, *ctx;
+ipf_ioctlswitch(ipf_main_softc_t *softc, int unit, void *data, ioctlcmd_t cmd,
+	int mode, int uid, void *ctx)
 {
 	int error = 0;
 
@@ -6213,7 +6039,7 @@ ipf_ioctlswitch(softc, unit, data, cmd, mode, uid, ctx)
 			IPFERROR(40);
 			error = EFAULT;
 		}
-		return error;
+		return (error);
 	default :
 		break;
 	}
@@ -6286,7 +6112,7 @@ ipf_ioctlswitch(softc, unit, data, cmd, mode, uid, ctx)
 		break;
 	}
 
-	return error;
+	return (error);
 }
 
 
@@ -6342,12 +6168,8 @@ static const int	ipf_objbytes[IPFOBJ_COUNT][3] = {
 /* the caller what version of ipfilter the ioctl program was written to.    */
 /* ------------------------------------------------------------------------ */
 int
-ipf_inobj(softc, data, objp, ptr, type)
-	ipf_main_softc_t *softc;
-	void *data;
-	ipfobj_t *objp;
-	void *ptr;
-	int type;
+ipf_inobj(ipf_main_softc_t *softc, void *data, ipfobj_t *objp, void *ptr,
+	int type)
 {
 	ipfobj_t obj;
 	int error;
@@ -6355,7 +6177,7 @@ ipf_inobj(softc, data, objp, ptr, type)
 
 	if ((type < 0) || (type >= IPFOBJ_COUNT)) {
 		IPFERROR(49);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	if (objp == NULL)
@@ -6363,26 +6185,26 @@ ipf_inobj(softc, data, objp, ptr, type)
 	error = BCOPYIN(data, objp, sizeof(*objp));
 	if (error != 0) {
 		IPFERROR(124);
-		return EFAULT;
+		return (EFAULT);
 	}
 
 	if (objp->ipfo_type != type) {
 		IPFERROR(50);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	if (objp->ipfo_rev >= ipf_objbytes[type][2]) {
 		if ((ipf_objbytes[type][0] & 1) != 0) {
 			if (objp->ipfo_size < ipf_objbytes[type][1]) {
 				IPFERROR(51);
-				return EINVAL;
+				return (EINVAL);
 			}
 			size =  ipf_objbytes[type][1];
 		} else if (objp->ipfo_size == ipf_objbytes[type][1]) {
 			size =  objp->ipfo_size;
 		} else {
 			IPFERROR(52);
-			return EINVAL;
+			return (EINVAL);
 		}
 		error = COPYIN(objp->ipfo_ptr, ptr, size);
 		if (error != 0) {
@@ -6397,7 +6219,7 @@ ipf_inobj(softc, data, objp, ptr, type)
 		error = EINVAL;
 #endif
 	}
-	return error;
+	return (error);
 }
 
 
@@ -6417,36 +6239,32 @@ ipf_inobj(softc, data, objp, ptr, type)
 /* not possible nor required in ipf_inobj().                                */
 /* ------------------------------------------------------------------------ */
 int
-ipf_inobjsz(softc, data, ptr, type, sz)
-	ipf_main_softc_t *softc;
-	void *data;
-	void *ptr;
-	int type, sz;
+ipf_inobjsz(ipf_main_softc_t *softc, void *data, void *ptr, int type, int sz)
 {
 	ipfobj_t obj;
 	int error;
 
 	if ((type < 0) || (type >= IPFOBJ_COUNT)) {
 		IPFERROR(56);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	error = BCOPYIN(data, &obj, sizeof(obj));
 	if (error != 0) {
 		IPFERROR(125);
-		return EFAULT;
+		return (EFAULT);
 	}
 
 	if (obj.ipfo_type != type) {
 		IPFERROR(58);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	if (obj.ipfo_rev >= ipf_objbytes[type][2]) {
 		if (((ipf_objbytes[type][0] & 1) == 0) ||
 		    (sz < ipf_objbytes[type][1])) {
 			IPFERROR(57);
-			return EINVAL;
+			return (EINVAL);
 		}
 		error = COPYIN(obj.ipfo_ptr, ptr, sz);
 		if (error != 0) {
@@ -6461,7 +6279,7 @@ ipf_inobjsz(softc, data, ptr, type, sz)
 		error = EINVAL;
 #endif
 	}
-	return error;
+	return (error);
 }
 
 
@@ -6480,36 +6298,32 @@ ipf_inobjsz(softc, data, ptr, type, sz)
 /* not possible nor required in ipf_outobj().                               */
 /* ------------------------------------------------------------------------ */
 int
-ipf_outobjsz(softc, data, ptr, type, sz)
-	ipf_main_softc_t *softc;
-	void *data;
-	void *ptr;
-	int type, sz;
+ipf_outobjsz(ipf_main_softc_t *softc, void *data, void *ptr, int type, int sz)
 {
 	ipfobj_t obj;
 	int error;
 
 	if ((type < 0) || (type >= IPFOBJ_COUNT)) {
 		IPFERROR(62);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	error = BCOPYIN(data, &obj, sizeof(obj));
 	if (error != 0) {
 		IPFERROR(127);
-		return EFAULT;
+		return (EFAULT);
 	}
 
 	if (obj.ipfo_type != type) {
 		IPFERROR(63);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	if (obj.ipfo_rev >= ipf_objbytes[type][2]) {
 		if (((ipf_objbytes[type][0] & 1) == 0) ||
 		    (sz < ipf_objbytes[type][1])) {
 			IPFERROR(146);
-			return EINVAL;
+			return (EINVAL);
 		}
 		error = COPYOUT(ptr, obj.ipfo_ptr, sz);
 		if (error != 0) {
@@ -6524,7 +6338,7 @@ ipf_outobjsz(softc, data, ptr, type, sz)
 		error = EINVAL;
 #endif
 	}
-	return error;
+	return (error);
 }
 
 
@@ -6540,40 +6354,36 @@ ipf_outobjsz(softc, data, ptr, type, sz)
 /* it backward  compatible at the ABI for user land.                        */
 /* ------------------------------------------------------------------------ */
 int
-ipf_outobj(softc, data, ptr, type)
-	ipf_main_softc_t *softc;
-	void *data;
-	void *ptr;
-	int type;
+ipf_outobj(ipf_main_softc_t *softc, void *data, void *ptr, int type)
 {
 	ipfobj_t obj;
 	int error;
 
 	if ((type < 0) || (type >= IPFOBJ_COUNT)) {
 		IPFERROR(67);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	error = BCOPYIN(data, &obj, sizeof(obj));
 	if (error != 0) {
 		IPFERROR(126);
-		return EFAULT;
+		return (EFAULT);
 	}
 
 	if (obj.ipfo_type != type) {
 		IPFERROR(68);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	if (obj.ipfo_rev >= ipf_objbytes[type][2]) {
 		if ((ipf_objbytes[type][0] & 1) != 0) {
 			if (obj.ipfo_size < ipf_objbytes[type][1]) {
 				IPFERROR(69);
-				return EINVAL;
+				return (EINVAL);
 			}
 		} else if (obj.ipfo_size != ipf_objbytes[type][1]) {
 			IPFERROR(70);
-			return EINVAL;
+			return (EINVAL);
 		}
 
 		error = COPYOUT(ptr, obj.ipfo_ptr, obj.ipfo_size);
@@ -6589,7 +6399,7 @@ ipf_outobj(softc, data, ptr, type)
 		error = EINVAL;
 #endif
 	}
-	return error;
+	return (error);
 }
 
 
@@ -6607,29 +6417,26 @@ ipf_outobj(softc, data, ptr, type)
 /* itself.                                                                  */
 /* ------------------------------------------------------------------------ */
 int
-ipf_outobjk(softc, obj, ptr)
-	ipf_main_softc_t *softc;
-	ipfobj_t *obj;
-	void *ptr;
+ipf_outobjk(ipf_main_softc_t *softc, ipfobj_t *obj, void *ptr)
 {
 	int type = obj->ipfo_type;
 	int error;
 
 	if ((type < 0) || (type >= IPFOBJ_COUNT)) {
 		IPFERROR(147);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	if (obj->ipfo_rev >= ipf_objbytes[type][2]) {
 		if ((ipf_objbytes[type][0] & 1) != 0) {
 			if (obj->ipfo_size < ipf_objbytes[type][1]) {
 				IPFERROR(148);
-				return EINVAL;
+				return (EINVAL);
 			}
 
 		} else if (obj->ipfo_size != ipf_objbytes[type][1]) {
 			IPFERROR(149);
-			return EINVAL;
+			return (EINVAL);
 		}
 
 		error = COPYOUT(ptr, obj->ipfo_ptr, obj->ipfo_size);
@@ -6645,7 +6452,7 @@ ipf_outobjk(softc, obj, ptr)
 		error = EINVAL;
 #endif
 	}
-	return error;
+	return (error);
 }
 
 
@@ -6659,9 +6466,8 @@ ipf_outobjk(softc, obj, ptr)
 /* way that is ditinguishable. This function should only be called by the   */
 /* ipf_checkv6sum() for each platform.                                      */
 /* ------------------------------------------------------------------------ */
-INLINE int
-ipf_checkl4sum(fin)
-	fr_info_t *fin;
+inline int
+ipf_checkl4sum(fr_info_t *fin)
 {
 	u_short sum, hdrsum, *csump;
 	udphdr_t *udp;
@@ -6673,12 +6479,12 @@ ipf_checkl4sum(fin)
 	 * this check fails then considered the packet to be "bad".
 	 */
 	if ((fin->fin_flx & (FI_FRAG|FI_SHORT|FI_BAD)) != 0)
-		return 1;
+		return (1);
 
 	DT2(l4sumo, int, fin->fin_out, int, (int)fin->fin_p);
 	if (fin->fin_out == 1) {
 		fin->fin_cksum = FI_CK_SUMOK;
-		return 0;
+		return (0);
 	}
 
 	csump = NULL;
@@ -6714,7 +6520,7 @@ ipf_checkl4sum(fin)
 		break;
 
 	default :
-		return 1;
+		return (1);
 		/*NOTREACHED*/
 	}
 
@@ -6741,10 +6547,10 @@ ipf_checkl4sum(fin)
 	if (hdrsum == sum) {
 #endif
 		fin->fin_cksum = FI_CK_SUMOK;
-		return 0;
+		return (0);
 	}
 	fin->fin_cksum = FI_CK_BAD;
-	return -1;
+	return (-1);
 }
 
 
@@ -6765,10 +6571,8 @@ ipf_checkl4sum(fin)
 /* value.                                                                   */
 /* ------------------------------------------------------------------------ */
 int
-ipf_ifpfillv4addr(atype, sin, mask, inp, inpmask)
-	int atype;
-	struct sockaddr_in *sin, *mask;
-	struct in_addr *inp, *inpmask;
+ipf_ifpfillv4addr(int atype, struct sockaddr_in *sin, struct sockaddr_in *mask,
+	struct in_addr *inp, struct in_addr *inpmask)
 {
 	if (inpmask != NULL && atype != FRI_NETMASKED)
 		inpmask->s_addr = 0xffffffff;
@@ -6776,14 +6580,14 @@ ipf_ifpfillv4addr(atype, sin, mask, inp, inpmask)
 	if (atype == FRI_NETWORK || atype == FRI_NETMASKED) {
 		if (atype == FRI_NETMASKED) {
 			if (inpmask == NULL)
-				return -1;
+				return (-1);
 			inpmask->s_addr = mask->sin_addr.s_addr;
 		}
 		inp->s_addr = sin->sin_addr.s_addr & mask->sin_addr.s_addr;
 	} else {
 		inp->s_addr = sin->sin_addr.s_addr;
 	}
-	return 0;
+	return (0);
 }
 
 
@@ -6805,10 +6609,8 @@ ipf_ifpfillv4addr(atype, sin, mask, inp, inpmask)
 /* value.                                                                   */
 /* ------------------------------------------------------------------------ */
 int
-ipf_ifpfillv6addr(atype, sin, mask, inp, inpmask)
-	int atype;
-	struct sockaddr_in6 *sin, *mask;
-	i6addr_t *inp, *inpmask;
+ipf_ifpfillv6addr(int atype, struct sockaddr_in6 *sin,
+	struct sockaddr_in6 *mask, i6addr_t *inp, i6addr_t *inpmask)
 {
 	i6addr_t *src, *and;
 
@@ -6825,7 +6627,7 @@ ipf_ifpfillv6addr(atype, sin, mask, inp, inpmask)
 	if (atype == FRI_NETWORK || atype == FRI_NETMASKED) {
 		if (atype == FRI_NETMASKED) {
 			if (inpmask == NULL)
-				return -1;
+				return (-1);
 			inpmask->i6[0] = and->i6[0];
 			inpmask->i6[1] = and->i6[1];
 			inpmask->i6[2] = and->i6[2];
@@ -6842,7 +6644,7 @@ ipf_ifpfillv6addr(atype, sin, mask, inp, inpmask)
 		inp->i6[2] = src->i6[2];
 		inp->i6[3] = src->i6[3];
 	}
-	return 0;
+	return (0);
 }
 #endif
 
@@ -6861,21 +6663,20 @@ ipf_ifpfillv6addr(atype, sin, mask, inp, inpmask)
 /* as non-NULL pointers.                                                    */
 /* ------------------------------------------------------------------------ */
 int
-ipf_matchtag(tag1, tag2)
-	ipftag_t *tag1, *tag2;
+ipf_matchtag(ipftag_t *tag1, ipftag_t *tag2)
 {
 	if (tag1 == tag2)
-		return 1;
+		return (1);
 
 	if ((tag1->ipt_num[0] == 0) && (tag2->ipt_num[0] == 0))
-		return 1;
+		return (1);
 
 	if ((tag1->ipt_num[0] == tag2->ipt_num[0]) &&
 	    (tag1->ipt_num[1] == tag2->ipt_num[1]) &&
 	    (tag1->ipt_num[2] == tag2->ipt_num[2]) &&
 	    (tag1->ipt_num[3] == tag2->ipt_num[3]))
-		return 1;
-	return 0;
+		return (1);
+	return (0);
 }
 
 
@@ -6888,19 +6689,18 @@ ipf_matchtag(tag1, tag2)
 /* If this call returns a failure then the buffers have also been freed.    */
 /* ------------------------------------------------------------------------ */
 int
-ipf_coalesce(fin)
-	fr_info_t *fin;
+ipf_coalesce(fr_info_t *fin)
 {
 
 	if ((fin->fin_flx & FI_COALESCE) != 0)
-		return 1;
+		return (1);
 
 	/*
 	 * If the mbuf pointers indicate that there is no mbuf to work with,
-	 * return but do not indicate success or failure.
+	* return but do not indicate success or failure.
 	 */
 	if (fin->fin_m == NULL || fin->fin_mp == NULL)
-		return 0;
+		return (0);
 
 #if defined(_KERNEL)
 	if (ipf_pullup(fin->fin_m, fin, fin->fin_plen) == NULL) {
@@ -6914,12 +6714,12 @@ ipf_coalesce(fin)
 		fin->fin_reason = FRB_COALESCE;
 		*fin->fin_mp = NULL;
 		fin->fin_m = NULL;
-		return -1;
+		return (-1);
 	}
 #else
 	fin = fin;	/* LINT */
 #endif
-	return 1;
+	return (1);
 }
 
 
@@ -6951,9 +6751,7 @@ ipf_coalesce(fin)
 /* the next one to be found may be returned inside next.                    */
 /* ------------------------------------------------------------------------ */
 static ipftuneable_t *
-ipf_tune_findbycookie(ptop, cookie, next)
-	ipftuneable_t **ptop;
-	void *cookie, **next;
+ipf_tune_findbycookie(ipftuneable_t **ptop, void *cookie, void **next)
 {
 	ipftuneable_t *ta, **tap;
 
@@ -6962,8 +6760,8 @@ ipf_tune_findbycookie(ptop, cookie, next)
 			if (next != NULL) {
 				/*
 				 * If the next entry in the array has a name
-				 * present, then return a pointer to it for
-				 * where to go next, else return a pointer to
+				* present, then return a pointer to it for
+				* where to go next, else return a pointer to
 				 * the dynaminc list as a key to search there
 				 * next.  This facilitates a weak linking of
 				 * the two "lists" together.
@@ -6973,19 +6771,19 @@ ipf_tune_findbycookie(ptop, cookie, next)
 				else
 					*next = ptop;
 			}
-			return ta;
+			return (ta);
 		}
 
 	for (tap = ptop; (ta = *tap) != NULL; tap = &ta->ipft_next)
 		if (tap == cookie) {
 			if (next != NULL)
 				*next = &ta->ipft_next;
-			return ta;
+			return (ta);
 		}
 
 	if (next != NULL)
 		*next = NULL;
-	return NULL;
+	return (NULL);
 }
 
 
@@ -6999,18 +6797,16 @@ ipf_tune_findbycookie(ptop, cookie, next)
 /* to the matching structure.                                               */
 /* ------------------------------------------------------------------------ */
 static ipftuneable_t *
-ipf_tune_findbyname(top, name)
-	ipftuneable_t *top;
-	const char *name;
+ipf_tune_findbyname(ipftuneable_t *top, const char *name)
 {
 	ipftuneable_t *ta;
 
 	for (ta = top; ta != NULL; ta = ta->ipft_next)
 		if (!strcmp(ta->ipft_name, name)) {
-			return ta;
+			return (ta);
 		}
 
-	return NULL;
+	return (NULL);
 }
 
 
@@ -7027,9 +6823,7 @@ ipf_tune_findbyname(top, name)
 /* the array has been reached.                                              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_tune_add_array(softc, newtune)
-	ipf_main_softc_t *softc;
-	ipftuneable_t *newtune;
+ipf_tune_add_array(ipf_main_softc_t *softc, ipftuneable_t *newtune)
 {
 	ipftuneable_t *nt, *dt;
 	int error = 0;
@@ -7043,7 +6837,7 @@ ipf_tune_add_array(softc, newtune)
 		}
 	}
 
-	return error;
+	return (error);
 }
 
 
@@ -7062,15 +6856,13 @@ ipf_tune_add_array(softc, newtune)
 /* a failure.                                                               */
 /* ------------------------------------------------------------------------ */
 int
-ipf_tune_array_link(softc, array)
-	ipf_main_softc_t *softc;
-	ipftuneable_t *array;
+ipf_tune_array_link(ipf_main_softc_t *softc, ipftuneable_t *array)
 {
 	ipftuneable_t *t, **p;
 
 	t = array;
 	if (t->ipft_name == NULL)
-		return -1;
+		return (-1);
 
 	for (; t[1].ipft_name != NULL; t++)
 		t[0].ipft_next = &t[1];
@@ -7085,7 +6877,7 @@ ipf_tune_array_link(softc, array)
 			break;
 	*p = array;
 
-	return 0;
+	return (0);
 }
 
 
@@ -7097,9 +6889,7 @@ ipf_tune_array_link(softc, array)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 int
-ipf_tune_array_unlink(softc, array)
-	ipf_main_softc_t *softc;
-	ipftuneable_t *array;
+ipf_tune_array_unlink(ipf_main_softc_t *softc, ipftuneable_t *array)
 {
 	ipftuneable_t *t, **p;
 
@@ -7107,14 +6897,14 @@ ipf_tune_array_unlink(softc, array)
 		if (t == array)
 			break;
 	if (t == NULL)
-		return -1;
+		return (-1);
 
 	for (; t[1].ipft_name != NULL; t++)
 		;
 
 	*p = t->ipft_next;
 
-	return 0;
+	return (0);
 }
 
 
@@ -7137,10 +6927,7 @@ ipf_tune_array_unlink(softc, array)
 /* ipftp_void that points to the stored value.                              */
 /* ------------------------------------------------------------------------ */
 ipftuneable_t *
-ipf_tune_array_copy(base, size, template)
-	void *base;
-	size_t size;
-	ipftuneable_t *template;
+ipf_tune_array_copy(void *base, size_t size, ipftuneable_t *template)
 {
 	ipftuneable_t *copy;
 	int i;
@@ -7148,7 +6935,7 @@ ipf_tune_array_copy(base, size, template)
 
 	KMALLOCS(copy, ipftuneable_t *, size);
 	if (copy == NULL) {
-		return NULL;
+		return (NULL);
 	}
 	bcopy(template, copy, size);
 
@@ -7157,7 +6944,7 @@ ipf_tune_array_copy(base, size, template)
 		copy[i].ipft_next = copy + i + 1;
 	}
 
-	return copy;
+	return (copy);
 }
 
 
@@ -7171,16 +6958,14 @@ ipf_tune_array_copy(base, size, template)
 /* owner of the object is not expected to ever change "ipft_next".          */
 /* ------------------------------------------------------------------------ */
 int
-ipf_tune_add(softc, newtune)
-	ipf_main_softc_t *softc;
-	ipftuneable_t *newtune;
+ipf_tune_add(ipf_main_softc_t *softc, ipftuneable_t *newtune)
 {
 	ipftuneable_t *ta, **tap;
 
 	ta = ipf_tune_findbyname(softc->ipf_tuners, newtune->ipft_name);
 	if (ta != NULL) {
 		IPFERROR(74);
-		return EEXIST;
+		return (EEXIST);
 	}
 
 	for (tap = &softc->ipf_tuners; *tap != NULL; tap = &(*tap)->ipft_next)
@@ -7188,7 +6973,7 @@ ipf_tune_add(softc, newtune)
 
 	newtune->ipft_next = NULL;
 	*tap = newtune;
-	return 0;
+	return (0);
 }
 
 
@@ -7203,9 +6988,7 @@ ipf_tune_add(softc, newtune)
 /* structure is no longer part of it.                                       */
 /* ------------------------------------------------------------------------ */
 int
-ipf_tune_del(softc, oldtune)
-	ipf_main_softc_t *softc;
-	ipftuneable_t *oldtune;
+ipf_tune_del(ipf_main_softc_t *softc, ipftuneable_t *oldtune)
 {
 	ipftuneable_t *ta, **tap;
 	int error = 0;
@@ -7223,7 +7006,7 @@ ipf_tune_del(softc, oldtune)
 		error = ESRCH;
 		IPFERROR(75);
 	}
-	return error;
+	return (error);
 }
 
 
@@ -7239,9 +7022,7 @@ ipf_tune_del(softc, oldtune)
 /* the array.                                                               */
 /* ------------------------------------------------------------------------ */
 int
-ipf_tune_del_array(softc, oldtune)
-	ipf_main_softc_t *softc;
-	ipftuneable_t *oldtune;
+ipf_tune_del_array(ipf_main_softc_t *softc, ipftuneable_t *oldtune)
 {
 	ipftuneable_t *ot;
 	int error = 0;
@@ -7252,7 +7033,7 @@ ipf_tune_del_array(softc, oldtune)
 			break;
 	}
 
-	return error;
+	return (error);
 
 }
 
@@ -7271,10 +7052,7 @@ ipf_tune_del_array(softc, oldtune)
 /* each responsible for handling their own values being too big.            */
 /* ------------------------------------------------------------------------ */
 int
-ipf_ipftune(softc, cmd, data)
-	ipf_main_softc_t *softc;
-	ioctlcmd_t cmd;
-	void *data;
+ipf_ipftune(ipf_main_softc_t *softc, ioctlcmd_t cmd, void *data)
 {
 	ipftuneable_t *ta;
 	ipftune_t tu;
@@ -7283,7 +7061,7 @@ ipf_ipftune(softc, cmd, data)
 
 	error = ipf_inobj(softc, data, NULL, &tu, IPFOBJ_TUNEABLE);
 	if (error != 0)
-		return error;
+		return (error);
 
 	tu.ipft_name[sizeof(tu.ipft_name) - 1] = '\0';
 	cookie = tu.ipft_cookie;
@@ -7294,10 +7072,10 @@ ipf_ipftune(softc, cmd, data)
 	case SIOCIPFGETNEXT :
 		/*
 		 * If cookie is non-NULL, assume it to be a pointer to the last
-		 * entry we looked at, so find it (if possible) and return a
+		* entry we looked at, so find it (if possible) and return a
 		 * pointer to the next one after it.  The last entry in the
 		 * the table is a NULL entry, so when we get to it, set cookie
-		 * to NULL and return that, indicating end of list, erstwhile
+		* to NULL and return that, indicating end of list, erstwhile
 		 * if we come in with cookie set to NULL, we are starting anew
 		 * at the front of the list.
 		 */
@@ -7315,7 +7093,7 @@ ipf_ipftune(softc, cmd, data)
 			 */
 			if (ta->ipft_sz > sizeof(tu.ipft_un)) {
 				IPFERROR(76);
-				return EINVAL;
+				return (EINVAL);
 			}
 
 			tu.ipft_vlong = 0;
@@ -7437,7 +7215,7 @@ ipf_ipftune(softc, cmd, data)
 		break;
 	}
 
-	return error;
+	return (error);
 }
 
 
@@ -7451,9 +7229,7 @@ ipf_ipftune(softc, cmd, data)
 /* the copyout may result in paging (ie network activity.)                  */
 /* ------------------------------------------------------------------------ */
 int
-ipf_zerostats(softc, data)
-	ipf_main_softc_t *softc;
-	caddr_t	data;
+ipf_zerostats(ipf_main_softc_t *softc, caddr_t data)
 {
 	friostat_t fio;
 	ipfobj_t obj;
@@ -7461,17 +7237,17 @@ ipf_zerostats(softc, data)
 
 	error = ipf_inobj(softc, data, &obj, &fio, IPFOBJ_IPFSTAT);
 	if (error != 0)
-		return error;
+		return (error);
 	ipf_getstat(softc, &fio, obj.ipfo_rev);
 	error = ipf_outobj(softc, data, &fio, IPFOBJ_IPFSTAT);
 	if (error != 0)
-		return error;
+		return (error);
 
 	WRITE_ENTER(&softc->ipf_mutex);
 	bzero(&softc->ipf_stats, sizeof(softc->ipf_stats));
 	RWLOCK_EXIT(&softc->ipf_mutex);
 
-	return 0;
+	return (0);
 }
 
 
@@ -7490,11 +7266,7 @@ ipf_zerostats(softc, data)
 /* indicate there is no information at all in the structure.                */
 /* ------------------------------------------------------------------------ */
 int
-ipf_resolvedest(softc, base, fdp, v)
-	ipf_main_softc_t *softc;
-	char *base;
-	frdest_t *fdp;
-	int v;
+ipf_resolvedest(ipf_main_softc_t *softc, char *base, frdest_t *fdp, int v)
 {
 	int errval = 0;
 	void *ifp;
@@ -7519,7 +7291,7 @@ ipf_resolvedest(softc, base, fdp, v)
 	}
 	fdp->fd_ptr = ifp;
 
-	return errval;
+	return (errval);
 }
 
 
@@ -7537,25 +7309,22 @@ ipf_resolvedest(softc, base, fdp, v)
 /* for both IPv4 and IPv6 on the same physical NIC.                         */
 /* ------------------------------------------------------------------------ */
 void *
-ipf_resolvenic(softc, name, v)
-	ipf_main_softc_t *softc;
-	char *name;
-	int v;
+ipf_resolvenic(ipf_main_softc_t *softc, char *name, int v)
 {
 	void *nic;
 
 	softc = softc;	/* gcc -Wextra */
 	if (name[0] == '\0')
-		return NULL;
+		return (NULL);
 
 	if ((name[1] == '\0') && ((name[0] == '-') || (name[0] == '*'))) {
-		return NULL;
+		return (NULL);
 	}
 
 	nic = GETIFP(name, v);
 	if (nic == NULL)
 		nic = (void *)-1;
-	return nic;
+	return (nic);
 }
 
 
@@ -7568,8 +7337,7 @@ ipf_resolvenic(softc, name, v)
 /* have been held for too long and need to be freed up.                     */
 /* ------------------------------------------------------------------------ */
 void
-ipf_token_expire(softc)
-	ipf_main_softc_t *softc;
+ipf_token_expire(ipf_main_softc_t *softc)
 {
 	ipftoken_t *it;
 
@@ -7596,8 +7364,7 @@ ipf_token_expire(softc)
 /* by code that is only entitled to drop it once.                           */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_token_flush(softc)
-	ipf_main_softc_t *softc;
+ipf_token_flush(ipf_main_softc_t *softc)
 {
 	ipftoken_t *it, *next;
 
@@ -7626,10 +7393,7 @@ ipf_token_flush(softc)
 /* lead to a token to be deleted.                                           */
 /* ------------------------------------------------------------------------ */
 int
-ipf_token_del(softc, type, uid, ptr)
-	ipf_main_softc_t *softc;
-	int type, uid;
-	void *ptr;
+ipf_token_del(ipf_main_softc_t *softc, int type, int uid, void *ptr)
 {
 	ipftoken_t *it;
 	int error;
@@ -7649,7 +7413,7 @@ ipf_token_del(softc, type, uid, ptr)
 	}
 	RWLOCK_EXIT(&softc->ipf_tokens);
 
-	return error;
+	return (error);
 }
 
 
@@ -7661,8 +7425,7 @@ ipf_token_del(softc, type, uid, ptr)
 /* Mark a token as being ineligable for being found with ipf_token_find.    */
 /* ------------------------------------------------------------------------ */
 void
-ipf_token_mark_complete(token)
-	ipftoken_t *token;
+ipf_token_mark_complete(ipftoken_t *token)
 {
 	if (token->ipt_complete == 0)
 		token->ipt_complete = 1;
@@ -7683,10 +7446,7 @@ ipf_token_mark_complete(token)
 /* currently active tokens.                                                 */
 /* ------------------------------------------------------------------------ */
 ipftoken_t *
-ipf_token_find(softc, type, uid, ptr)
-	ipf_main_softc_t *softc;
-	int type, uid;
-	void *ptr;
+ipf_token_find(ipf_main_softc_t *softc, int type, int uid, void *ptr)
 {
 	ipftoken_t *it, *new;
 
@@ -7706,7 +7466,7 @@ ipf_token_find(softc, type, uid, ptr)
 		new = NULL;
 		if (it == NULL) {
 			RWLOCK_EXIT(&softc->ipf_tokens);
-			return NULL;
+			return (NULL);
 		}
 		it->ipt_ctx = ptr;
 		it->ipt_uid = uid;
@@ -7736,7 +7496,7 @@ ipf_token_find(softc, type, uid, ptr)
 
 	RWLOCK_EXIT(&softc->ipf_tokens);
 
-	return it;
+	return (it);
 }
 
 
@@ -7752,9 +7512,7 @@ ipf_token_find(softc, type, uid, ptr)
 /* but the tail does due to the linked list implementation.                 */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_token_unlink(softc, token)
-	ipf_main_softc_t *softc;
-	ipftoken_t *token;
+ipf_token_unlink(ipf_main_softc_t *softc, ipftoken_t *token)
 {
 
 	if (softc->ipf_token_tail == &token->ipt_next)
@@ -7780,16 +7538,14 @@ ipf_token_unlink(softc, token)
 /* possible to free the token data structure.                               */
 /* ------------------------------------------------------------------------ */
 int
-ipf_token_deref(softc, token)
-	ipf_main_softc_t *softc;
-	ipftoken_t *token;
+ipf_token_deref(ipf_main_softc_t *softc, ipftoken_t *token)
 {
 	void *data, **datap;
 
 	ASSERT(token->ipt_ref > 0);
 	token->ipt_ref--;
 	if (token->ipt_ref > 0)
-		return token->ipt_ref;
+		return (token->ipt_ref);
 
 	data = token->ipt_data;
 	datap = &data;
@@ -7830,7 +7586,7 @@ ipf_token_deref(softc, token)
 
 	ipf_token_unlink(softc, token);
 	KFREE(token);
-	return 0;
+	return (0);
 }
 
 
@@ -7847,11 +7603,8 @@ ipf_token_deref(softc, token)
 /* output rules that are returned, never both.                              */
 /* ------------------------------------------------------------------------ */
 static frentry_t *
-ipf_nextrule(softc, active, unit, fr, out)
-	ipf_main_softc_t *softc;
-	int active, unit;
-	frentry_t *fr;
-	int out;
+ipf_nextrule(ipf_main_softc_t *softc, int active, int unit, frentry_t *fr,
+	int out)
 {
 	frentry_t *next;
 	frgroup_t *fg;
@@ -7870,9 +7623,9 @@ ipf_nextrule(softc, active, unit, fr, out)
 		while (next != NULL) {
 			if (out) {
 				if (next->fr_flags & FR_OUTQUE)
-					return next;
+					return (next);
 			} else if (next->fr_flags & FR_INQUE) {
-				return next;
+				return (next);
 			}
 			next = next->fr_next;
 		}
@@ -7880,7 +7633,7 @@ ipf_nextrule(softc, active, unit, fr, out)
 			fg = fg->fg_next;
 	}
 
-	return NULL;
+	return (NULL);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -7899,10 +7652,7 @@ ipf_nextrule(softc, active, unit, fr, out)
 /* if we used an existing rule to get here, decrease its reference count.   */
 /* ------------------------------------------------------------------------ */
 int
-ipf_getnextrule(softc, t, ptr)
-	ipf_main_softc_t *softc;
-	ipftoken_t *t;
-	void *ptr;
+ipf_getnextrule(ipf_main_softc_t *softc, ipftoken_t *t, void *ptr)
 {
 	frentry_t *fr, *next, zero;
 	ipfruleiter_t it;
@@ -7915,28 +7665,28 @@ ipf_getnextrule(softc, t, ptr)
 
 	if (t == NULL || ptr == NULL) {
 		IPFERROR(84);
-		return EFAULT;
+		return (EFAULT);
 	}
 
 	error = ipf_inobj(softc, ptr, &obj, &it, IPFOBJ_IPFITER);
 	if (error != 0)
-		return error;
+		return (error);
 
 	if ((it.iri_inout < 0) || (it.iri_inout > 3)) {
 		IPFERROR(85);
-		return EINVAL;
+		return (EINVAL);
 	}
 	if ((it.iri_active != 0) && (it.iri_active != 1)) {
 		IPFERROR(86);
-		return EINVAL;
+		return (EINVAL);
 	}
 	if (it.iri_nrules == 0) {
 		IPFERROR(87);
-		return ENOSPC;
+		return (ENOSPC);
 	}
 	if (it.iri_rule == NULL) {
 		IPFERROR(88);
-		return EFAULT;
+		return (EFAULT);
 	}
 
 	fg = NULL;
@@ -8028,7 +7778,7 @@ ipf_getnextrule(softc, t, ptr)
 	if ((fr != NULL) && (next == &zero))
 		(void) ipf_derefrule(softc, &fr);
 
-	return error;
+	return (error);
 }
 
 
@@ -8045,10 +7795,7 @@ ipf_getnextrule(softc, t, ptr)
 /* the process doing the ioctl and use that to ask for the next rule.       */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_frruleiter(softc, data, uid, ctx)
-	ipf_main_softc_t *softc;
-	void *data, *ctx;
-	int uid;
+ipf_frruleiter(ipf_main_softc_t *softc, void *data, int uid, void *ctx)
 {
 	ipftoken_t *token;
 	ipfruleiter_t it;
@@ -8064,12 +7811,12 @@ ipf_frruleiter(softc, data, uid, ctx)
 	} else {
 		error = ipf_inobj(softc, data, &obj, &it, IPFOBJ_IPFITER);
 		if (error != 0)
-			return error;
+			return (error);
 		it.iri_rule = NULL;
 		error = ipf_outobj(softc, data, &it, IPFOBJ_IPFITER);
 	}
 
-	return error;
+	return (error);
 }
 
 
@@ -8084,10 +7831,7 @@ ipf_frruleiter(softc, data, uid, ctx)
 /* the ipfgeniter_t structure at itp.                                       */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_geniter(softc, token, itp)
-	ipf_main_softc_t *softc;
-	ipftoken_t *token;
-	ipfgeniter_t *itp;
+ipf_geniter(ipf_main_softc_t *softc, ipftoken_t *token, ipfgeniter_t *itp)
 {
 	int error;
 
@@ -8102,7 +7846,7 @@ ipf_geniter(softc, token, itp)
 		break;
 	}
 
-	return error;
+	return (error);
 }
 
 
@@ -8117,10 +7861,7 @@ ipf_geniter(softc, token, itp)
 /* Handle the SIOCGENITER ioctl for the ipfilter device. The primary role   */
 /* ------------------------------------------------------------------------ */
 int
-ipf_genericiter(softc, data, uid, ctx)
-	ipf_main_softc_t *softc;
-	void *data, *ctx;
-	int uid;
+ipf_genericiter(ipf_main_softc_t *softc, void *data, int uid, void *ctx)
 {
 	ipftoken_t *token;
 	ipfgeniter_t iter;
@@ -8128,7 +7869,7 @@ ipf_genericiter(softc, data, uid, ctx)
 
 	error = ipf_inobj(softc, data, NULL, &iter, IPFOBJ_GENITER);
 	if (error != 0)
-		return error;
+		return (error);
 
 	token = ipf_token_find(softc, iter.igi_type, uid, ctx);
 	if (token != NULL) {
@@ -8142,7 +7883,7 @@ ipf_genericiter(softc, data, uid, ctx)
 		error = 0;
 	}
 
-	return error;
+	return (error);
 }
 
 
@@ -8160,12 +7901,8 @@ ipf_genericiter(softc, data, uid, ctx)
 /* to the /dev/ipl device.                                                  */
 /* ------------------------------------------------------------------------ */
 int
-ipf_ipf_ioctl(softc, data, cmd, mode, uid, ctx)
-	ipf_main_softc_t *softc;
-	caddr_t data;
-	ioctlcmd_t cmd;
-	int mode, uid;
-	void *ctx;
+ipf_ipf_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd, int mode,
+	int uid, void *ctx)
 {
 	friostat_t fio;
 	int error, tmp;
@@ -8440,7 +8177,7 @@ ipf_ipf_ioctl(softc, data, cmd, mode, uid, ctx)
 		break;
 	}
 
-	return error;
+	return (error);
 }
 
 
@@ -8459,10 +8196,7 @@ ipf_ipf_ioctl(softc, data, cmd, mode, uid, ctx)
 /* rules belonging to the head group this rule specifies.                   */
 /* ------------------------------------------------------------------------ */
 u_32_t
-ipf_decaps(fin, pass, l5proto)
-	fr_info_t *fin;
-	u_32_t pass;
-	int l5proto;
+ipf_decaps(fr_info_t *fin, u_32_t pass, int l5proto)
 {
 	fr_info_t fin2, *fino = NULL;
 	int elen, hlen, nh;
@@ -8613,7 +8347,7 @@ cantdecaps:
 		pass &= ~FR_CMDMASK;
 		pass |= FR_BLOCK|FR_QUICK;
 		fin->fin_reason = FRB_DECAPFRIP;
-		return -1;
+		return (-1);
 	}
 
 	pass = ipf_scanlist(fin, pass);
@@ -8641,7 +8375,7 @@ cantdecaps:
 		m->m_len += elen;
 #endif
 	}
-	return pass;
+	return (pass);
 }
 
 
@@ -8662,11 +8396,8 @@ cantdecaps:
 /* of a successful call is the caller required to free up the malloc area.  */
 /* ------------------------------------------------------------------------ */
 int
-ipf_matcharray_load(softc, data, objp, arrayptr)
-	ipf_main_softc_t *softc;
-	caddr_t data;
-	ipfobj_t *objp;
-	int **arrayptr;
+ipf_matcharray_load(ipf_main_softc_t *softc, caddr_t data, ipfobj_t *objp,
+	int **arrayptr)
 {
 	int arraysize, *array, error;
 
@@ -8675,42 +8406,42 @@ ipf_matcharray_load(softc, data, objp, arrayptr)
 	error = BCOPYIN(data, objp, sizeof(*objp));
 	if (error != 0) {
 		IPFERROR(116);
-		return EFAULT;
+		return (EFAULT);
 	}
 
 	if (objp->ipfo_type != IPFOBJ_IPFEXPR) {
 		IPFERROR(117);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	if (((objp->ipfo_size & 3) != 0) || (objp->ipfo_size == 0) ||
 	    (objp->ipfo_size > 1024)) {
 		IPFERROR(118);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	arraysize = objp->ipfo_size * sizeof(*array);
 	KMALLOCS(array, int *, arraysize);
 	if (array == NULL) {
 		IPFERROR(119);
-		return ENOMEM;
+		return (ENOMEM);
 	}
 
 	error = COPYIN(objp->ipfo_ptr, array, arraysize);
 	if (error != 0) {
 		KFREES(array, arraysize);
 		IPFERROR(120);
-		return EFAULT;
+		return (EFAULT);
 	}
 
 	if (ipf_matcharray_verify(array, arraysize) != 0) {
 		KFREES(array, arraysize);
 		IPFERROR(121);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	*arrayptr = array;
-	return 0;
+	return (0);
 }
 
 
@@ -8725,8 +8456,7 @@ ipf_matcharray_load(softc, data, objp, arrayptr)
 /* correctness, only that all of the sizes are correctly within limits.     */
 /* ------------------------------------------------------------------------ */
 int
-ipf_matcharray_verify(array, arraysize)
-	int *array, arraysize;
+ipf_matcharray_verify(int *array, int arraysize)
 {
 	int i, nelem, maxidx;
 	ipfexp_t *e;
@@ -8739,7 +8469,7 @@ ipf_matcharray_verify(array, arraysize)
 	 * (minimum 4 in length) and a trailer, for a total of 6.
 	 */
 	if ((array[0] < 6) || (arraysize < 24) || (arraysize > 4096)) {
-		return -1;
+		return (-1);
 	}
 
 	/*
@@ -8747,7 +8477,7 @@ ipf_matcharray_verify(array, arraysize)
 	 * the array claims to be itself.
 	 */
 	if (array[0] * sizeof(*array) != arraysize) {
-		return -1;
+		return (-1);
 	}
 
 	maxidx = nelem - 1;
@@ -8755,7 +8485,7 @@ ipf_matcharray_verify(array, arraysize)
 	 * The last opcode in this array should be an IPF_EXP_END.
 	 */
 	if (array[maxidx] != IPF_EXP_END) {
-		return -1;
+		return (-1);
 	}
 
 	for (i = 1; i < maxidx; ) {
@@ -8768,11 +8498,11 @@ ipf_matcharray_verify(array, arraysize)
 		 */
 		if ((e->ipfe_size < 1 ) ||
 		    (e->ipfe_size + i > maxidx)) {
-			return -1;
+			return (-1);
 		}
 		i += e->ipfe_size;
 	}
-	return 0;
+	return (0);
 }
 
 
@@ -8787,9 +8517,7 @@ ipf_matcharray_verify(array, arraysize)
 /* all of the commands in it.                                               */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_fr_matcharray(fin, array)
-	fr_info_t *fin;
-	int *array;
+ipf_fr_matcharray(fr_info_t *fin, int *array)
 {
 	int i, n, *x, rv, p;
 	ipfexp_t *e;
@@ -8926,7 +8654,7 @@ ipf_fr_matcharray(fin, array)
 			break;
 	}
 
-	return rv;
+	return (rv);
 }
 
 
@@ -8982,12 +8710,8 @@ ipf_fr_matcharray(fin, array)
 /* low water mark is reached.                                               */
 /* ------------------------------------------------------------------------ */
 int
-ipf_queueflush(softc, deletefn, ipfqs, userqs, activep, size, low)
-	ipf_main_softc_t *softc;
-	ipftq_delete_fn_t deletefn;
-	ipftq_t *ipfqs, *userqs;
-	u_int *activep;
-	int size, low;
+ipf_queueflush(ipf_main_softc_t *softc, ipftq_delete_fn_t deletefn,
+	ipftq_t *ipfqs, ipftq_t *userqs, u_int *activep, int size, int low)
 {
 	u_long interval, istart, iend;
 	ipftq_t *ifq, *ifqnext;
@@ -9009,7 +8733,7 @@ ipf_queueflush(softc, deletefn, ipfqs, userqs, activep, size, low)
 	}
 
 	if ((*activep * 100 / size) <= low) {
-		return removed;
+		return (removed);
 	}
 
 	/*
@@ -9027,7 +8751,7 @@ ipf_queueflush(softc, deletefn, ipfqs, userqs, activep, size, low)
 		istart = IPF_TTLVAL(1800);
 		interval = IPF_TTLVAL(30);
 	} else {
-		return 0;
+		return (0);
 	}
 	if (istart > softc->ipf_ticks) {
 		if (softc->ipf_ticks - interval < interval)
@@ -9081,7 +8805,7 @@ ipf_queueflush(softc, deletefn, ipfqs, userqs, activep, size, low)
 		istart -= interval;
 	}
 
-	return removed;
+	return (removed);
 }
 
 
@@ -9097,11 +8821,8 @@ ipf_queueflush(softc, deletefn, ipfqs, userqs, activep, size, low)
 /* the network interface represented by ifp.                                */
 /* ------------------------------------------------------------------------ */
 int
-ipf_deliverlocal(softc, ipversion, ifp, ipaddr)
-	ipf_main_softc_t *softc;
-	int ipversion;
-	void *ifp;
-	i6addr_t *ipaddr;
+ipf_deliverlocal(ipf_main_softc_t *softc, int ipversion, void *ifp,
+	i6addr_t *ipaddr)
 {
 	i6addr_t addr;
 	int islocal = 0;
@@ -9121,7 +8842,7 @@ ipf_deliverlocal(softc, ipversion, ifp, ipaddr)
 #endif
 	}
 
-	return islocal;
+	return (islocal);
 }
 
 
@@ -9137,10 +8858,8 @@ ipf_deliverlocal(softc, ipversion, ifp, ipaddr)
 /* state and NAT code, telling them to update their timeout queues.         */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_settimeout(softc, t, p)
-	struct ipf_main_softc_s *softc;
-	ipftuneable_t *t;
-	ipftuneval_t *p;
+ipf_settimeout(struct ipf_main_softc_s *softc, ipftuneable_t *t,
+	ipftuneval_t *p)
 {
 
 	/*
@@ -9148,10 +8867,10 @@ ipf_settimeout(softc, t, p)
 	 * by this function - it's just a middle man.
 	 */
 	if (ipf_state_settimeout(softc, t, p) == -1)
-		return -1;
+		return (-1);
 	if (ipf_nat_settimeout(softc, t, p) == -1)
-		return -1;
-	return 0;
+		return (-1);
+	return (0);
 }
 
 
@@ -9171,9 +8890,7 @@ ipf_settimeout(softc, t, p)
 /* could take a relatively long time to work through them all.              */
 /* ------------------------------------------------------------------------ */
 void
-ipf_apply_timeout(head, seconds)
-	ipftq_t *head;
-	u_int seconds;
+ipf_apply_timeout(ipftq_t *head, u_int seconds)
 {
 	u_int oldtimeout, newtimeout;
 	ipftqent_t *tqe;
@@ -9205,10 +8922,7 @@ ipf_apply_timeout(head, seconds)
 /* ipf_apply_timeout().                                                     */
 /* ------------------------------------------------------------------------ */
 int
-ipf_settimeout_tcp(t, p, tab)
-	ipftuneable_t *t;
-	ipftuneval_t *p;
-	ipftq_t *tab;
+ipf_settimeout_tcp(ipftuneable_t *t, ipftuneval_t *p, ipftq_t *tab)
 {
 	if (!strcmp(t->ipft_name, "tcp_idle_timeout") ||
 	    !strcmp(t->ipft_name, "tcp_established")) {
@@ -9242,9 +8956,9 @@ ipf_settimeout_tcp(t, p, tab)
 		 * ipf_interror isn't set here because it should be set
 		 * by whatever called this function.
 		 */
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
 
@@ -9264,15 +8978,14 @@ ipf_settimeout_tcp(t, p, tab)
 /* the timeout values, allowing them to be changed before init().           */
 /* ------------------------------------------------------------------------ */
 void *
-ipf_main_soft_create(arg)
-	void *arg;
+ipf_main_soft_create(void *arg)
 {
 	ipf_main_softc_t *softc;
 
 	if (arg == NULL) {
 		KMALLOC(softc, ipf_main_softc_t *);
 		if (softc == NULL)
-			return NULL;
+			return (NULL);
 	} else {
 		softc = arg;
 	}
@@ -9290,7 +9003,7 @@ ipf_main_soft_create(arg)
 						ipf_main_tuneables);
 	if (softc->ipf_tuners == NULL) {
 		ipf_main_soft_destroy(softc);
-		return NULL;
+		return (NULL);
 	}
 
 	MUTEX_INIT(&softc->ipf_rw, "ipf rw mutex");
@@ -9335,7 +9048,7 @@ ipf_main_soft_create(arg)
 #endif
 	ipf_fbsd_kenv_get(softc);
 
-	return softc;
+	return (softc);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -9348,10 +9061,9 @@ ipf_main_soft_create(arg)
 /* ------------------------------------------------------------------------ */
 /*ARGSUSED*/
 int
-ipf_main_soft_init(softc)
-	ipf_main_softc_t *softc;
+ipf_main_soft_init(ipf_main_softc_t *softc)
 {
-	return 0;
+	return (0);
 }
 
 
@@ -9368,8 +9080,7 @@ ipf_main_soft_init(softc)
 /* ------------------------------------------------------------------------ */
 /*ARGSUSED*/
 void
-ipf_main_soft_destroy(softc)
-	ipf_main_softc_t *softc;
+ipf_main_soft_destroy(ipf_main_softc_t *softc)
 {
 
 	RW_DESTROY(&softc->ipf_frag);
@@ -9400,15 +9111,14 @@ ipf_main_soft_destroy(softc)
 /* the only dynamic part of the mainline.                                   */
 /* ------------------------------------------------------------------------ */
 int
-ipf_main_soft_fini(softc)
-	ipf_main_softc_t *softc;
+ipf_main_soft_fini(ipf_main_softc_t *softc)
 {
 	(void) ipf_flush(softc, IPL_LOGIPF, FR_INQUE|FR_OUTQUE|FR_INACTIVE);
 	(void) ipf_flush(softc, IPL_LOGIPF, FR_INQUE|FR_OUTQUE);
 	(void) ipf_flush(softc, IPL_LOGCOUNT, FR_INQUE|FR_OUTQUE|FR_INACTIVE);
 	(void) ipf_flush(softc, IPL_LOGCOUNT, FR_INQUE|FR_OUTQUE);
 
-	return 0;
+	return (0);
 }
 
 
@@ -9422,7 +9132,7 @@ ipf_main_soft_fini(softc)
 /* arrays that get used by the state/NAT code.                              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_main_load()
+ipf_main_load(void)
 {
 	int i;
 
@@ -9445,7 +9155,7 @@ ipf_main_load()
 	icmpreplytype6[ND_NEIGHBOR_SOLICIT] = ND_NEIGHBOR_ADVERT;
 #endif
 
-	return 0;
+	return (0);
 }
 
 
@@ -9458,9 +9168,9 @@ ipf_main_load()
 /* other functions is obvious.                                              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_main_unload()
+ipf_main_unload(void)
 {
-	return 0;
+	return (0);
 }
 
 
@@ -9473,27 +9183,27 @@ ipf_main_unload()
 /* function for each in an order that won't lead to a crash :)              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_load_all()
+ipf_load_all(void)
 {
 	if (ipf_main_load() == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_state_main_load() == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_nat_main_load() == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_frag_main_load() == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_auth_main_load() == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_proxy_main_load() == -1)
-		return -1;
+		return (-1);
 
-	return 0;
+	return (0);
 }
 
 
@@ -9506,27 +9216,27 @@ ipf_load_all()
 /* function for each in an order that won't lead to a crash :)              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_unload_all()
+ipf_unload_all(void)
 {
 	if (ipf_proxy_main_unload() == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_auth_main_unload() == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_frag_main_unload() == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_nat_main_unload() == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_state_main_unload() == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_main_unload() == -1)
-		return -1;
+		return (-1);
 
-	return 0;
+	return (0);
 }
 
 
@@ -9539,66 +9249,65 @@ ipf_unload_all()
 /* function for each in an order that won't lead to a crash :)              */
 /* ------------------------------------------------------------------------ */
 ipf_main_softc_t *
-ipf_create_all(arg)
-	void *arg;
+ipf_create_all(void *arg)
 {
 	ipf_main_softc_t *softc;
 
 	softc = ipf_main_soft_create(arg);
 	if (softc == NULL)
-		return NULL;
+		return (NULL);
 
 #ifdef IPFILTER_LOG
 	softc->ipf_log_soft = ipf_log_soft_create(softc);
 	if (softc->ipf_log_soft == NULL) {
 		ipf_destroy_all(softc);
-		return NULL;
+		return (NULL);
 	}
 #endif
 
 	softc->ipf_lookup_soft = ipf_lookup_soft_create(softc);
 	if (softc->ipf_lookup_soft == NULL) {
 		ipf_destroy_all(softc);
-		return NULL;
+		return (NULL);
 	}
 
 	softc->ipf_sync_soft = ipf_sync_soft_create(softc);
 	if (softc->ipf_sync_soft == NULL) {
 		ipf_destroy_all(softc);
-		return NULL;
+		return (NULL);
 	}
 
 	softc->ipf_state_soft = ipf_state_soft_create(softc);
 	if (softc->ipf_state_soft == NULL) {
 		ipf_destroy_all(softc);
-		return NULL;
+		return (NULL);
 	}
 
 	softc->ipf_nat_soft = ipf_nat_soft_create(softc);
 	if (softc->ipf_nat_soft == NULL) {
 		ipf_destroy_all(softc);
-		return NULL;
+		return (NULL);
 	}
 
 	softc->ipf_frag_soft = ipf_frag_soft_create(softc);
 	if (softc->ipf_frag_soft == NULL) {
 		ipf_destroy_all(softc);
-		return NULL;
+		return (NULL);
 	}
 
 	softc->ipf_auth_soft = ipf_auth_soft_create(softc);
 	if (softc->ipf_auth_soft == NULL) {
 		ipf_destroy_all(softc);
-		return NULL;
+		return (NULL);
 	}
 
 	softc->ipf_proxy_soft = ipf_proxy_soft_create(softc);
 	if (softc->ipf_proxy_soft == NULL) {
 		ipf_destroy_all(softc);
-		return NULL;
+		return (NULL);
 	}
 
-	return softc;
+	return (softc);
 }
 
 
@@ -9614,8 +9323,7 @@ ipf_create_all(arg)
 /* checking of return values.                                               */
 /* ------------------------------------------------------------------------ */
 void
-ipf_destroy_all(softc)
-	ipf_main_softc_t *softc;
+ipf_destroy_all(ipf_main_softc_t *softc)
 {
 
 	if (softc->ipf_state_soft != NULL) {
@@ -9673,40 +9381,39 @@ ipf_destroy_all(softc)
 /* function for each in an order that won't lead to a crash :)              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_init_all(softc)
-	ipf_main_softc_t *softc;
+ipf_init_all(ipf_main_softc_t *softc)
 {
 
 	if (ipf_main_soft_init(softc) == -1)
-		return -1;
+		return (-1);
 
 #ifdef IPFILTER_LOG
 	if (ipf_log_soft_init(softc, softc->ipf_log_soft) == -1)
-		return -1;
+		return (-1);
 #endif
 
 	if (ipf_lookup_soft_init(softc, softc->ipf_lookup_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_sync_soft_init(softc, softc->ipf_sync_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_state_soft_init(softc, softc->ipf_state_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_nat_soft_init(softc, softc->ipf_nat_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_frag_soft_init(softc, softc->ipf_frag_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_auth_soft_init(softc, softc->ipf_auth_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_proxy_soft_init(softc, softc->ipf_proxy_soft) == -1)
-		return -1;
+		return (-1);
 
-	return 0;
+	return (0);
 }
 
 
@@ -9719,42 +9426,41 @@ ipf_init_all(softc)
 /* function for each in an order that won't lead to a crash :)              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_fini_all(softc)
-	ipf_main_softc_t *softc;
+ipf_fini_all(ipf_main_softc_t *softc)
 {
 
 	ipf_token_flush(softc);
 
 	if (ipf_proxy_soft_fini(softc, softc->ipf_proxy_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_auth_soft_fini(softc, softc->ipf_auth_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_frag_soft_fini(softc, softc->ipf_frag_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_nat_soft_fini(softc, softc->ipf_nat_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_state_soft_fini(softc, softc->ipf_state_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_sync_soft_fini(softc, softc->ipf_sync_soft) == -1)
-		return -1;
+		return (-1);
 
 	if (ipf_lookup_soft_fini(softc, softc->ipf_lookup_soft) == -1)
-		return -1;
+		return (-1);
 
 #ifdef IPFILTER_LOG
 	if (ipf_log_soft_fini(softc, softc->ipf_log_soft) == -1)
-		return -1;
+		return (-1);
 #endif
 
 	if (ipf_main_soft_fini(softc) == -1)
-		return -1;
+		return (-1);
 
-	return 0;
+	return (0);
 }
 
 
@@ -9769,8 +9475,7 @@ ipf_fini_all(softc)
 /* loaded in.                                                               */
 /* ------------------------------------------------------------------------ */
 void
-ipf_rule_expire(softc)
-	ipf_main_softc_t *softc;
+ipf_rule_expire(ipf_main_softc_t *softc)
 {
 	frentry_t *fr;
 
@@ -9831,14 +9536,13 @@ RBI_CODE(ipf_rb, host_node_t, hn_entry, ipf_ht_node_cmp)
 /* for /48's, etc.                                                          */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_ht_node_cmp(k1, k2)
-	struct host_node_s *k1, *k2;
+ipf_ht_node_cmp(struct host_node_s *k1, struct host_node_s *k2)
 {
 	int i;
 
 	i = (k2->hn_addr.adf_family - k1->hn_addr.adf_family);
 	if (i != 0)
-		return i;
+		return (i);
 
 	if (k1->hn_addr.adf_family == AF_INET)
 		return (k2->hn_addr.adf_addr.in4.s_addr -
@@ -9846,15 +9550,15 @@ ipf_ht_node_cmp(k1, k2)
 
 	i = k2->hn_addr.adf_addr.i6[3] - k1->hn_addr.adf_addr.i6[3];
 	if (i != 0)
-		return i;
+		return (i);
 	i = k2->hn_addr.adf_addr.i6[2] - k1->hn_addr.adf_addr.i6[2];
 	if (i != 0)
-		return i;
+		return (i);
 	i = k2->hn_addr.adf_addr.i6[1] - k1->hn_addr.adf_addr.i6[1];
 	if (i != 0)
-		return i;
+		return (i);
 	i = k2->hn_addr.adf_addr.i6[0] - k1->hn_addr.adf_addr.i6[0];
-	return i;
+	return (i);
 }
 
 
@@ -9875,11 +9579,8 @@ ipf_ht_node_cmp(k1, k2)
 /* have to be wary of that and not allow 32-128 to happen.                  */
 /* ------------------------------------------------------------------------ */
 static void
-ipf_ht_node_make_key(htp, key, family, addr)
-	host_track_t *htp;
-	host_node_t *key;
-	int family;
-	i6addr_t *addr;
+ipf_ht_node_make_key(host_track_t *htp, host_node_t *key, int family,
+	i6addr_t *addr)
 {
 	key->hn_addr.adf_family = family;
 	if (family == AF_INET) {
@@ -9946,11 +9647,8 @@ ipf_ht_node_make_key(htp, key, family, addr)
 /* tree or a matching node exists and we're able to bump up its activity.   */
 /* ------------------------------------------------------------------------ */
 int
-ipf_ht_node_add(softc, htp, family, addr)
-	ipf_main_softc_t *softc;
-	host_track_t *htp;
-	int family;
-	i6addr_t *addr;
+ipf_ht_node_add(ipf_main_softc_t *softc, host_track_t *htp, int family,
+	i6addr_t *addr)
 {
 	host_node_t *h;
 	host_node_t k;
@@ -9960,12 +9658,12 @@ ipf_ht_node_add(softc, htp, family, addr)
 	h = RBI_SEARCH(ipf_rb, &htp->ht_root, &k);
 	if (h == NULL) {
 		if (htp->ht_cur_nodes >= htp->ht_max_nodes)
-			return -1;
+			return (-1);
 		KMALLOC(h, host_node_t *);
 		if (h == NULL) {
 			DT(ipf_rb_no_mem);
 			LBUMP(ipf_rb_no_mem);
-			return -1;
+			return (-1);
 		}
 
 		/*
@@ -9982,13 +9680,13 @@ ipf_ht_node_add(softc, htp, family, addr)
 		    (h->hn_active >= htp->ht_max_per_node)) {
 			DT(ipf_rb_node_max);
 			LBUMP(ipf_rb_node_max);
-			return -1;
+			return (-1);
 		}
 	}
 
 	h->hn_active++;
 
-	return 0;
+	return (0);
 }
 
 
@@ -10007,10 +9705,7 @@ ipf_ht_node_add(softc, htp, family, addr)
 /* one. If that count reaches 0, it is time to free it all up.              */
 /* ------------------------------------------------------------------------ */
 int
-ipf_ht_node_del(htp, family, addr)
-	host_track_t *htp;
-	int family;
-	i6addr_t *addr;
+ipf_ht_node_del(host_track_t *htp, int family, i6addr_t *addr)
 {
 	host_node_t *h;
 	host_node_t k;
@@ -10019,7 +9714,7 @@ ipf_ht_node_del(htp, family, addr)
 
 	h = RBI_SEARCH(ipf_rb, &htp->ht_root, &k);
 	if (h == NULL) {
-		return -1;
+		return (-1);
 	} else {
 		h->hn_active--;
 		if (h->hn_active == 0) {
@@ -10029,7 +9724,7 @@ ipf_ht_node_del(htp, family, addr)
 		}
 	}
 
-	return 0;
+	return (0);
 }
 
 
@@ -10041,8 +9736,7 @@ ipf_ht_node_del(htp, family, addr)
 /* Initialise the host tracking structure to be ready for use above.        */
 /* ------------------------------------------------------------------------ */
 void
-ipf_rb_ht_init(head)
-	host_track_t *head;
+ipf_rb_ht_init(host_track_t *head)
 {
 	RBI_INIT(ipf_rb, &head->ht_root);
 }
@@ -10057,9 +9751,7 @@ ipf_rb_ht_init(head)
 /* Free an actual host_node_t structure.                                    */
 /* ------------------------------------------------------------------------ */
 void
-ipf_rb_ht_freenode(node, arg)
-	host_node_t *node;
-	void *arg;
+ipf_rb_ht_freenode(host_node_t *node, void *arg)
 {
 	KFREE(node);
 }
@@ -10074,8 +9766,7 @@ ipf_rb_ht_freenode(node, arg)
 /* and free'ing each one.                                                   */
 /* ------------------------------------------------------------------------ */
 void
-ipf_rb_ht_flush(head)
-	host_track_t *head;
+ipf_rb_ht_flush(host_track_t *head)
 {
 	RBI_WALK(ipf_rb, &head->ht_root, ipf_rb_ht_freenode, NULL);
 }
@@ -10090,8 +9781,7 @@ ipf_rb_ht_flush(head)
 /* expectation of this being called twice per second.                       */
 /* ------------------------------------------------------------------------ */
 void
-ipf_slowtimer(softc)
-	ipf_main_softc_t *softc;
+ipf_slowtimer(ipf_main_softc_t *softc)
 {
 
 	ipf_token_expire(softc);
@@ -10119,9 +9809,7 @@ ipf_slowtimer(softc)
 /* a given netmask.                                                         */
 /* ------------------------------------------------------------------------ */
 void
-ipf_inet_mask_add(bits, mtab)
-	int bits;
-	ipf_v4_masktab_t *mtab;
+ipf_inet_mask_add(int bits, ipf_v4_masktab_t *mtab)
 {
 	u_32_t mask;
 	int i, j;
@@ -10157,9 +9845,7 @@ ipf_inet_mask_add(bits, mtab)
 /* netmasks stored inside of mtab.                                          */
 /* ------------------------------------------------------------------------ */
 void
-ipf_inet_mask_del(bits, mtab)
-	int bits;
-	ipf_v4_masktab_t *mtab;
+ipf_inet_mask_del(int bits, ipf_v4_masktab_t *mtab)
 {
 	u_32_t mask;
 	int i, j;
@@ -10196,10 +9882,7 @@ ipf_inet_mask_del(bits, mtab)
 /* a given netmask.                                                         */
 /* ------------------------------------------------------------------------ */
 void
-ipf_inet6_mask_add(bits, mask, mtab)
-	int bits;
-	i6addr_t *mask;
-	ipf_v6_masktab_t *mtab;
+ipf_inet6_mask_add(int bits, i6addr_t *mask, ipf_v6_masktab_t *mtab)
 {
 	i6addr_t zero;
 	int i, j;
@@ -10239,10 +9922,7 @@ ipf_inet6_mask_add(bits, mask, mtab)
 /* netmasks stored inside of mtab.                                          */
 /* ------------------------------------------------------------------------ */
 void
-ipf_inet6_mask_del(bits, mask, mtab)
-	int bits;
-	i6addr_t *mask;
-	ipf_v6_masktab_t *mtab;
+ipf_inet6_mask_del(int bits, i6addr_t *mask, ipf_v6_masktab_t *mtab)
 {
 	i6addr_t zero;
 	int i, j;

@@ -13,9 +13,8 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-ipfunc_t nametokva(name, iocfunc)
-	char *name;
-	ioctlfunc_t iocfunc;
+ipfunc_t
+nametokva(char *name, ioctlfunc_t iocfunc)
 {
 	ipfunc_resolve_t res;
 	int fd;
@@ -27,12 +26,12 @@ ipfunc_t nametokva(name, iocfunc)
 	if ((opts & OPT_DONTOPEN) == 0) {
 		fd = open(IPL_NAME, O_RDONLY);
 		if (fd == -1)
-			return NULL;
+			return (NULL);
 	}
 	(void) (*iocfunc)(fd, SIOCFUNCL, &res);
 	if (fd >= 0)
 		close(fd);
 	if (res.ipfu_addr == NULL)
 		res.ipfu_addr = (ipfunc_t)-1;
-	return res.ipfu_addr;
+	return (res.ipfu_addr);
 }

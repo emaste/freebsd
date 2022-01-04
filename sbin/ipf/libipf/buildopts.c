@@ -11,9 +11,8 @@
 #include "ipf.h"
 
 
-u_32_t buildopts(cp, op, len)
-	char *cp, *op;
-	int len;
+u_32_t
+buildopts(char *cp, char *op, int len)
 {
 	struct ipopt_names *io;
 	u_32_t msk = 0;
@@ -37,7 +36,7 @@ u_32_t buildopts(cp, op, len)
 		}
 		if (!io->on_name) {
 			fprintf(stderr, "unknown IP option name %s\n", s);
-			return 0;
+			return (0);
 		}
 	}
 	while ((len & 3) != 3) {
@@ -46,5 +45,5 @@ u_32_t buildopts(cp, op, len)
 	}
 	*op++ = IPOPT_EOL;
 	len++;
-	return len;
+	return (len);
 }

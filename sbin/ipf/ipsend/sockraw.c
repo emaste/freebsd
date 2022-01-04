@@ -34,7 +34,8 @@ static	char	sirix[] = "@(#)sirix.c	1.0 10/9/97 (C)1997 Marc Boucher";
 #endif
 
 
-int	initdevice(char *device, int tout)
+int
+initdevice(char *device, int tout)
 {
 	struct sockaddr s;
 	struct ifreq ifr;
@@ -46,13 +47,13 @@ int	initdevice(char *device, int tout)
 	if ((fd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
 	    {
 		perror("socket(AF_INET, SOCK_RAW, IPPROTO_RAW)");
-		return -1;
+		return (-1);
 	    }
 
 	if (ioctl(fd, SIOCGIFADDR, &ifr) == -1)
 	    {
 		perror("ioctl SIOCGIFADDR");
-		return -1;
+		return (-1);
 	    }
 
 	bzero((char *)&s, sizeof(s));
@@ -60,7 +61,7 @@ int	initdevice(char *device, int tout)
 	bcopy(&ifr.ifr_addr, s.sa_data, 4);
 	if (bind(fd, &s, sizeof(s)) == -1)
 		perror("bind");
-	return fd;
+	return (fd);
 }
 
 
@@ -82,8 +83,8 @@ int	sendip(int fd, char *pkt, int len)
 	if (sendto(fd, pkt, len, 0, &sin, sizeof(sin)) == -1)
 	    {
 		perror("send");
-		return -1;
+		return (-1);
 	    }
 
-	return len;
+	return (len);
 }

@@ -11,11 +11,8 @@
 #include "ipf.h"
 
 
-int addipopt(op, io, len, class)
-	char *op;
-	struct ipopt_names *io;
-	int len;
-	char *class;
+int
+addipopt(char *op, struct ipopt_names *io, int len, char *class)
 {
 	int olen = len;
 	struct in_addr ipadr;
@@ -25,7 +22,7 @@ int addipopt(op, io, len, class)
 
 	if ((len + io->on_siz) > 48) {
 		fprintf(stderr, "options too long\n");
-		return 0;
+		return (0);
 	}
 	len += io->on_siz;
 	*op++ = io->on_value;
@@ -61,5 +58,5 @@ int addipopt(op, io, len, class)
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "bo: %s %d %#x: %d\n",
 			io->on_name, io->on_value, io->on_bit, len);
-	return len - olen;
+	return (len - olen);
 }

@@ -300,65 +300,62 @@ static icmp_type_t icmptypes6[] = {
 	{ -2,			NULL,	0,		NULL }
 };
 
-static icmp_subtype_t *find_icmpsubtype(type, table, tablesz)
-	int type;
-	icmp_subtype_t *table;
-	size_t tablesz;
+static icmp_subtype_t *
+find_icmpsubtype(int type, icmp_subtype_t *table, size_t tablesz)
 {
 	icmp_subtype_t *ist;
 	int i;
 
 	if (tablesz < 2)
-		return NULL;
+		return (NULL);
 
 	if ((type < 0) || (type > table[tablesz - 2].ist_val))
-		return NULL;
+		return (NULL);
 
 	i = type;
 	if (table[type].ist_val == type)
-		return table + type;
+		return (table + type);
 
 	for (i = 0, ist = table; ist->ist_val != -2; i++, ist++)
 		if (ist->ist_val == type)
-			return ist;
-	return NULL;
+			return (ist);
+	return (NULL);
 }
 
 
-static icmp_type_t *find_icmptype(type, table, tablesz)
-	int type;
-	icmp_type_t *table;
-	size_t tablesz;
+static icmp_type_t *
+find_icmptype(int type, icmp_type_t *table, size_t tablesz)
 {
 	icmp_type_t *it;
 	int i;
 
 	if (tablesz < 2)
-		return NULL;
+		return (NULL);
 
 	if ((type < 0) || (type > table[tablesz - 2].it_val))
-		return NULL;
+		return (NULL);
 
 	i = type;
 	if (table[type].it_val == type)
-		return table + type;
+		return (table + type);
 
 	for (i = 0, it = table; it->it_val != -2; i++, it++)
 		if (it->it_val == type)
-			return it;
-	return NULL;
+			return (it);
+	return (NULL);
 }
 
 
-static void handlehup(sig)
-	int sig;
+static void
+handlehup(int sig)
 {
 	signal(SIGHUP, handlehup);
 	donehup = 1;
 }
 
 
-static void init_tabs()
+static void
+init_tabs(void)
 {
 	struct	protoent	*p;
 	struct	servent	*s;
@@ -438,8 +435,8 @@ static void init_tabs()
 }
 
 
-static char *getlocalproto(p)
-	u_int p;
+static char *
+getlocalproto(u_int p)
 {
 	static char pnum[4];
 	char *s;
@@ -450,13 +447,12 @@ static char *getlocalproto(p)
 		sprintf(pnum, "%u", p);
 		s = pnum;
 	}
-	return s;
+	return (s);
 }
 
 
-static int read_log(fd, lenp, buf, bufsize)
-	int fd, bufsize, *lenp;
-	char *buf;
+static int
+read_log(int fd, int *lenp, char *buf, int bufsize)
 {
 	int	nr;
 
@@ -465,15 +461,16 @@ static int read_log(fd, lenp, buf, bufsize)
 
 	nr = read(fd, buf, bufsize);
 	if (!nr)
-		return 2;
+		return (2);
 	if ((nr < 0) && (errno != EINTR))
-		return -1;
+		return (-1);
 	*lenp = nr;
-	return 0;
+	return (0);
 }
 
 
-char *portlocalname(res, proto, port)
+char *
+portlocalname(res, proto, port)
 	int res;
 	char *proto;
 	u_int port;
@@ -485,7 +482,7 @@ char *portlocalname(res, proto, port)
 	port &= 0xffff;
 	sprintf(pname, "%u", port);
 	if (!res || (ipmonopts & IPMON_PORTNUM))
-		return pname;
+		return (pname);
 	s = NULL;
 	if (!strcmp(proto, "tcp"))
 		s = tcp_ports[port];
@@ -493,13 +490,12 @@ char *portlocalname(res, proto, port)
 		s = udp_ports[port];
 	if (s == NULL)
 		s = pname;
-	return s;
+	return (s);
 }
 
 
-static char *icmpname(type, code)
-	u_int type;
-	u_int code;
+static char *
+icmpname(u_int type, u_int code)
 {
 	static char name[80];
 	icmp_subtype_t *ist;
@@ -525,12 +521,11 @@ static char *icmpname(type, code)
 	else
 		sprintf(name + strlen(name), "%d", code);
 
-	return name;
+	return (name);
 }
 
-static char *icmpname6(type, code)
-	u_int type;
-	u_int code;
+static char *
+icmpname6(u_int type, u_int code)
 {
 	static char name[80];
 	icmp_subtype_t *ist;
@@ -556,15 +551,12 @@ static char *icmpname6(type, code)
 	else
 		sprintf(name + strlen(name), "%d", code);
 
-	return name;
+	return (name);
 }
 
 
-void dumphex(log, dopts, buf, len)
-	FILE *log;
-	int dopts;
-	char *buf;
-	int len;
+void
+dumphex(FILE *log, int dopts, char *buf, int len)
 {
 	char	hline[80];
 	int	i, j, k;
@@ -624,21 +616,19 @@ void dumphex(log, dopts, buf, len)
 }
 
 
-static struct tm *get_tm(sec)
-	time_t sec;
+static struct tm *
+get_tm(time_t sec)
 {
 	struct tm *tm;
 	time_t t;
 
 	t = sec;
 	tm = localtime(&t);
-	return tm;
+	return (tm);
 }
 
-static void print_natlog(conf, buf, blen)
-	config_t *conf;
-	char *buf;
-	int blen;
+static void
+print_natlog(config_t *conf, char *buf, int blen)
 {
 	static u_32_t seqnum = 0;
 	int res, i, len, family;
@@ -824,10 +814,8 @@ static void print_natlog(conf, buf, blen)
 }
 
 
-static void print_statelog(conf, buf, blen)
-	config_t *conf;
-	char *buf;
-	int blen;
+static void
+print_statelog(config_t *conf, char *buf, int blen)
 {
 	static u_32_t seqnum = 0;
 	int res, i, len, family;
@@ -979,11 +967,8 @@ static void print_statelog(conf, buf, blen)
 }
 
 
-static void print_log(conf, log, buf, blen)
-	config_t *conf;
-	logsource_t *log;
-	char *buf;
-	int blen;
+static void
+print_log(config_t *conf, logsource_t *log, char *buf, int blen)
 {
 	char *bp, *bpo;
 	iplog_t	*ipl;
@@ -1038,10 +1023,8 @@ static void print_log(conf, log, buf, blen)
 }
 
 
-static void print_ipflog(conf, buf, blen)
-	config_t *conf;
-	char *buf;
-	int blen;
+static void
+print_ipflog(config_t *conf, char *buf, int blen)
 {
 	static u_32_t seqnum = 0;
 	int i, f, lvl, res, len, off, plen, ipoff, defaction;
@@ -1435,8 +1418,8 @@ printipflog:
 }
 
 
-static void usage(prog)
-	char *prog;
+static void
+usage(char *prog)
 {
 	fprintf(stderr, "Usage: %s [ -abDFhnpstvxX ] [ -B <binary-logfile> ] [ -C <config-file> ]\n"
 		"\t[ -f <device> ] [ -L <facility> ] [ -N <device> ]\n"
@@ -1446,8 +1429,8 @@ static void usage(prog)
 }
 
 
-static void write_pid(file)
-	char *file;
+static void
+write_pid(char *file)
 {
 	FILE *fp = NULL;
 	int fd;
@@ -1466,9 +1449,8 @@ static void write_pid(file)
 }
 
 
-static void flushlogs(file, log)
-	char *file;
-	FILE *log;
+static void
+flushlogs(char *file, FILE *log)
 {
 	int	fd, flushed = 0;
 
@@ -1497,9 +1479,8 @@ static void flushlogs(file, log)
 }
 
 
-static void logopts(turnon, options)
-	int turnon;
-	char *options;
+static void
+logopts(int turnon, char *options)
 {
 	int flags = 0;
 	char *s;
@@ -1529,7 +1510,8 @@ static void logopts(turnon, options)
 		ipmonopts &= ~(flags);
 }
 
-static void initconfig(config_t *conf)
+static void
+initconfig(config_t *conf)
 {
 	int i;
 
@@ -1557,9 +1539,8 @@ static void initconfig(config_t *conf)
 }
 
 
-int main(argc, argv)
-	int argc;
-	char *argv[];
+int
+main(int argc, char *argv[])
 {
 	int	doread, c, make_daemon = 0;
 	char	*prog;
@@ -1736,12 +1717,13 @@ int main(argc, argv)
 
 	unload_config();
 
-	return(0);
+	return (0);
 	/* NOTREACHED */
 }
 
 
-static void openlogs(config_t *conf)
+static void
+openlogs(config_t *conf)
 {
 	logsource_t *l;
 	struct stat sb;
@@ -1781,7 +1763,8 @@ static void openlogs(config_t *conf)
 }
 
 
-static int read_loginfo(config_t *conf)
+static int
+read_loginfo(config_t *conf)
 {
 	iplog_t buf[DEFAULT_IPFLOGSIZE/sizeof(iplog_t)+1];
 	int n, tr, nr, i;
@@ -1792,11 +1775,11 @@ static int read_loginfo(config_t *conf)
 
 	n = select(conf->maxfd + 1, &fdr, NULL, NULL, NULL);
 	if (n == 0)
-		return 1;
+		return (1);
 	if (n == -1) {
 		if (errno == EINTR)
-			return 1;
-		return -1;
+			return (1);
+		return (-1);
 	}
 
 	for (i = 0, nr = 0; i < 3; i++) {
@@ -1809,7 +1792,7 @@ static int read_loginfo(config_t *conf)
 		if (l->regular) {
 			tr = (lseek(l->fd, 0, SEEK_CUR) < l->size);
 			if (!tr && !(ipmonopts & IPMON_TAIL))
-				return 0;
+				return (0);
 		}
 
 		n = 0;
@@ -1845,13 +1828,13 @@ static int read_loginfo(config_t *conf)
 			else {
 				ipferror(l->fd, "read");
 			}
-			return 0;
+			return (0);
 		case 1 :
 			if (ipmonopts & IPMON_SYSLOG)
 				syslog(LOG_CRIT, "aborting logging\n");
 			else if (conf->log != NULL)
 				fprintf(conf->log, "aborting logging\n");
-			return 0;
+			return (0);
 		case 2 :
 			break;
 		case 0 :
@@ -1868,5 +1851,5 @@ static int read_loginfo(config_t *conf)
 	if (!nr && (ipmonopts & IPMON_TAIL))
 		sleep(1);
 
-	return 1;
+	return (1);
 }

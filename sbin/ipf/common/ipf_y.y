@@ -1712,7 +1712,7 @@ ipv4_16:
 	YY_NUMBER '.' YY_NUMBER
 		{ if ($1 > 255 || $3 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  $$.s_addr = ($1 << 24) | ($3 << 16);
 		  $$.s_addr = htonl($$.s_addr);
@@ -1723,7 +1723,7 @@ ipv4_24:
 	ipv4_16 '.' YY_NUMBER
 		{ if ($3 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  $$.s_addr |= htonl($3 << 8);
 		}
@@ -1732,7 +1732,7 @@ ipv4_24:
 ipv4:	ipv4_24 '.' YY_NUMBER
 		{ if ($3 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  $$.s_addr |= htonl($3);
 		}
@@ -1983,11 +1983,8 @@ static	struct	wordtab logwords[] = {
 
 
 
-int ipf_parsefile(fd, addfunc, iocfuncs, filename)
-int fd;
-addfunc_t addfunc;
-ioctlfunc_t *iocfuncs;
-char *filename;
+int
+ipf_parsefile(int fd, addfunc_t addfunc, ioctlfunc_t *iocfuncs, char *filename)
 {
 	FILE *fp = NULL;
 	char *s;
@@ -2006,7 +2003,7 @@ char *filename;
 		if (fp == NULL) {
 			fprintf(stderr, "fopen(%s) failed: %s\n", filename,
 				STRERROR(errno));
-			return -1;
+			return(-1);
 		}
 	} else
 		fp = stdin;
@@ -2015,15 +2012,12 @@ char *filename;
 		;
 	if (fp != NULL)
 		fclose(fp);
-	return 0;
+	return(0);
 }
 
 
-int ipf_parsesome(fd, addfunc, iocfuncs, fp)
-int fd;
-addfunc_t addfunc;
-ioctlfunc_t *iocfuncs;
-FILE *fp;
+int
+ipf_parsesome(int fd, addfunc_t addfunc, ioctlfunc_t *iocfuncs, FILE *fp)
 {
 	char *s;
 	int i;
@@ -2034,14 +2028,14 @@ FILE *fp;
 	ipfaddfunc = addfunc;
 
 	if (feof(fp))
-		return 0;
+		return(0);
 	i = fgetc(fp);
 	if (i == EOF)
-		return 0;
+		return(0);
 	if (ungetc(i, fp) == 0)
-		return 0;
+		return(0);
 	if (feof(fp))
-		return 0;
+		return(0);
 	s = getenv("YYDEBUG");
 	if (s != NULL)
 		yydebug = atoi(s);
@@ -2050,11 +2044,12 @@ FILE *fp;
 
 	yyin = fp;
 	yyparse();
-	return 1;
+	return(1);
 }
 
 
-static void newrule()
+static void
+newrule(void)
 {
 	frentry_t *frn;
 
@@ -2086,7 +2081,8 @@ static void newrule()
 }
 
 
-static void setipftype()
+static void
+setipftype(void)
 {
 	for (fr = frc; fr != NULL; fr = fr->fr_next) {
 		if (fr->fr_type == FR_T_NONE) {
@@ -2111,7 +2107,8 @@ static void setipftype()
 }
 
 
-static frentry_t *addrule()
+static frentry_t *
+addrule(void)
 {
 	frentry_t *f, *f1, *f2;
 	int count;
@@ -2124,7 +2121,7 @@ static frentry_t *addrule()
 	for (f1 = frc; count > 0; count--, f1 = f1->fr_next) {
 		f->fr_next = allocfr();
 		if (f->fr_next == NULL)
-			return NULL;
+			return(NULL);
 		f->fr_next->fr_pnext = &f->fr_next;
 		added++;
 		f = f->fr_next;
@@ -2136,14 +2133,12 @@ static frentry_t *addrule()
 		}
 	}
 
-	return f2->fr_next;
+	return(f2->fr_next);
 }
 
 
 static int
-lookuphost(name, addrp)
-	char *name;
-	i6addr_t *addrp;
+lookuphost(char *name, i6addr_t *addrp)
 {
 	int i;
 
@@ -2157,21 +2152,20 @@ lookuphost(name, addrp)
 		if (strcmp(name, fr->fr_names + fr->fr_ifnames[i]) == 0) {
 			ifpflag = FRI_DYNAMIC;
 			dynamic = addname(&fr, name);
-			return 1;
+			return(1);
 		}
 	}
 
 	if (gethost(AF_INET, name, addrp) == -1) {
 		fprintf(stderr, "unknown name \"%s\"\n", name);
-		return -1;
+		return(-1);
 	}
-	return 0;
+	return(0);
 }
 
 
-static void dobpf(v, phrase)
-int v;
-char *phrase;
+static void
+dobpf(int v, char *phrase)
 {
 #ifdef IPFILTER_BPF
 	struct bpf_program bpf;
@@ -2264,7 +2258,8 @@ char *phrase;
 }
 
 
-static void resetaddr()
+static void
+resetaddr(void)
 {
 	hashed = 0;
 	pooled = 0;
@@ -2272,23 +2267,22 @@ static void resetaddr()
 }
 
 
-static alist_t *newalist(ptr)
-alist_t *ptr;
+static alist_t *
+newalist(alist_t *ptr)
 {
 	alist_t *al;
 
 	al = malloc(sizeof(*al));
 	if (al == NULL)
-		return NULL;
+		return(NULL);
 	al->al_not = 0;
 	al->al_next = ptr;
-	return al;
+	return(al);
 }
 
 
 static int
-makepool(list)
-	alist_t *list;
+makepool(alist_t *list)
 {
 	ip_pool_node_t *n, *top;
 	ip_pool_t pool;
@@ -2296,10 +2290,10 @@ makepool(list)
 	int num;
 
 	if (list == NULL)
-		return 0;
+		return(0);
 	top = calloc(1, sizeof(*top));
 	if (top == NULL)
-		return 0;
+		return(0);
 
 	for (n = top, a = list; (n != NULL) && (a != NULL); a = a->al_next) {
 		if (use_inet6 == 1) {
@@ -2340,12 +2334,12 @@ makepool(list)
 		top = n->ipn_next;
 		free(n);
 	}
-	return num;
+	return(num);
 }
 
 
-static u_int makehash(list)
-alist_t *list;
+static u_int
+makehash(alist_t *list)
 {
 	iphtent_t *n, *top;
 	iphtable_t iph;
@@ -2353,10 +2347,10 @@ alist_t *list;
 	int num;
 
 	if (list == NULL)
-		return 0;
+		return(0);
 	top = calloc(1, sizeof(*top));
 	if (top == NULL)
-		return 0;
+		return(0);
 
 	for (n = top, a = list; (n != NULL) && (a != NULL); a = a->al_next) {
 		if (a->al_family == AF_INET6) {
@@ -2389,21 +2383,19 @@ alist_t *list;
 		top = n->ipe_next;
 		free(n);
 	}
-	return num;
+	return(num);
 }
 
 
-int ipf_addrule(fd, ioctlfunc, ptr)
-int fd;
-ioctlfunc_t ioctlfunc;
-void *ptr;
+int
+ipf_addrule(int fd, ioctlfunc_t ioctlfunc, void *ptr)
 {
 	ioctlcmd_t add, del;
 	frentry_t *fr;
 	ipfobj_t obj;
 
 	if (ptr == NULL)
-		return 0;
+		return(0);
 
 	fr = ptr;
 	add = 0;
@@ -2450,7 +2442,7 @@ void *ptr;
 
 				snprintf(msg, sizeof(msg), "%d:ioctl(zero rule)",
 					fr->fr_flineno);
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		} else {
 #ifdef	USE_QUAD_T
@@ -2470,7 +2462,7 @@ void *ptr;
 
 				snprintf(msg, sizeof(msg), "%d:ioctl(delete rule)",
 					fr->fr_flineno);
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		}
 	} else {
@@ -2480,29 +2472,31 @@ void *ptr;
 
 				snprintf(msg, sizeof(msg), "%d:ioctl(add/insert rule)",
 					fr->fr_flineno);
-				return ipf_perror_fd(fd, ioctlfunc, msg);
+				return(ipf_perror_fd(fd, ioctlfunc, msg));
 			}
 		}
 	}
-	return 0;
+	return(0);
 }
 
-static void setsyslog()
+static void
+setsyslog(void)
 {
 	yysetdict(logwords);
 	yybreakondot = 1;
 }
 
 
-static void unsetsyslog()
+static void
+unsetsyslog(void)
 {
 	yyresetdict();
 	yybreakondot = 0;
 }
 
 
-static void fillgroup(fr)
-frentry_t *fr;
+static void
+fillgroup(frentry_t *fr)
 {
 	frentry_t *f;
 
@@ -2544,8 +2538,8 @@ frentry_t *fr;
 }
 
 
-static void doipfexpr(line)
-char *line;
+static void
+doipfexpr(char *line)
 {
 	int *array;
 	char *error;
@@ -2563,9 +2557,8 @@ char *line;
 }
 
 
-static void do_tuneint(varname, value)
-char *varname;
-int value;
+static void
+do_tuneint(char *varname, int value)
 {
 	char buffer[80];
 
@@ -2577,8 +2570,8 @@ int value;
 }
 
 
-static void do_tunestr(varname, value)
-char *varname, *value;
+static void
+do_tunestr(char *varname, char *value)
 {
 
 	if (!strcasecmp(value, "true")) {
@@ -2591,10 +2584,8 @@ char *varname, *value;
 }
 
 
-static void setifname(frp, idx, name)
-frentry_t **frp;
-int idx;
-char *name;
+static void
+setifname(frentry_t **frp, int idx, char *name)
 {
 	int pos;
 
@@ -2605,9 +2596,8 @@ char *name;
 }
 
 
-static int addname(frp, name)
-frentry_t **frp;
-char *name;
+static int
+addname(frentry_t **frp, char *name)
 {
 	frentry_t *f;
 	int nlen;
@@ -2619,7 +2609,7 @@ char *name;
 		frc = f;
 	*frp = f;
 	if (f == NULL)
-		return -1;
+		return(-1);
 	if (f->fr_pnext != NULL)
 		*f->fr_pnext = f;
 	f->fr_size += nlen;
@@ -2627,11 +2617,12 @@ char *name;
 	f->fr_namelen += nlen;
 	strcpy(f->fr_names + pos, name);
 	f->fr_names[f->fr_namelen] = '\0';
-	return pos;
+	return(pos);
 }
 
 
-static frentry_t *allocfr()
+static frentry_t *
+allocfr(void)
 {
 	frentry_t *fr;
 
@@ -2650,13 +2641,12 @@ static frentry_t *allocfr()
 		fr->fr_rif.fd_name = -1;
 		fr->fr_dif.fd_name = -1;
 	}
-	return fr;
+	return(fr);
 }
 
 
-static void setgroup(frp, name)
-frentry_t **frp;
-char *name;
+static void
+setgroup(frentry_t **frp, char *name)
 {
 	int pos;
 
@@ -2667,9 +2657,8 @@ char *name;
 }
 
 
-static void setgrhead(frp, name)
-frentry_t **frp;
-char *name;
+static void
+setgrhead(frentry_t **frp, char *name)
 {
 	int pos;
 
@@ -2680,9 +2669,8 @@ char *name;
 }
 
 
-static void seticmphead(frp, name)
-frentry_t **frp;
-char *name;
+static void
+seticmphead(frentry_t **frp, char *name)
 {
 	int pos;
 
@@ -2694,9 +2682,7 @@ char *name;
 
 
 static void
-build_dstaddr_af(fp, ptr)
-	frentry_t *fp;
-	void *ptr;
+build_dstaddr_af(frentry_t *fp, void *ptr)
 {
 	struct ipp_s *ipp = ptr;
 	frentry_t *f = fp;
@@ -2725,9 +2711,7 @@ build_dstaddr_af(fp, ptr)
 
 
 static void
-build_srcaddr_af(fp, ptr)
-	frentry_t *fp;
-	void *ptr;
+build_srcaddr_af(frentry_t *fp, void *ptr)
 {
 	struct ipp_s *ipp = ptr;
 	frentry_t *f = fp;

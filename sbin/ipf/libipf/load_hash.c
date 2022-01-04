@@ -16,10 +16,7 @@
 
 
 int
-load_hash(iphp, list, iocfunc)
-	iphtable_t *iphp;
-	iphtent_t *list;
-	ioctlfunc_t iocfunc;
+load_hash(iphtable_t *iphp, iphtent_t *list, ioctlfunc_t iocfunc)
 {
 	iplookupop_t op;
 	iphtable_t iph;
@@ -28,7 +25,7 @@ load_hash(iphp, list, iocfunc)
 	int n;
 
 	if (pool_open() == -1)
-		return -1;
+		return (-1);
 
 	for (n = 0, a = list; a != NULL; a = a->ipe_next)
 		n++;
@@ -62,8 +59,8 @@ load_hash(iphp, list, iocfunc)
 	if ((opts & OPT_REMOVE) == 0) {
 		if (pool_ioctl(iocfunc, SIOCLOOKUPADDTABLE, &op))
 			if ((opts & OPT_DONOTHING) == 0) {
-				return ipf_perror_fd(pool_fd(), iocfunc,
-					"add lookup hash table");
+				return (ipf_perror_fd(pool_fd(), iocfunc,
+					"add lookup hash table"));
 			}
 	}
 
@@ -74,7 +71,7 @@ load_hash(iphp, list, iocfunc)
 		iph.iph_table = calloc(size, sizeof(*iph.iph_table));
 		if (iph.iph_table == NULL) {
 			perror("calloc(size, sizeof(*iph.iph_table))");
-			return -1;
+			return (-1);
 		}
 		iph.iph_list = list;
 		printhash(&iph, bcopywrap, iph.iph_name, opts, NULL);
@@ -95,9 +92,9 @@ load_hash(iphp, list, iocfunc)
 	if ((opts & OPT_REMOVE) != 0) {
 		if (pool_ioctl(iocfunc, SIOCLOOKUPDELTABLE, &op))
 			if ((opts & OPT_DONOTHING) == 0) {
-				return ipf_perror_fd(pool_fd(), iocfunc,
-					"delete lookup hash table");
+				return (ipf_perror_fd(pool_fd(), iocfunc,
+					"delete lookup hash table"));
 			}
 	}
-	return 0;
+	return (0);
 }

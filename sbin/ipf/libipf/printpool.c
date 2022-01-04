@@ -10,21 +10,17 @@
 
 
 ip_pool_t *
-printpool(pp, copyfunc, name, opts, fields)
-	ip_pool_t *pp;
-	copyfunc_t copyfunc;
-	char *name;
-	int opts;
-	wordtab_t *fields;
+printpool(ip_pool_t *pp, copyfunc_t copyfunc, char *name, int opts,
+	wordtab_t *fields)
 {
 	ip_pool_node_t *ipnp, *ipnpn, ipn, **pnext;
 	ip_pool_t ipp;
 
 	if ((*copyfunc)(pp, &ipp, sizeof(ipp)))
-		return NULL;
+		return (NULL);
 
 	if ((name != NULL) && strncmp(name, ipp.ipo_name, FR_GROUPLEN))
-		return ipp.ipo_next;
+		return (ipp.ipo_next);
 
 	printpooldata(&ipp, opts);
 
@@ -61,5 +57,5 @@ printpool(pp, copyfunc, name, opts, fields)
 	if ((opts & OPT_DEBUG) == 0)
 		PRINTF(" };\n");
 
-	return ipp.ipo_next;
+	return (ipp.ipo_next);
 }

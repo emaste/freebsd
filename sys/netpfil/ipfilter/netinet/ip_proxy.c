@@ -251,7 +251,7 @@ static	aproxy_t	ips_proxies[] = {
 /* Call the initialise routine for all the compiled in kernel proxies.      */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_main_load()
+ipf_proxy_main_load(void)
 {
 	aproxy_t *ap;
 
@@ -259,7 +259,7 @@ ipf_proxy_main_load()
 		if (ap->apr_load != NULL)
 			(*ap->apr_load)();
 	}
-	return 0;
+	return (0);
 }
 
 
@@ -272,7 +272,7 @@ ipf_proxy_main_load()
 /* Call the finialise routine for all the compiled in kernel proxies.       */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_main_unload()
+ipf_proxy_main_unload(void)
 {
 	aproxy_t *ap;
 
@@ -283,7 +283,7 @@ ipf_proxy_main_unload()
 		if (ap->apr_unload != NULL)
 			(*ap->apr_unload)();
 
-	return 0;
+	return (0);
 }
 
 
@@ -295,8 +295,7 @@ ipf_proxy_main_unload()
 /* Build the structure to hold all of the run time data to support proxies. */
 /* ------------------------------------------------------------------------ */
 void *
-ipf_proxy_soft_create(softc)
-	ipf_main_softc_t *softc;
+ipf_proxy_soft_create(ipf_main_softc_t *softc)
 {
 	ipf_proxy_softc_t *softp;
 	aproxy_t *last;
@@ -305,7 +304,7 @@ ipf_proxy_soft_create(softc)
 
 	KMALLOC(softp, ipf_proxy_softc_t *);
 	if (softp == NULL)
-		return softp;
+		return (softp);
 
 	bzero((char *)softp, sizeof(*softp));
 
@@ -321,11 +320,11 @@ ipf_proxy_soft_create(softc)
 						    ipf_proxy_tuneables);
 	if (softp->ipf_proxy_tune == NULL) {
 		ipf_proxy_soft_destroy(softc, softp);
-		return NULL;
+		return (NULL);
 	}
 	if (ipf_tune_array_link(softc, softp->ipf_proxy_tune) == -1) {
 		ipf_proxy_soft_destroy(softc, softp);
-		return NULL;
+		return (NULL);
 	}
 
 	last = NULL;
@@ -350,10 +349,10 @@ ipf_proxy_soft_create(softc)
 		last = apn;
 	}
 
-	return softp;
+	return (softp);
 failed:
 	ipf_proxy_soft_destroy(softc, softp);
-	return NULL;
+	return (NULL);
 }
 
 
@@ -367,15 +366,13 @@ failed:
 /* a pointer to that copy.                                                  */
 /* ------------------------------------------------------------------------ */
 static aproxy_t *
-ipf_proxy_create_clone(softc, orig)
-	ipf_main_softc_t *softc;
-	aproxy_t *orig;
+ipf_proxy_create_clone(ipf_main_softc_t *softc, aproxy_t *orig)
 {
 	aproxy_t *apn;
 
 	KMALLOC(apn, aproxy_t *);
 	if (apn == NULL)
-		return NULL;
+		return (NULL);
 
 	bcopy((char *)orig, (char *)apn, sizeof(*apn));
 	apn->apr_next = NULL;
@@ -385,14 +382,14 @@ ipf_proxy_create_clone(softc, orig)
 		apn->apr_soft = (*apn->apr_create)(softc);
 		if (apn->apr_soft == NULL) {
 			KFREE(apn);
-			return NULL;
+			return (NULL);
 		}
 	}
 
 	apn->apr_parent = orig;
 	orig->apr_clones++;
 
-	return apn;
+	return (apn);
 }
 
 
@@ -407,9 +404,7 @@ ipf_proxy_create_clone(softc, orig)
 /* local setup prior to actual use.                                         */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_soft_init(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_proxy_soft_init(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_proxy_softc_t *softp;
 	aproxy_t *ap;
@@ -422,7 +417,7 @@ ipf_proxy_soft_init(softc, arg)
 	KMALLOCS(softp->ips_sess_tab, ap_session_t **, size);
 
 	if (softp->ips_sess_tab == NULL)
-		return -1;
+		return (-1);
 
 	bzero(softp->ips_sess_tab, size);
 
@@ -430,12 +425,12 @@ ipf_proxy_soft_init(softc, arg)
 		if (ap->apr_init != NULL) {
 			err = (*ap->apr_init)(softc, ap->apr_soft);
 			if (err != 0)
-				return -2;
+				return (-2);
 		}
 	}
 	softp->ips_init_run = 1;
 
-	return 0;
+	return (0);
 }
 
 
@@ -450,9 +445,7 @@ ipf_proxy_soft_init(softc, arg)
 /* called and suring all of the proxies have similarly been instructed.     */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_soft_fini(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_proxy_soft_fini(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_proxy_softc_t *softp = arg;
 	aproxy_t *ap;
@@ -470,7 +463,7 @@ ipf_proxy_soft_fini(softc, arg)
 	}
 	softp->ips_init_run = 0;
 
-	return 0;
+	return (0);
 }
 
 
@@ -483,9 +476,7 @@ ipf_proxy_soft_fini(softc, arg)
 /* Free up all of the local data structures allocated during creation.      */
 /* ------------------------------------------------------------------------ */
 void
-ipf_proxy_soft_destroy(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_proxy_soft_destroy(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_proxy_softc_t *softp = arg;
 	aproxy_t *ap;
@@ -499,9 +490,9 @@ ipf_proxy_soft_destroy(softc, arg)
 	}
 
 	if (softp->ipf_proxy_tune != NULL) {
-                ipf_tune_array_unlink(softc, softp->ipf_proxy_tune);
-                KFREES(softp->ipf_proxy_tune, sizeof(ipf_proxy_tuneables));
-                softp->ipf_proxy_tune = NULL;
+		ipf_tune_array_unlink(softc, softp->ipf_proxy_tune);
+		KFREES(softp->ipf_proxy_tune, sizeof(ipf_proxy_tuneables));
+		softp->ipf_proxy_tune = NULL;
 	}
 
 	KFREE(softp);
@@ -518,9 +509,7 @@ ipf_proxy_soft_destroy(softc, arg)
 /* a flush or a clear.                                                      */
 /* ------------------------------------------------------------------------ */
 void
-ipf_proxy_flush(arg, how)
-	void *arg;
-	int how;
+ipf_proxy_flush(void *arg, int how)
 {
 	ipf_proxy_softc_t *softp = arg;
 	aproxy_t *ap;
@@ -552,9 +541,7 @@ ipf_proxy_flush(arg, how)
 /* collection compiled in and dynamically added.                            */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_add(arg, ap)
-	void *arg;
-	aproxy_t *ap;
+ipf_proxy_add(void *arg, aproxy_t *ap)
 {
 	ipf_proxy_softc_t *softp = arg;
 
@@ -567,7 +554,7 @@ ipf_proxy_add(arg, ap)
 			if (softp->ips_proxy_debug & 0x01)
 				printf("ipf_proxy_add: %s/%d present (B)\n",
 				       a->apr_label, a->apr_p);
-			return -1;
+			return (-1);
 		}
 
 	for (a = ap_proxylist; (a != NULL); a = a->apr_next)
@@ -577,13 +564,13 @@ ipf_proxy_add(arg, ap)
 			if (softp->ips_proxy_debug & 0x01)
 				printf("ipf_proxy_add: %s/%d present (D)\n",
 				       a->apr_label, a->apr_p);
-			return -1;
+			return (-1);
 		}
 	ap->apr_next = ap_proxylist;
 	ap_proxylist = ap;
 	if (ap->apr_load != NULL)
 		(*ap->apr_load)();
-	return 0;
+	return (0);
 }
 
 
@@ -599,10 +586,7 @@ ipf_proxy_add(arg, ap)
 /* control function.                                                        */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_ctl(softc, arg, ctl)
-	ipf_main_softc_t *softc;
-	void *arg;
-	ap_ctl_t *ctl;
+ipf_proxy_ctl(ipf_main_softc_t *softc, void *arg, ap_ctl_t *ctl)
 {
 	ipf_proxy_softc_t *softp = arg;
 	aproxy_t *a;
@@ -627,7 +611,7 @@ ipf_proxy_ctl(softc, arg, ctl)
 			printf("ipf_proxy_ctl: %s/%d ctl error %d\n",
 				a->apr_label, a->apr_p, error);
 	}
-	return error;
+	return (error);
 }
 
 
@@ -641,8 +625,7 @@ ipf_proxy_ctl(softc, arg, ctl)
 /* if it cannot be matched.                                                 */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_del(ap)
-	aproxy_t *ap;
+ipf_proxy_del(aproxy_t *ap)
 {
 	aproxy_t *a, **app;
 
@@ -651,13 +634,13 @@ ipf_proxy_del(ap)
 			a->apr_flags |= APR_DELETE;
 			if (ap->apr_ref == 0 && ap->apr_clones == 0) {
 				*app = a->apr_next;
-				return 0;
+				return (0);
 			}
-			return 1;
+			return (1);
 		}
 	}
 
-	return -1;
+	return (-1);
 }
 
 
@@ -674,20 +657,17 @@ ipf_proxy_del(ap)
 /* rule even if the rule is still active.                                   */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_ok(fin, tcp, np)
-	fr_info_t *fin;
-	tcphdr_t *tcp;
-	ipnat_t *np;
+ipf_proxy_ok(fr_info_t *fin, tcphdr_t *tcp, ipnat_t *np)
 {
 	aproxy_t *apr = np->in_apr;
 	u_short dport = np->in_odport;
 
 	if ((apr == NULL) || (apr->apr_flags & APR_DELETE) ||
 	    (fin->fin_p != apr->apr_p))
-		return 0;
+		return (0);
 	if ((tcp == NULL) && dport)
-		return 0;
-	return 1;
+		return (0);
+	return (1);
 }
 
 
@@ -702,12 +682,8 @@ ipf_proxy_ok(fin, tcp, np)
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_ioctl(softc, data, cmd, mode, ctx)
-	ipf_main_softc_t *softc;
-	caddr_t data;
-	ioctlcmd_t cmd;
-	int mode;
-	void *ctx;
+ipf_proxy_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
+	int mode, void *ctx)
 {
 	ap_ctl_t ctl;
 	caddr_t ptr;
@@ -720,7 +696,7 @@ ipf_proxy_ioctl(softc, data, cmd, mode, ctx)
 	case SIOCPROXY :
 		error = ipf_inobj(softc, data, NULL, &ctl, IPFOBJ_PROXYCTL);
 		if (error != 0) {
-			return error;
+			return (error);
 		}
 		ptr = NULL;
 
@@ -753,7 +729,7 @@ ipf_proxy_ioctl(softc, data, cmd, mode, ctx)
 		IPFERROR(80004);
 		error = EINVAL;
 	}
-	return error;
+	return (error);
 }
 
 
@@ -769,9 +745,7 @@ ipf_proxy_ioctl(softc, data, cmd, mode, ctx)
 /* matching is not because they need to work with data, not just headers.   */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_match(fin, nat)
-	fr_info_t *fin;
-	nat_t *nat;
+ipf_proxy_match(fr_info_t *fin, nat_t *nat)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_proxy_softc_t *softp = softc->ipf_proxy_soft;
@@ -789,7 +763,7 @@ ipf_proxy_match(fin, nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_match: flx 0x%x (BAD|SHORT)\n",
 				fin->fin_flx);
-		return -1;
+		return (-1);
 	}
 
 	apr = ipn->in_apr;
@@ -797,7 +771,7 @@ ipf_proxy_match(fin, nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_match:apr %lx apr_flags 0x%x\n",
 				(u_long)apr, apr ? apr->apr_flags : 0);
-		return -1;
+		return (-1);
 	}
 
 	if (apr->apr_match != NULL) {
@@ -805,10 +779,10 @@ ipf_proxy_match(fin, nat)
 		if (result != 0) {
 			if (softp->ips_proxy_debug & 0x08)
 				printf("ipf_proxy_match: result %d\n", result);
-			return -1;
+			return (-1);
 		}
 	}
-	return 0;
+	return (0);
 }
 
 
@@ -823,9 +797,7 @@ ipf_proxy_match(fin, nat)
 /* returning.                                                               */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_new(fin, nat)
-	fr_info_t *fin;
-	nat_t *nat;
+ipf_proxy_new(fr_info_t *fin, nat_t *nat)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_proxy_softc_t *softp = softc->ipf_proxy_soft;
@@ -839,7 +811,7 @@ ipf_proxy_new(fin, nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_new: nat_ptr %lx nat_aps %lx\n",
 				(u_long)nat->nat_ptr, (u_long)nat->nat_aps);
-		return -1;
+		return (-1);
 	}
 
 	apr = nat->nat_ptr->in_apr;
@@ -849,7 +821,7 @@ ipf_proxy_new(fin, nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_new: apr_flags 0x%x p %d/%d\n",
 				apr->apr_flags, fin->fin_p, apr->apr_p);
-		return -1;
+		return (-1);
 	}
 
 	KMALLOC(aps, ap_session_t *);
@@ -857,7 +829,7 @@ ipf_proxy_new(fin, nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_new: malloc failed (%lu)\n",
 				(u_long)sizeof(ap_session_t));
-		return -1;
+		return (-1);
 	}
 
 	bzero((char *)aps, sizeof(*aps));
@@ -873,14 +845,14 @@ ipf_proxy_new(fin, nat)
 			if (softp->ips_proxy_debug & 0x08)
 				printf("ipf_proxy_new: new(%lx) failed\n",
 					(u_long)apr->apr_new);
-			return -1;
+			return (-1);
 		}
 	aps->aps_nat = nat;
 	aps->aps_next = softp->ips_sess_list;
 	softp->ips_sess_list = aps;
 	nat->nat_aps = aps;
 
-	return 0;
+	return (0);
 }
 
 
@@ -896,9 +868,7 @@ ipf_proxy_new(fin, nat)
 /* check causes FI_BAD to be set.                                           */
 /* ------------------------------------------------------------------------ */
 int
-ipf_proxy_check(fin, nat)
-	fr_info_t *fin;
-	nat_t *nat;
+ipf_proxy_check(fr_info_t *fin, nat_t *nat)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_proxy_softc_t *softp = softc->ipf_proxy_soft;
@@ -922,7 +892,7 @@ ipf_proxy_check(fin, nat)
 		if (softp->ips_proxy_debug & 0x08)
 			printf("ipf_proxy_check: flx 0x%x (BAD)\n",
 			       fin->fin_flx);
-		return -1;
+		return (-1);
 	}
 
 #ifndef IPFILTER_CKSUM
@@ -932,7 +902,7 @@ ipf_proxy_check(fin, nat)
 				fin->fin_p);
 		if (fin->fin_p == IPPROTO_TCP)
 			softc->ipf_stats[fin->fin_out].fr_tcpbad++;
-		return -1;
+		return (-1);
 	}
 #endif
 
@@ -948,7 +918,7 @@ ipf_proxy_check(fin, nat)
 				if (softp->ips_proxy_debug & 0x08)
 					printf("ipf_proxy_check: %s %x\n",
 					       "coalesce failed", fin->fin_flx);
-				return -1;
+				return (-1);
 			}
 #endif
 		ip = fin->fin_ip;
@@ -992,12 +962,12 @@ ipf_proxy_check(fin, nat)
 			printf("ipf_proxy_check: out %d err %x rv %d\n",
 				fin->fin_out, err, rv);
 		if (rv == 1)
-			return -1;
+			return (-1);
 
 		if (rv == 2) {
 			ipf_proxy_deref(apr);
 			nat->nat_aps = NULL;
-			return -1;
+			return (-1);
 		}
 
 		/*
@@ -1049,7 +1019,7 @@ ipf_proxy_check(fin, nat)
 		aps->aps_bytes += fin->fin_plen;
 		aps->aps_pkts++;
 	}
-	return 1;
+	return (1);
 }
 
 
@@ -1063,10 +1033,7 @@ ipf_proxy_check(fin, nat)
 /* Search for a proxy by the protocol being used and by its name.           */
 /* ------------------------------------------------------------------------ */
 aproxy_t *
-ipf_proxy_lookup(arg, pr, name)
-	void *arg;
-	u_int pr;
-	char *name;
+ipf_proxy_lookup(void *arg, u_int pr, char *name)
 {
 	ipf_proxy_softc_t *softp = arg;
 	aproxy_t *ap;
@@ -1078,12 +1045,12 @@ ipf_proxy_lookup(arg, pr, name)
 		if ((ap->apr_p == pr) &&
 		    !strncmp(name, ap->apr_label, sizeof(ap->apr_label))) {
 			ap->apr_ref++;
-			return ap;
+			return (ap);
 		}
 
 	if (softp->ips_proxy_debug & 0x08)
 		printf("ipf_proxy_lookup: failed for %d/%s\n", pr, name);
-	return NULL;
+	return (NULL);
 }
 
 
@@ -1095,8 +1062,7 @@ ipf_proxy_lookup(arg, pr, name)
 /* Drop the reference counter associated with the proxy.                    */
 /* ------------------------------------------------------------------------ */
 void
-ipf_proxy_deref(ap)
-	aproxy_t *ap;
+ipf_proxy_deref(aproxy_t *ap)
 {
 	ap->apr_ref--;
 }
@@ -1113,9 +1079,7 @@ ipf_proxy_deref(ap)
 /* session.                                                                 */
 /* ------------------------------------------------------------------------ */
 void
-ipf_proxy_free(softc, aps)
-	ipf_main_softc_t *softc;
-	ap_session_t *aps;
+ipf_proxy_free(ipf_main_softc_t *softc, ap_session_t *aps)
 {
 	ipf_proxy_softc_t *softp = softc->ipf_proxy_soft;
 	ap_session_t *a, **ap;
@@ -1154,11 +1118,7 @@ ipf_proxy_free(softc, aps)
 /* and the new string being a different length to the old.                  */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_proxy_fixseqack(fin, ip, aps, inc)
-	fr_info_t *fin;
-	ip_t *ip;
-	ap_session_t *aps;
-	int inc;
+ipf_proxy_fixseqack(fr_info_t *fin, ip_t *ip, ap_session_t *aps, int inc)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_proxy_softc_t *softp = softc->ipf_proxy_soft;
@@ -1294,7 +1254,7 @@ ipf_proxy_fixseqack(fin, ip, aps, inc)
 	if (softp->ips_proxy_debug & 0x10)
 		printf("ipf_proxy_fixseqack: seq %u ack %u\n",
 			(u_32_t)ntohl(tcp->th_seq), (u_32_t)ntohl(tcp->th_ack));
-	return ch ? 2 : 0;
+	return (ch ? 2 : 0);
 }
 
 
@@ -1305,7 +1265,7 @@ ipf_proxy_fixseqack(fin, ip, aps, inc)
 /*                                                                          */
 /* This function creates a NAT rule that is based upon the reverse packet   */
 /* flow associated with this NAT session. Thus if this NAT session was      */
-/* created with a map rule then this function will create a rdr rule.       */ 
+/* created with a map rule then this function will create a rdr rule.       */
 /* Only address fields and network interfaces are assigned in this function */
 /* and the address fields are formed such that an exact is required. If the */
 /* original rule had a netmask, that is not replicated here not is it       */
@@ -1315,10 +1275,9 @@ ipf_proxy_fixseqack(fin, ip, aps, inc)
 /* to be setup, based on the addresses used for the control connection. In  */
 /* that case, this function is used to handle creating NAT rules to support */
 /* data connections with the PORT and EPRT commands.                        */
-/* ------------------------------------------------------------------------ */ 
+/* ------------------------------------------------------------------------ */
 ipnat_t *
-ipf_proxy_rule_rev(nat)
-	nat_t *nat;
+ipf_proxy_rule_rev(nat_t *nat)
 {
 	ipnat_t *old;
 	ipnat_t *ipn;
@@ -1329,7 +1288,7 @@ ipf_proxy_rule_rev(nat)
 
 	KMALLOCS(ipn, ipnat_t *, size);
 	if (ipn == NULL)
-		return NULL;
+		return (NULL);
 
 	bzero((char *)ipn, size);
 
@@ -1388,7 +1347,7 @@ ipf_proxy_rule_rev(nat)
 	bcopy(old->in_names, ipn->in_names, ipn->in_namelen);
 	MUTEX_INIT(&ipn->in_lock, "ipnat rev rule lock");
 
-	return ipn;
+	return (ipn);
 }
 
 
@@ -1399,14 +1358,13 @@ ipf_proxy_rule_rev(nat)
 /*                                                                          */
 /* The purpose and rationale of this function is much the same as the above */
 /* function, ipf_proxy_rule_rev, except that a rule is created that matches */
-/* the same direction as that of the existing NAT session. Thus if this NAT */ 
+/* the same direction as that of the existing NAT session. Thus if this NAT */
 /* session was created with a map rule then this function will also create  */
 /* a data structure to represent a map rule. Whereas ipf_proxy_rule_rev is  */
 /* used to support PORT/EPRT, this function supports PASV/EPSV.             */
-/* ------------------------------------------------------------------------ */ 
+/* ------------------------------------------------------------------------ */
 ipnat_t *
-ipf_proxy_rule_fwd(nat)
-	nat_t *nat;
+ipf_proxy_rule_fwd(nat_t *nat)
 {
 	ipnat_t *old;
 	ipnat_t *ipn;
@@ -1417,7 +1375,7 @@ ipf_proxy_rule_fwd(nat)
 
 	KMALLOCS(ipn, ipnat_t *, size);
 	if (ipn == NULL)
-		return NULL;
+		return (NULL);
 
 	bzero((char *)ipn, size);
 
@@ -1461,5 +1419,5 @@ ipf_proxy_rule_fwd(nat)
 	bcopy(old->in_names, ipn->in_names, ipn->in_namelen);
 	MUTEX_INIT(&ipn->in_lock, "ipnat fwd rule lock");
 
-	return ipn;
+	return (ipn);
 }

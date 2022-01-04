@@ -10,8 +10,8 @@
 
 #include "ipf.h"
 
-char *getsumd(sum)
-	u_32_t sum;
+char *
+getsumd(u_32_t sum)
 {
 	static char sumdbuf[17];
 
@@ -19,5 +19,5 @@ char *getsumd(sum)
 		snprintf(sumdbuf, sizeof(sumdbuf), "hw(%#0x)", sum & 0xffff);
 	else
 		snprintf(sumdbuf, sizeof(sumdbuf), "%#0x", sum);
-	return sumdbuf;
+	return (sumdbuf);
 }

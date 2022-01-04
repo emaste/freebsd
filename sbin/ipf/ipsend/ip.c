@@ -31,9 +31,8 @@ static const char rcsid[] = "@(#)$Id$";
 static	char	*ipbuf = NULL, *ethbuf = NULL;
 
 
-u_short	chksum(buf,len)
-	u_short	*buf;
-	int	len;
+u_short
+chksum(u_short *buf, int len)
 {
 	u_long	sum = 0;
 	int	nwords = len >> 1;
@@ -46,10 +45,8 @@ u_short	chksum(buf,len)
 }
 
 
-int	send_ether(nfd, buf, len, gwip)
-	int	nfd, len;
-	char	*buf;
-	struct	in_addr	gwip;
+int
+send_ether(int nfd, char *buf, int len, struct in_addr gwip)
 {
 	static	struct	in_addr	last_gw;
 	static	char	last_arp[6] = { 0, 0, 0, 0, 0, 0};
@@ -70,22 +67,19 @@ int	send_ether(nfd, buf, len, gwip)
 	else if (arp((char *)&gwip, (char *) &eh->ether_dhost) == -1)
 	    {
 		perror("arp");
-		return -2;
+		return (-2);
 	    }
 	eh->ether_type = htons(ETHERTYPE_IP);
 	last_gw.s_addr = gwip.s_addr;
 	err = sendip(nfd, s, sizeof(*eh) + len);
-	return err;
+	return (err);
 }
 
 
 /*
  */
-int	send_ip(nfd, mtu, ip, gwip, frag)
-	int	nfd, mtu;
-	ip_t	*ip;
-	struct	in_addr	gwip;
-	int	frag;
+int
+send_ip(int nfd, int mtu, ip_t *ip, struct in_addr gwip, int frag)
 {
 	static	struct	in_addr	last_gw, local_ip;
 	static	char	local_arp[6] = { 0, 0, 0, 0, 0, 0};
@@ -101,7 +95,7 @@ int	send_ip(nfd, mtu, ip, gwip, frag)
 		if (!ipbuf)
 		  {
 			perror("malloc failed");
-			return -2;
+			return (-2);
 		  }
 	  }
 
@@ -115,7 +109,7 @@ int	send_ip(nfd, mtu, ip, gwip, frag)
 	else if (arp((char *)&gwip, (char *) &eh->ether_dhost) == -1)
 	    {
 		perror("arp");
-		return -2;
+		return (-2);
 	    }
 	bcopy((char *) &eh->ether_dhost, last_arp, sizeof(last_arp));
 	eh->ether_type = htons(ETHERTYPE_IP);
@@ -165,7 +159,7 @@ int	send_ip(nfd, mtu, ip, gwip, frag)
 			fprintf(stderr, "mtu (%d) < ip header size (%d) + 8\n",
 				mtu, hlen);
 			fprintf(stderr, "can't fragment data\n");
-			return -2;
+			return (-2);
 		}
 		ol = (IP_HL(ip) << 2) - sizeof(*ip);
 		for (i = 0, s = (char*)(ip + 1); ol > 0; )
@@ -235,17 +229,15 @@ int	send_ip(nfd, mtu, ip, gwip, frag)
 	    }
 
 	bcopy((char *)&ipsv, (char *)ip, sizeof(*ip));
-	return err;
+	return (err);
 }
 
 
 /*
  * send a tcp packet.
  */
-int	send_tcp(nfd, mtu, ip, gwip)
-	int	nfd, mtu;
-	ip_t	*ip;
-	struct	in_addr	gwip;
+int
+send_tcp(int nfd, int mtu, ip_t *ip, struct in_addr gwip)
 {
 	static	tcp_seq	iss = 2;
 	tcphdr_t *t, *t2;
@@ -288,17 +280,15 @@ int	send_tcp(nfd, mtu, ip, gwip)
 	t2->th_sum = chksum((u_short *)ip2, thlen + sizeof(ip_t));
 
 	bcopy((char *)t2, (char *)ip + hlen, thlen);
-	return send_ip(nfd, mtu, ip, gwip, 1);
+	return (send_ip(nfd, mtu, ip, gwip, 1));
 }
 
 
 /*
  * send a udp packet.
  */
-int	send_udp(nfd, mtu, ip, gwip)
-	int	nfd, mtu;
-	ip_t	*ip;
-	struct	in_addr	gwip;
+int
+send_udp(int nfd, int mtu, ip_t *ip, struct in_addr gwip)
 {
 	struct	tcpiphdr *ti;
 	int	thlen;
@@ -320,17 +310,15 @@ int	send_udp(nfd, mtu, ip, gwip)
 
 	bcopy((char *)&ti->ti_sport,
 	      (char *)ip + (IP_HL(ip) << 2), sizeof(udphdr_t));
-	return send_ip(nfd, mtu, ip, gwip, 1);
+	return (send_ip(nfd, mtu, ip, gwip, 1));
 }
 
 
 /*
  * send an icmp packet.
  */
-int	send_icmp(nfd, mtu, ip, gwip)
-	int	nfd, mtu;
-	ip_t	*ip;
-	struct	in_addr	gwip;
+int
+send_icmp(int nfd, int mtu, ip_t *ip, in_addr gwip)
 {
 	struct	icmp	*ic;
 
@@ -339,24 +327,25 @@ int	send_icmp(nfd, mtu, ip, gwip)
 	ic->icmp_cksum = 0;
 	ic->icmp_cksum = chksum((u_short *)ic, sizeof(struct icmp));
 
-	return send_ip(nfd, mtu, ip, gwip, 1);
+	return (send_ip(nfd, mtu, ip, gwip, 1));
 }
 
 
-int	send_packet(nfd, mtu, ip, gwip)
+int
+send_packet(int nfd, int mtu, ip_t *ip, struct in_addr gwip)
 	int	nfd, mtu;
 	ip_t	*ip;
 	struct	in_addr	gwip;
 {
-        switch (ip->ip_p)
-        {
-        case IPPROTO_TCP :
-                return send_tcp(nfd, mtu, ip, gwip);
-        case IPPROTO_UDP :
-                return send_udp(nfd, mtu, ip, gwip);
-        case IPPROTO_ICMP :
-                return send_icmp(nfd, mtu, ip, gwip);
-        default :
-                return send_ip(nfd, mtu, ip, gwip, 1);
-        }
+	switch (ip->ip_p)
+	{
+	case IPPROTO_TCP :
+(                return send_tcp(nfd, mtu, ip, gwip));
+	case IPPROTO_UDP :
+(                return send_udp(nfd, mtu, ip, gwip));
+	case IPPROTO_ICMP :
+(                return send_icmp(nfd, mtu, ip, gwip));
+	default :
+(                return send_ip(nfd, mtu, ip, gwip, 1));
+	}
 }

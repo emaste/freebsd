@@ -10,12 +10,8 @@
 
 
 ip_pool_t *
-printpool_live(pool, fd, name, opts, fields)
-	ip_pool_t *pool;
-	int fd;
-	char *name;
-	int opts;
-	wordtab_t *fields;
+printpool_live(ip_pool_t *pool, int fd, char *name, int opts,
+	wordtab_t *fields)
 {
 	ip_pool_node_t entry;
 	ipflookupiter_t iter;
@@ -23,7 +19,7 @@ printpool_live(pool, fd, name, opts, fields)
 	ipfobj_t obj;
 
 	if ((name != NULL) && strncmp(name, pool->ipo_name, FR_GROUPLEN))
-		return pool->ipo_next;
+		return (pool->ipo_next);
 
 	if (fields == NULL)
 		printpooldata(pool, opts);
@@ -67,5 +63,5 @@ printpool_live(pool, fd, name, opts, fields)
 
 	(void) ioctl(fd,SIOCIPFDELTOK, &iter.ili_key);
 
-	return pool->ipo_next;
+	return (pool->ipo_next);
 }

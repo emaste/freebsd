@@ -376,7 +376,7 @@ addrmask:
 					       sizeof($$[1].adf_addr.in6));
 				  else
 #endif
-					memset(&$$[1].adf_addr, 0xff, 
+					memset(&$$[1].adf_addr, 0xff,
 					       sizeof($$[1].adf_addr.in4));
 				}
 	;
@@ -426,7 +426,7 @@ seed:	IPT_SEED '=' YY_NUMBER		{ ipht.iph_seed = $3; }
 ipv4:	YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER
 		{ if ($1 > 255 || $3 > 255 || $5 > 255 || $7 > 255) {
 			yyerror("Invalid octet string for IP address");
-			return 0;
+			return(0);
 		  }
 		  $$.s_addr = ($1 << 24) | ($3 << 16) | ($5 << 8) | $7;
 		  $$.s_addr = htonl($$.s_addr);
@@ -609,10 +609,8 @@ static	wordtab_t	yywords[] = {
 };
 
 
-int ippool_parsefile(fd, filename, iocfunc)
-int fd;
-char *filename;
-ioctlfunc_t iocfunc;
+int
+ippool_parsefile(int fd, char *filename, ioctlfunc_t iocfunc)
 {
 	FILE *fp = NULL;
 	char *s;
@@ -631,7 +629,7 @@ ioctlfunc_t iocfunc;
 		if (!fp) {
 			fprintf(stderr, "fopen(%s) failed: %s\n", filename,
 				STRERROR(errno));
-			return -1;
+			return(-1);
 		}
 	} else
 		fp = stdin;
@@ -640,14 +638,12 @@ ioctlfunc_t iocfunc;
 		;
 	if (fp != NULL)
 		fclose(fp);
-	return 0;
+	return(0);
 }
 
 
-int ippool_parsesome(fd, fp, iocfunc)
-int fd;
-FILE *fp;
-ioctlfunc_t iocfunc;
+int
+ippool_parsesome(int fd, FILE *fp, ioctlfunc_t iocfunc)
 {
 	char *s;
 	int i;
@@ -655,14 +651,14 @@ ioctlfunc_t iocfunc;
 	poolioctl = iocfunc;
 
 	if (feof(fp))
-		return 0;
+		return(0);
 	i = fgetc(fp);
 	if (i == EOF)
-		return 0;
+		return(0);
 	if (ungetc(i, fp) == EOF)
-		return 0;
+		return(0);
 	if (feof(fp))
-		return 0;
+		return(0);
 	s = getenv("YYDEBUG");
 	if (s)
 		yydebug = atoi(s);
@@ -671,13 +667,12 @@ ioctlfunc_t iocfunc;
 
 	yyin = fp;
 	yyparse();
-	return 1;
+	return(1);
 }
 
 
 static iphtent_t *
-add_htablehosts(url)
-char *url;
+add_htablehosts(char *url)
 {
 	iphtent_t *htop, *hbot, *h;
 	alist_t *a, *hlist;
@@ -689,7 +684,7 @@ char *url;
 
 		hlist = calloc(1, sizeof(*hlist));
 		if (hlist == NULL)
-			return NULL;
+			return(NULL);
 
 		if (gethost(hlist->al_family, url, &hlist->al_i6addr) == -1) {
 			yyerror("Unknown hostname");
@@ -717,13 +712,12 @@ char *url;
 
 	alist_free(hlist);
 
-	return htop;
+	return(htop);
 }
 
 
 static ip_pool_node_t *
-add_poolhosts(url)
-char *url;
+add_poolhosts(char *url)
 {
 	ip_pool_node_t *ptop, *pbot, *p;
 	alist_t *a, *hlist;
@@ -735,7 +729,7 @@ char *url;
 
 		hlist = calloc(1, sizeof(*hlist));
 		if (hlist == NULL)
-			return NULL;
+			return(NULL);
 
 		if (gethost(hlist->al_family, url, &hlist->al_i6addr) == -1) {
 			yyerror("Unknown hostname");
@@ -772,13 +766,12 @@ char *url;
 
 	alist_free(hlist);
 
-	return ptop;
+	return(ptop);
 }
 
 
 ip_pool_node_t *
-read_whoisfile(file)
-	char *file;
+read_whoisfile(char *file)
 {
 	ip_pool_node_t *ntop, *ipn, node, *last;
 	char line[1024];
@@ -786,7 +779,7 @@ read_whoisfile(file)
 
 	fp = fopen(file, "r");
 	if (fp == NULL)
-		return NULL;
+		return(NULL);
 
 	last = NULL;
 	ntop = NULL;
@@ -807,13 +800,12 @@ read_whoisfile(file)
 		last = ipn;
 	}
 	fclose(fp);
-	return ntop;
+	return(ntop);
 }
 
 
 static void
-setadflen(afp)
-	addrfamily_t *afp;
+setadflen(addrfamily_t *afp)
 {
 	afp->adf_len = offsetof(addrfamily_t, adf_addr);
 	switch (afp->adf_family)

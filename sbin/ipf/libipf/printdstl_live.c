@@ -14,12 +14,8 @@
  * the size may be larger than just sizeof().
  */
 ippool_dst_t *
-printdstl_live(d, fd, name, opts, fields)
-	ippool_dst_t *d;
-	int fd;
-	char *name;
-	int opts;
-	wordtab_t *fields;
+printdstl_live( ippool_dst_t *d, int fd, char *name, int opts,
+	wordtab_t *fields)
 {
 	ipf_dstnode_t *entry, *zero;
 	ipflookupiter_t iter;
@@ -27,15 +23,15 @@ printdstl_live(d, fd, name, opts, fields)
 	ipfobj_t obj;
 
 	if ((name != NULL) && strncmp(name, d->ipld_name, FR_GROUPLEN))
-		return d->ipld_next;
+		return (d->ipld_next);
 
 	entry = calloc(1, sizeof(*entry) + 64);
 	if (entry == NULL)
-		return d->ipld_next;
+		return (d->ipld_next);
 	zero = calloc(1, sizeof(*zero) + 64);
 	if (zero == NULL) {
 		free(entry);
-		return d->ipld_next;
+		return (d->ipld_next);
 	}
 
 	if (fields == NULL)
@@ -80,5 +76,5 @@ printdstl_live(d, fd, name, opts, fields)
 
 	if ((opts & OPT_DEBUG) == 0)
 		PRINTF(" };\n");
-	return d->ipld_next;
+	return (d->ipld_next);
 }

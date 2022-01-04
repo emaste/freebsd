@@ -8,11 +8,8 @@
 
 
 ipf_dstnode_t *
-printdstlistnode(inp, copyfunc, opts, fields)
-	ipf_dstnode_t *inp;
-	copyfunc_t copyfunc;
-	int opts;
-	wordtab_t *fields;
+printdstlistnode(ipf_dstnode_t *inp, copyfunc_t copyfunc, int opts,
+	wordtab_t *fields)
 {
 	ipf_dstnode_t node, *np;
 	int i;
@@ -22,13 +19,13 @@ printdstlistnode(inp, copyfunc, opts, fields)
 #endif
 
 	if ((*copyfunc)(inp, &node, sizeof(node)))
-		return NULL;
+		return (NULL);
 
 	np = calloc(1, node.ipfd_size);
 	if (np == NULL)
-		return node.ipfd_next;
+		return (node.ipfd_next);
 	if ((*copyfunc)(inp, np, node.ipfd_size))
-		return NULL;
+		return (NULL);
 
 	if (fields != NULL) {
 		for (i = 0; fields[i].w_value != 0; i++) {
@@ -74,5 +71,5 @@ printdstlistnode(inp, copyfunc, opts, fields)
 		       np->ipfd_names, np->ipfd_uid);
 	}
 	free(np);
-	return node.ipfd_next;
+	return (node.ipfd_next);
 }

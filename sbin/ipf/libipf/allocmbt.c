@@ -8,15 +8,16 @@
 
 #include "ipf.h"
 
-mb_t *allocmbt(size_t len)
+mb_t *
+allocmbt(size_t len)
 {
 	mb_t *m;
 
 	m = (mb_t *)malloc(sizeof(mb_t));
 	if (m == NULL)
-		return NULL;
+		return (NULL);
 	m->mb_len = len;
 	m->mb_next = NULL;
 	m->mb_data = (char *)m->mb_buf;
-	return m;
+	return (m);
 }

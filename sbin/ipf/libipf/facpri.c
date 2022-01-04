@@ -74,8 +74,7 @@ table_t	facs[] = {
  * map a facility number to its name
  */
 char *
-fac_toname(facpri)
-	int facpri;
+fac_toname(int facpri)
 {
 	int	i, j, fac;
 
@@ -83,13 +82,13 @@ fac_toname(facpri)
 	j = fac >> 3;
 	if (j < (sizeof(facs)/sizeof(facs[0]))) {
 		if (facs[j].value == fac)
-			return facs[j].name;
+			return (facs[j].name);
 	}
 	for (i = 0; facs[i].name; i++)
 		if (fac == facs[i].value)
-			return facs[i].name;
+			return (facs[i].name);
 
-	return NULL;
+	return (NULL);
 }
 
 
@@ -97,15 +96,14 @@ fac_toname(facpri)
  * map a facility name to its number
  */
 int
-fac_findname(name)
-	char *name;
+fac_findname(char *name)
 {
 	int     i;
 
 	for (i = 0; facs[i].name; i++)
 		if (!strcmp(facs[i].name, name))
-			return facs[i].value;
-	return -1;
+			return (facs[i].value);
+	return (-1);
 }
 
 
@@ -122,15 +120,14 @@ table_t	pris[] = {
  * map a facility name to its number
  */
 int
-pri_findname(name)
-	char *name;
+pri_findname(char *name)
 {
 	int     i;
 
 	for (i = 0; pris[i].name; i++)
 		if (!strcmp(pris[i].name, name))
-			return pris[i].value;
-	return -1;
+			return (pris[i].value);
+	return (-1);
 }
 
 
@@ -138,16 +135,15 @@ pri_findname(name)
  * map a priority number to its name
  */
 char *
-pri_toname(facpri)
-	int facpri;
+pri_toname(int facpri)
 {
 	int	i, pri;
 
 	pri = facpri & LOG_PRIMASK;
 	if (pris[pri].value == pri)
-		return pris[pri].name;
+		return (pris[pri].name);
 	for (i = 0; pris[i].name; i++)
 		if (pri == pris[i].value)
-			return pris[i].name;
-	return NULL;
+			return (pris[i].name);
+	return (NULL);
 }
