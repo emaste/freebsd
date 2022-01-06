@@ -444,7 +444,7 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc)
 	memset(&pbm, 0, sizeof(pbm));
 	pbm.pbm_sel = sc->psc_sel;
 	pbm.pbm_flags = PCIIO_BAR_MMAP_RW;
-	pbm.pbm_reg = PCIR_BAR(pi->pi_msix.pba_bar);
+	pbm.pbm_reg = PCIR_BAR(pi->pi_msix.table_bar);
 	pbm.pbm_memattr = VM_MEMATTR_DEVICE;
 
 	if (ioctl(pcifd, PCIOCBARMMAP, &pbm) != 0) {
@@ -462,7 +462,7 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc)
 	table_size = roundup2(table_size, 4096);
 
 	/*
-	 * Unmap any pages not covered by the table, we do not need to emulate
+	 * Unmap any pages not containing the table, we do not need to emulate
 	 * accesses to them.  Avoid releasing address space to help ensure that
 	 * a buggy out-of-bounds access causes a crash.
 	 */
@@ -471,7 +471,8 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc)
 		    PROT_NONE) != 0)
 			warn("Failed to unmap MSI-X table BAR region");
 	if (table_offset + table_size != pi->pi_msix.mapped_size)
-		if (mprotect(pi->pi_msix.mapped_addr,
+		if (mprotect(
+		    pi->pi_msix.mapped_addr + table_offset + table_size,
 		    pi->pi_msix.mapped_size - (table_offset + table_size),
 		    PROT_NONE) != 0)
 			warn("Failed to unmap MSI-X table BAR region");
