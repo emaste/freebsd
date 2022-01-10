@@ -844,9 +844,6 @@ XCFLAGS+=	${BFLAGS}
 .if ${MK_LIB32} == "yes"
 _LIBCOMPAT= 32
 .include "Makefile.libcompat"
-.elif ${MK_LIBSOFT} == "yes"
-_LIBCOMPAT= SOFT
-.include "Makefile.libcompat"
 .endif
 
 # META_MODE normally ignores host file changes since every build updates
@@ -2343,7 +2340,8 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 _clang_tblgen= \
 	lib/clang/libllvmminimal \
 	usr.bin/clang/llvm-tblgen
-.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no"
+.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
+    ${MK_LLDB} != "no"
 _clang_tblgen+=	usr.bin/clang/clang-tblgen
 .endif
 .if ${MK_LLDB} != "no"

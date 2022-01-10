@@ -204,7 +204,6 @@ __DEFAULT_NO_OPTIONS = \
     EXPERIMENTAL \
     GNU_DIFF \
     HESIOD \
-    LIBSOFT \
     LOADER_FIREWIRE \
     LOADER_VERBOSE \
     LOADER_VERIEXEC_PASS_MANIFEST \
@@ -294,10 +293,6 @@ __DEFAULT_NO_OPTIONS+=LLDB
 __DEFAULT_YES_OPTIONS+=LIB32
 .else
 BROKEN_OPTIONS+=LIB32
-.endif
-# Only doing soft float API stuff on armv6 and armv7
-.if ${__T} != "armv6" && ${__T} != "armv7"
-BROKEN_OPTIONS+=LIBSOFT
 .endif
 # EFI doesn't exist on powerpc (well, officially)
 .if ${__T:Mpowerpc*}
