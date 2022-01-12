@@ -1018,6 +1018,10 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 			    sizeof(int));
 		break;
 	}
+	case LINUX_TIOCGPTPEER:
+		linux_msg(td, "unsupported ioctl TIOCGPTPEER");
+		error = ENOIOCTL;
+		break;
 	case LINUX_TIOCSPTLCK:
 		/* Our unlockpt() does nothing. */
 		error = 0;

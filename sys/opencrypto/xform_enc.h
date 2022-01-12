@@ -56,14 +56,26 @@ struct enc_xform {
 	uint16_t minkey, maxkey;
 	uint16_t macsize;		/* For AEAD ciphers. */
 
+	/* Initialize context and set key. */
+	int (*setkey) (void *, const uint8_t *, int len);
+
+	/* Supply context with nonce/IV. */
+	void (*reinit) (void *, const uint8_t *, size_t);
+
 	/*
 	 * Encrypt/decrypt a single block.  For stream ciphers this
 	 * encrypts/decrypts a single "native" block.
 	 */
 	void (*encrypt) (void *, const uint8_t *, uint8_t *);
 	void (*decrypt) (void *, const uint8_t *, uint8_t *);
-	int (*setkey) (void *, const uint8_t *, int len);
-	void (*reinit) (void *, const uint8_t *, size_t);
+
+	/*
+	 * Encrypt/decrypt multiple blocks.  For stream ciphers this
+	 * encrypts/decrypts multiple "native" blocks.  The fourth
+	 * argument is a count of bytes.
+	 */
+	void (*encrypt_multi) (void *, const uint8_t *, uint8_t *, size_t);
+	void (*decrypt_multi) (void *, const uint8_t *, uint8_t *, size_t);
 
 	/*
 	 * For stream ciphers, encrypt/decrypt the final partial block
@@ -89,6 +101,7 @@ extern const struct enc_xform enc_xform_aes_xts;
 extern const struct enc_xform enc_xform_camellia;
 extern const struct enc_xform enc_xform_chacha20;
 extern const struct enc_xform enc_xform_chacha20_poly1305;
+extern const struct enc_xform enc_xform_xchacha20_poly1305;
 extern const struct enc_xform enc_xform_ccm;
 
 struct aes_icm_ctx {
