@@ -89,6 +89,7 @@ struct sysentvec aout_sysvec = {
 	.sv_maxuser	= AOUT32_USRSTACK,
 	.sv_usrstack	= AOUT32_USRSTACK,
 	.sv_psstrings	= AOUT32_PS_STRINGS,
+	.sv_psstringssz	= sizeof(struct ps_strings),
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_strings	= exec_copyout_strings,
 	.sv_setregs	= exec_setregs,
@@ -139,6 +140,7 @@ struct sysentvec aout_sysvec = {
 	.sv_maxuser	= AOUT32_USRSTACK,
 	.sv_usrstack	= AOUT32_USRSTACK,
 	.sv_psstrings	= AOUT32_PS_STRINGS,
+	.sv_psstringssz	= sizeof(struct freebsd32_ps_strings),
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_strings	= freebsd32_copyout_strings,
 	.sv_setregs	= ia32_setregs,
@@ -353,6 +355,7 @@ exec_aout_imgact(struct image_params *imgp)
 	imgp->entry_addr = a_out->a_entry;
 
 	imgp->proc->p_sysent = &aout_sysvec;
+	imgp->proc->p_psstrings = aout_sysvec.sv_psstrings;
 
 	return (0);
 }

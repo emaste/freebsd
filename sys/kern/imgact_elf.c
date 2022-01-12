@@ -201,8 +201,24 @@ SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, honor_sbrk, CTLFLAG_RW,
     &__elfN(aslr_honor_sbrk), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": assume sbrk is used");
 
-static int __elfN(aslr_stack_gap) = 0;
-SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, stack_gap, CTLFLAG_RW,
+/*
+ * Stack randomization is incompatible with binaries that assume PS_STRINGS is
+ * at a fixed location.
+ */
+#if __ELF_WORD_SIZE == 32
+#define	STACK_GAP_DEFAULT	0
+#ifdef COMPAT_43
+#define	STACK_GAP_FLAG		CTLFLAG_RD
+#else
+#define	STACK_GAP_FLAG		CTLFLAG_RW
+#endif
+#else
+#define	STACK_GAP_DEFAULT	3
+#define	STACK_GAP_FLAG		CTLFLAG_RW
+#endif
+
+static int __elfN(aslr_stack_gap) = STACK_GAP_DEFAULT;
+SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, stack_gap, STACK_GAP_FLAG,
     &__elfN(aslr_stack_gap), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
     ": maximum percentage of main stack to waste on a random gap");
@@ -1309,14 +1325,16 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		imgp->map_flags |= MAP_WXORX;
 
 	error = exec_new_vmspace(imgp, sv);
-	vmspace = imgp->proc->p_vmspace;
-	map = &vmspace->vm_map;
 
 	imgp->proc->p_sysent = sv;
+	imgp->proc->p_psstrings = rounddown2(imgp->stack_top, sizeof(void *)) -
+	    sv->sv_psstringssz;
 	imgp->proc->p_elf_brandinfo = brand_info;
 
+	vmspace = imgp->proc->p_vmspace;
+	map = &vmspace->vm_map;
 	maxv = vm_map_max(map) - lim_max(td, RLIMIT_STACK);
-	if (mapsz >= maxv - vm_map_min(map)) {
+	if (error == 0 && mapsz >= maxv - vm_map_min(map)) {
 		uprintf("Excessive mapping size\n");
 		error = ENOEXEC;
 	}
@@ -2516,9 +2534,9 @@ __elfN(note_procstat_psstrings)(void *arg, struct sbuf *sb, size_t *sizep)
 		KASSERT(*sizep == size, ("invalid size"));
 		structsize = sizeof(ps_strings);
 #if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
-		ps_strings = PTROUT(p->p_sysent->sv_psstrings);
+		ps_strings = PTROUT(p->p_psstrings);
 #else
-		ps_strings = p->p_sysent->sv_psstrings;
+		ps_strings = p->p_psstrings;
 #endif
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		sbuf_bcat(sb, &ps_strings, sizeof(ps_strings));
@@ -2758,7 +2776,7 @@ __elfN(untrans_prot)(vm_prot_t prot)
 	return (flags);
 }
 
-vm_size_t
+void
 __elfN(stackgap)(struct image_params *imgp, uintptr_t *stack_base)
 {
 	uintptr_t range, rbase, gap;
@@ -2766,7 +2784,7 @@ __elfN(stackgap)(struct image_params *imgp, uintptr_t *stack_base)
 
 	pct = __elfN(aslr_stack_gap);
 	if (pct == 0)
-		return (0);
+		return;
 	if (pct > 50)
 		pct = 50;
 	range = imgp->eff_stack_sz * pct / 100;
@@ -2774,5 +2792,4 @@ __elfN(stackgap)(struct image_params *imgp, uintptr_t *stack_base)
 	gap = rbase % range;
 	gap &= ~(sizeof(u_long) - 1);
 	*stack_base -= gap;
-	return (gap);
 }
