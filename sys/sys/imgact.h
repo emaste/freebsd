@@ -82,6 +82,7 @@ struct image_params {
 	void *pagesizes;
 	int pagesizeslen;
 	vm_prot_t stack_prot;
+	uintptr_t stack_top;
 	u_long stack_sz;
 	u_long eff_stack_sz;
 	struct ucred *newcred;		/* new credentials if changing */
