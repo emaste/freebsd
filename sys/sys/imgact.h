@@ -82,9 +82,7 @@ struct image_params {
 	void *pagesizes;
 	int pagesizeslen;
 	vm_prot_t stack_prot;
-	uintptr_t stack_top;
 	u_long stack_sz;
-	u_long eff_stack_sz;
 	struct ucred *newcred;		/* new credentials if changing */
 #define IMGACT_SHELL	0x1
 #define IMGACT_BINMISC	0x2
@@ -115,12 +113,12 @@ int	exec_check_permissions(struct image_params *);
 void	exec_cleanup(struct thread *td, struct vmspace *);
 int	exec_copyout_strings(struct image_params *, uintptr_t *);
 void	exec_free_args(struct image_args *);
+int	exec_map_stack(struct image_params *);
 int	exec_new_vmspace(struct image_params *, struct sysentvec *);
 void	exec_setregs(struct thread *, struct image_params *, uintptr_t);
 int	exec_shell_imgact(struct image_params *);
 int	exec_copyin_args(struct image_args *, const char *, enum uio_seg,
 	char **, char **);
-void	exec_stackgap(struct image_params *imgp, uintptr_t *dp);
 int	pre_execve(struct thread *td, struct vmspace **oldvmspace);
 void	post_execve(struct thread *td, int error, struct vmspace *oldvmspace);
 #endif

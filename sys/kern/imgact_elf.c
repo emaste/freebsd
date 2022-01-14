@@ -213,7 +213,7 @@ SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, honor_sbrk, CTLFLAG_RW,
 #define	STACK_GAP_FLAG		CTLFLAG_RW
 #endif
 #else
-#define	STACK_GAP_DEFAULT	3
+#define	STACK_GAP_DEFAULT	1
 #define	STACK_GAP_FLAG		CTLFLAG_RW
 #endif
 
@@ -1327,13 +1327,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	error = exec_new_vmspace(imgp, sv);
 
 	imgp->proc->p_sysent = sv;
-	imgp->proc->p_psstrings = rounddown2(imgp->stack_top, sizeof(void *)) -
-	    sv->sv_psstringssz;
 	imgp->proc->p_elf_brandinfo = brand_info;
 
 	vmspace = imgp->proc->p_vmspace;
 	map = &vmspace->vm_map;
-	maxv = vm_map_max(map) - lim_max(td, RLIMIT_STACK);
+	maxv = sv->sv_usrstack;
 	if (error == 0 && mapsz >= maxv - vm_map_min(map)) {
 		uprintf("Excessive mapping size\n");
 		error = ENOEXEC;
@@ -1360,7 +1358,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if (error != 0)
 		goto ret;
 
-	entry = (u_long)hdr->e_entry + et_dyn_addr;
+	error = exec_map_stack(imgp);
+	if (error != 0)
+		goto ret;
 
 	/*
 	 * We load the dynamic linker where a userland call
@@ -1382,6 +1382,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		map->anon_loc = addr;
 	}
 
+	entry = (u_long)hdr->e_entry + et_dyn_addr;
 	imgp->entry_addr = entry;
 
 	if (interp != NULL) {
@@ -2534,9 +2535,9 @@ __elfN(note_procstat_psstrings)(void *arg, struct sbuf *sb, size_t *sizep)
 		KASSERT(*sizep == size, ("invalid size"));
 		structsize = sizeof(ps_strings);
 #if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
-		ps_strings = PTROUT(p->p_psstrings);
+		ps_strings = PTROUT(PROC_PS_STRINGS(p));
 #else
-		ps_strings = p->p_psstrings;
+		ps_strings = PROC_PS_STRINGS(p);
 #endif
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		sbuf_bcat(sb, &ps_strings, sizeof(ps_strings));
@@ -2774,22 +2775,4 @@ __elfN(untrans_prot)(vm_prot_t prot)
 	if (prot & VM_PROT_WRITE)
 		flags |= PF_W;
 	return (flags);
-}
-
-void
-__elfN(stackgap)(struct image_params *imgp, uintptr_t *stack_base)
-{
-	uintptr_t range, rbase, gap;
-	int pct;
-
-	pct = __elfN(aslr_stack_gap);
-	if (pct == 0)
-		return;
-	if (pct > 50)
-		pct = 50;
-	range = imgp->eff_stack_sz * pct / 100;
-	arc4rand(&rbase, sizeof(rbase), 0);
-	gap = rbase % range;
-	gap &= ~(sizeof(u_long) - 1);
-	*stack_base -= gap;
 }

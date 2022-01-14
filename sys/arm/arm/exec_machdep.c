@@ -340,7 +340,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	if (sysent->sv_sigcode_base != 0)
 		tf->tf_usr_lr = (register_t)sysent->sv_sigcode_base;
 	else
-		tf->tf_usr_lr = (register_t)(p->p_psstrings -
+		tf->tf_usr_lr = (register_t)(PROC_PS_STRINGS(p) -
 		    *(sysent->sv_szsigcode));
 	/* Set the mode to enter in the signal handler */
 #if __ARM_ARCH >= 7
