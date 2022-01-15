@@ -3654,7 +3654,6 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	case PROC_ASLR_CTL:
 	case PROC_PROTMAX_CTL:
 	case PROC_SPROTECT:
-	case PROC_STACKGAP_CTL:
 	case PROC_TRACE_CTL:
 	case PROC_TRAPCAP_CTL:
 	case PROC_NO_NEW_PRIVS_CTL:
@@ -3689,7 +3688,6 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 		break;
 	case PROC_ASLR_STATUS:
 	case PROC_PROTMAX_STATUS:
-	case PROC_STACKGAP_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
 	case PROC_NO_NEW_PRIVS_STATUS:
@@ -3722,7 +3720,6 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 		break;
 	case PROC_ASLR_STATUS:
 	case PROC_PROTMAX_STATUS:
-	case PROC_STACKGAP_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
 	case PROC_NO_NEW_PRIVS_STATUS:

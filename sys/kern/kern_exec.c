@@ -184,12 +184,12 @@ sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS)
 #ifdef SCTL_MASK32
 	if (req->flags & SCTL_MASK32) {
 		unsigned int val32;
-		val32 = round_page((unsigned int)PROC_PS_STRINGS(p) +
-		    p->p_sysent->sv_psstringssz);
+
+		val32 = round_page((unsigned int)p->p_vmspace->vm_stacktop);
 		return (SYSCTL_OUT(req, &val32, sizeof(val32)));
 	}
 #endif
-	val = round_page(PROC_PS_STRINGS(p) + p->p_sysent->sv_psstringssz);
+	val = round_page(p->p_vmspace->vm_stacktop);
 	return (SYSCTL_OUT(req, &val, sizeof(val)));
 }
 
@@ -1153,7 +1153,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		 */
 		vm_map_lock(map);
 		vm_map_modflags(map, 0, MAP_WIREFUTURE | MAP_ASLR |
-		    MAP_ASLR_IGNSTART | MAP_WXORX);
+		    MAP_ASLR_IGNSTART | MAP_ASLR_STACK | MAP_WXORX);
 		vm_map_unlock(map);
 	} else {
 		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser);
@@ -1193,9 +1193,9 @@ exec_map_stack(struct image_params *imgp)
 	struct proc *p;
 	vm_map_t map;
 	struct vmspace *vmspace;
-	vm_offset_t off, stack_addr, stack_top;
+	vm_offset_t stack_addr, stack_top;
 	u_long ssiz;
-	int error, find_space;
+	int error, find_space, stack_off;
 	vm_prot_t stack_prot;
 
 	p = imgp->proc;
@@ -1223,9 +1223,7 @@ exec_map_stack(struct image_params *imgp)
 
 	stack_prot = sv->sv_shared_page_obj != NULL && imgp->stack_prot != 0 ?
 	    imgp->stack_prot : sv->sv_stackprot;
-	if ((p->p_fctl0 & (NT_FREEBSD_FCTL_ASLR_DISABLE |
-	    NT_FREEBSD_FCTL_ASG_DISABLE)) == 0 &&
-	    (map->flags & MAP_ASLR) != 0) {
+	if ((map->flags & MAP_ASLR_STACK) != 0) {
 		stack_addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
 		    lim_max(curthread, RLIMIT_DATA));
 		find_space = VMFS_ANY_SPACE;
@@ -1244,19 +1242,18 @@ exec_map_stack(struct image_params *imgp)
 	}
 
 	stack_top = stack_addr + ssiz;
-	if (find_space == VMFS_ANY_SPACE) {
+	if ((map->flags & MAP_ASLR_STACK) != 0) {
 		/* Randomize within the first page of the stack. */
-		arc4rand(&off, sizeof(off), 0);
-		stack_top -= rounddown2(off % PAGE_SIZE, sizeof(void *));
-
+		arc4rand(&stack_off, sizeof(stack_off), 0);
+		stack_top -= rounddown2(stack_off & PAGE_MASK, sizeof(void *));
 	}
-	p->p_stacktop = stack_top;
 
 	/*
 	 * vm_ssize and vm_maxsaddr are somewhat antiquated concepts, but they
 	 * are still used to enforce the stack rlimit on the process stack.
 	 */
 	vmspace->vm_maxsaddr = (char *)stack_addr;
+	vmspace->vm_stacktop = stack_top;
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
 
 	return (0);
