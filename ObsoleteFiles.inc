@@ -5421,6 +5421,11 @@ OLD_FILES+=usr/share/man/man9/crypto_find_driver.9.gz
 OLD_FILES+=usr/share/man/man9/crypto_register.9.gz
 OLD_FILES+=usr/share/man/man9/crypto_unregister.9.gz
 
+# 20200326: compat libs for libl are no longer built
+OLD_FILES+=usr/lib32/libfl.a
+OLD_FILES+=usr/lib32/libl.a
+OLD_FILES+=usr/lib32/libln.a
+
 # 20200323: INTERNALLIB don't install headers anymore
 OLD_FILES+=usr/include/libelftc.h
 OLD_FILES+=usr/include/libifconfig.h
@@ -6379,6 +6384,7 @@ OLD_FILES+=usr/include/ssp/stdio.h
 OLD_FILES+=usr/include/ssp/string.h
 OLD_FILES+=usr/include/ssp/unistd.h
 OLD_DIRS+=usr/include/ssp
+OLD_FILES+=usr/lib/libssp.a
 
 # 20191229: GEOM_SCHED class and gsched tool removed
 OLD_LIBS+=lib/geom/geom_sched.so
@@ -11366,7 +11372,6 @@ OLD_FILES+=usr/lib/libgpib.a
 OLD_FILES+=usr/lib/libgpib_p.a
 OLD_FILES+=usr/lib/libgpib.so
 OLD_LIBS+=usr/lib/libgpib.so.3
-OLD_FILES+=usr/lib/libgpib_p.a
 OLD_FILES+=usr/lib32/libgpib.a
 OLD_FILES+=usr/lib32/libgpib_p.a
 OLD_FILES+=usr/lib32/libgpib.so

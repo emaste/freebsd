@@ -1359,8 +1359,12 @@ mana_gd_read_cqe(struct gdma_queue *cq, struct gdma_comp *comp)
 
 	new_bits = (cq->head / num_cqe) & GDMA_CQE_OWNER_MASK;
 	/* Return -1 if overflow detected. */
-	if (owner_bits != new_bits)
+	if (owner_bits != new_bits) {
+		mana_warn(NULL,
+		    "overflow detected! owner_bits %u != new_bits %u\n",
+		    owner_bits, new_bits);
 		return -1;
+	}
 
 	comp->wq_num = cqe->cqe_info.wq_num;
 	comp->is_sq = cqe->cqe_info.is_sq;
@@ -1808,9 +1812,6 @@ mana_gd_attach(device_t dev)
 
 err_clean_up_gdma:
 	mana_hwc_destroy_channel(gc);
-	if (gc->cq_table)
-		free(gc->cq_table, M_DEVBUF);
-	gc->cq_table = NULL;
 err_remove_irq:
 	mana_gd_remove_irqs(dev);
 err_free_pci_res:
@@ -1836,8 +1837,6 @@ mana_gd_detach(device_t dev)
 	mana_remove(&gc->mana);
 
 	mana_hwc_destroy_channel(gc);
-	free(gc->cq_table, M_DEVBUF);
-	gc->cq_table = NULL;
 
 	mana_gd_remove_irqs(dev);
 

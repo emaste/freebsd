@@ -1012,7 +1012,7 @@ ipf_newisn(fin)
 }
 
 
-inline int
+int
 ipf_checkv4sum(fr_info_t *fin)
 {
 #ifdef CSUM_DATA_VALID
@@ -1081,10 +1081,8 @@ ipf_checkv4sum(fr_info_t *fin)
 			fin->fin_cksum = FI_CK_L4FULL;
 			return (0);
 		} else if (m->m_pkthdr.csum_flags == CSUM_TCP ||
-			   m->m_pkthdr.csum_flags == CSUM_UDP) {
-			fin->fin_cksum = FI_CK_L4PART;
-			return (0);
-		} else if (m->m_pkthdr.csum_flags == CSUM_IP) {
+			   m->m_pkthdr.csum_flags == CSUM_UDP ||
+			   m->m_pkthdr.csum_flags == CSUM_IP) {
 			fin->fin_cksum = FI_CK_L4PART;
 			return (0);
 		} else {
@@ -1111,7 +1109,7 @@ skipauto:
 
 
 #ifdef USE_INET6
-inline int
+int
 ipf_checkv6sum(fr_info_t *fin)
 {
 	if ((fin->fin_flx & FI_NOCKSUM) != 0) {

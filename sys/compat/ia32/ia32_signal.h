@@ -88,8 +88,7 @@ struct ia32_ucontext {
 	uint32_t		__spare__[4];
 };
 
-#if defined(COMPAT_FREEBSD4)
-struct ia32_mcontext4 {
+struct ia32_freebsd4_mcontext {
 	uint32_t	mc_onstack;		/* XXX - sigcontext compat. */
 	uint32_t	mc_gs;			/* machine state (struct trapframe) */
 	uint32_t	mc_fs;
@@ -114,17 +113,15 @@ struct ia32_mcontext4 {
 	uint32_t	__spare__[17];
 };
 
-struct ia32_ucontext4 {
+struct ia32_freebsd4_ucontext {
 	sigset_t		uc_sigmask;
-	struct ia32_mcontext4	uc_mcontext;
+	struct ia32_freebsd4_mcontext	uc_mcontext;
 	uint32_t		uc_link;
 	struct sigaltstack32	uc_stack;
 	uint32_t		__spare__[8];
 };
-#endif
 
-#ifdef COMPAT_43
-struct ia32_sigcontext3 {
+struct ia32_osigcontext {
 	uint32_t	sc_onstack;
 	uint32_t	sc_mask;
 	uint32_t	sc_esp;	
@@ -147,23 +144,20 @@ struct ia32_sigcontext3 {
 	uint32_t	sc_trapno;
 	uint32_t	sc_err;
 };
-#endif
 
 /*
  * Signal frames, arguments passed to application signal handlers.
  */
 
-#ifdef COMPAT_FREEBSD4
-struct ia32_sigframe4 {
+struct ia32_freebsd4_sigframe {
 	uint32_t		sf_signum;
 	uint32_t		sf_siginfo;	/* code or pointer to sf_si */
 	uint32_t		sf_ucontext;	/* points to sf_uc */
 	uint32_t		sf_addr;	/* undocumented 4th arg */
 	uint32_t		sf_ah;		/* action/handler pointer */
-	struct ia32_ucontext4	sf_uc;		/* = *sf_ucontext */
+	struct ia32_freebsd4_ucontext	sf_uc;		/* = *sf_ucontext */
 	struct siginfo32	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
-#endif
 
 struct ia32_sigframe {
 	uint32_t		sf_signum;
@@ -176,22 +170,20 @@ struct ia32_sigframe {
 	struct siginfo32	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
 
-#ifdef COMPAT_43
-struct ia32_siginfo3 {
-	struct ia32_sigcontext3 si_sc;
+struct ia32_osiginfo {
+	struct ia32_osigcontext si_sc;
 	int			si_signo;
 	int			si_code;
 	union sigval32		si_value;
 };
-struct ia32_sigframe3 {
+struct ia32_osigframe {
 	int			sf_signum;
 	uint32_t		sf_arg2;	/* int or siginfo_t */
 	uint32_t		sf_scp;
 	uint32_t		sf_addr;
 	uint32_t		sf_ah;		/* action/handler pointer */
-	struct ia32_siginfo3	sf_siginfo;
+	struct ia32_osiginfo	sf_siginfo;
 };
-#endif
 
 struct ksiginfo;
 struct image_params;
