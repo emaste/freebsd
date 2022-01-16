@@ -2201,7 +2201,7 @@ void CheckASLR() {
   if (aslr_pie > 0) {
     Printf("This sanitizer is not compatible with enabled ASLR "
            "and binaries compiled with PIE\n");
-    Die();
+    Printf("Running anyway\n");
   }
 #endif
   // there might be 32 bits compat for 64 bits
@@ -2213,7 +2213,7 @@ void CheckASLR() {
   if (aslr_pie > 0) {
     Printf("This sanitizer is not compatible with enabled ASLR "
            "and binaries compiled with PIE\n");
-    Die();
+    Printf("Running anyway\n");
   }
 #else
   // Do nothing
