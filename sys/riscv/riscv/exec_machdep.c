@@ -65,6 +65,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/sbi.h>
 #include <machine/trap.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #ifdef FPE
 #include <machine/fpe.h>
 #endif

@@ -205,7 +205,7 @@ static int __elfN(aslr_stack) = 1;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, stack, CTLFLAG_RWTUN,
     &__elfN(aslr_stack), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
-    ": enable stack randomization");
+    ": enable stack address randomization");
 
 static int __elfN(sigfastblock) = 1;
 SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO, sigfastblock,

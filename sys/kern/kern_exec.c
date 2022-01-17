@@ -1107,7 +1107,7 @@ exec_free_abi_mappings(struct proc *p)
 
 /*
  * Run down the current address space and install a new one.  Map the shared
- * page and compute the new image's stack size.
+ * page.
  */
 int
 exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)

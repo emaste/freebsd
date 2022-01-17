@@ -43,6 +43,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -62,6 +63,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/sysarch.h>
 #include <machine/vfp.h>
 #include <machine/vmparam.h>
+
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 /*
  * Clear registers on exec
