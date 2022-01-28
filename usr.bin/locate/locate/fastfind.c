@@ -1,5 +1,5 @@
 /*
- * SPDX-License-Identifier: BSD-4-Clause
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 1995-2022 Wolfram Schneider <wosch@FreeBSD.org>
  * Copyright (c) 1989, 1993
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -52,6 +48,7 @@ statistic (fp, path_fcodes)
 	register u_char *p, *s;
 	register int c;
 	int count;
+	int error = 0;
 	u_char bigram1[NBG], bigram2[NBG], path[MAXPATHLEN];
 
 	for (c = 0, p = bigram1, s = bigram2; c < NBG; c++) {
@@ -70,6 +67,13 @@ statistic (fp, path_fcodes)
 		} else
 			count += c - OFFSET;
 		
+		if (count < 0 || count > MAXPATHLEN) {
+			/* stop on error and display the statstics anyway */
+			warnx("corrupted database: %s", path_fcodes);
+			error = 1;
+			break;
+		}
+
 		for (p = path + count; (c = getc(fp)) > SWITCH; size++)
 			if (c < PARITY) {
 				if (c == UMLAUT) {
@@ -102,6 +106,9 @@ statistic (fp, path_fcodes)
 	(void)printf("Integers: %ld, ", zwerg);
 	(void)printf("8-Bit characters: %ld\n", umlaut);
 
+	/* non zero exit on corrupt database */
+	if (error)
+		exit(error);
 }
 #endif /* _LOCATE_STATISTIC_ */
 
@@ -319,7 +326,7 @@ fastfind
 							if (f_limit >= counter)
 								(void)printf("%s%c",path,separator);
 							else 
-								errx(0, "[show only %d lines]", counter - 1);
+								errx(0, "[show only %ld lines]", counter - 1);
 						} else
 							(void)printf("%s%c",path,separator);
 					}
