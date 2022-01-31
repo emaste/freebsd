@@ -52,6 +52,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220128: mips pmc events removed
+OLD_FILES+=usr/share/man/man3/pmc.mips24k.3
+OLD_FILES+=usr/share/man/man3/pmc.octeon.3
+
 # 20220127: terasic_mtl.4 removed
 OLD_FILES+=usr/share/man/man4/terasic_mtl.4.gz
 
@@ -10080,7 +10084,7 @@ OLD_DIRS+=usr/lib/clang/3.7.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.7.0/lib
 OLD_DIRS+=usr/lib/clang/3.7.0
 # 20151130: libelf moved from /usr/lib to /lib (libkvm dependency in r291406)
-OLD_LIBS+=usr/lib/libelf.so.2
+MOVED_LIBS+=usr/lib/libelf.so.2
 # 20151115: Fox bad upgrade scheme
 OLD_FILES+=usr/share/locale/zh_CN.GB18030/zh_Hans_CN.GB18030
 OLD_FILES+=usr/share/locale/zh_CN.GB2312/zh_Hans_CN.GB2312
