@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2020, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2020-2021, Mellanox Technologies, Ltd.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -21,45 +21,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include "opt_rss.h"
-#include "opt_ratelimit.h"
+#ifndef __MLX5E_ACCEL_FS_TCP_H__
+#define	__MLX5E_ACCEL_FS_TCP_H__
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <dev/mlx5/driver.h>
-#include <dev/mlx5/mlx5_core/mlx5_core.h>
+struct inpcb;
+struct mlx5_flow_rule;
+struct mlx5e_priv;
 
-int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn, u16 uid)
-{
-	u32 in[MLX5_ST_SZ_DW(alloc_pd_in)] = {0};
-	u32 out[MLX5_ST_SZ_DW(alloc_pd_out)] = {0};
-	int err;
+int	mlx5e_accel_fs_tcp_create(struct mlx5e_priv *);
+void	mlx5e_accel_fs_tcp_destroy(struct mlx5e_priv *);
+struct mlx5_flow_rule *
+mlx5e_accel_fs_add_inpcb(struct mlx5e_priv *,
+    struct inpcb *, uint32_t tirn, uint32_t flow_tag, uint16_t vlan_id);
+#define	MLX5E_ACCEL_FS_ADD_INPCB_NO_VLAN 0xFFFF
+void	mlx5e_accel_fs_del_inpcb(struct mlx5_flow_rule *);
 
-	MLX5_SET(alloc_pd_in, in, opcode, MLX5_CMD_OP_ALLOC_PD);
-	MLX5_SET(alloc_pd_in, in, uid, uid);
-
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	if (err)
-		return err;
-
-	*pdn = MLX5_GET(alloc_pd_out, out, pd);
-	return 0;
-}
-EXPORT_SYMBOL(mlx5_core_alloc_pd);
-
-int mlx5_core_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn, u16 uid)
-{
-	u32 in[MLX5_ST_SZ_DW(dealloc_pd_in)] = {0};
-	u32 out[MLX5_ST_SZ_DW(dealloc_pd_out)] = {0};
-
-	MLX5_SET(dealloc_pd_in, in, opcode, MLX5_CMD_OP_DEALLOC_PD);
-	MLX5_SET(dealloc_pd_in, in, uid, uid);
-	MLX5_SET(dealloc_pd_in, in, pd, pdn);
-
-	return mlx5_cmd_exec(dev, in,  sizeof(in), out, sizeof(out));
-}
-EXPORT_SYMBOL(mlx5_core_dealloc_pd);
+#endif					/* __MLX5E_ACCEL_FS_TCP_H__ */
