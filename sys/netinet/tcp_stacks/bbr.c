@@ -519,8 +519,7 @@ bbr_log_pacing_delay_calc(struct tcp_bbr *bbr, uint16_t gain, uint32_t len,
     uint32_t cts, uint32_t usecs, uint64_t bw, uint32_t override, int mod);
 
 static int
-bbr_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp,
-    struct tcpcb *tp);
+bbr_ctloutput(struct inpcb *inp, struct sockopt *sopt);
 
 static inline uint8_t
 bbr_state_val(struct tcp_bbr *bbr)
@@ -5908,7 +5907,7 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 
 static void
 bbr_log_output(struct tcp_bbr *bbr, struct tcpcb *tp, struct tcpopt *to, int32_t len,
-    uint32_t seq_out, uint8_t th_flags, int32_t err, uint32_t cts,
+    uint32_t seq_out, uint16_t th_flags, int32_t err, uint32_t cts,
     struct mbuf *mb, int32_t * abandon, struct bbr_sendmap *hintrsm, uint32_t delay_calc,
     struct sockbuf *sb)
 {
@@ -7338,7 +7337,7 @@ bbr_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th,
 	uint32_t p_maxseg, maxseg, p_acked = 0;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
-	if (th->th_flags & TH_RST) {
+	if (tcp_get_flags(th) & TH_RST) {
 		/* We don't log resets */
 		return (0);
 	}
@@ -8283,7 +8282,7 @@ bbr_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				if (tp->t_fbyte_out && tp->t_fbyte_in)
 					tp->t_flags2 |= TF2_FBYTES_COMPLETE;
 			}
-			thflags = th->th_flags & TH_FIN;
+			thflags = tcp_get_flags(th) & TH_FIN;
 			KMOD_TCPSTAT_ADD(tcps_rcvpack, (int)nsegs);
 			KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
 			SOCKBUF_LOCK(&so->so_rcv);
@@ -11364,7 +11363,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/* add in our stats */
 	kern_prefetch(bbr, &prev_state);
 	prev_state = 0;
-	thflags = th->th_flags;
+	thflags = tcp_get_flags(th);
 	/*
 	 * If this is either a state-changing packet or current state isn't
 	 * established, we require a write lock on tcbinfo.  Otherwise, we
@@ -13451,7 +13450,7 @@ send:
 		bcopy(opt, th + 1, optlen);
 		th->th_off = (sizeof(struct tcphdr) + optlen) >> 2;
 	}
-	th->th_flags = flags;
+	tcp_set_flags(th, flags);
 	/*
 	 * Calculate receive window.  Don't shrink window, but avoid silly
 	 * window syndrome.
@@ -14235,16 +14234,17 @@ struct tcp_function_block __tcp_bbr = {
  * option.
  */
 static int
-bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
-		struct inpcb *inp, struct tcpcb *tp, struct tcp_bbr *bbr)
+bbr_set_sockopt(struct inpcb *inp, struct sockopt *sopt)
 {
 	struct epoch_tracker et;
+	struct tcpcb *tp;
+	struct tcp_bbr *bbr;
 	int32_t error = 0, optval;
 
 	switch (sopt->sopt_level) {
 	case IPPROTO_IPV6:
 	case IPPROTO_IP:
-		return (tcp_default_ctloutput(so, sopt, inp, tp));
+		return (tcp_default_ctloutput(inp, sopt));
 	}
 
 	switch (sopt->sopt_name) {
@@ -14293,7 +14293,7 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
 	case TCP_BBR_RETRAN_WTSO:
 		break;
 	default:
-		return (tcp_default_ctloutput(so, sopt, inp, tp));
+		return (tcp_default_ctloutput(inp, sopt));
 		break;
 	}
 	INP_WUNLOCK(inp);
@@ -14629,7 +14629,7 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
 		}
 		break;
 	default:
-		return (tcp_default_ctloutput(so, sopt, inp, tp));
+		return (tcp_default_ctloutput(inp, sopt));
 		break;
 	}
 #ifdef NETFLIX_STATS
@@ -14643,11 +14643,18 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
  * return 0 on success, error-num on failure
  */
 static int
-bbr_get_sockopt(struct socket *so, struct sockopt *sopt,
-    struct inpcb *inp, struct tcpcb *tp, struct tcp_bbr *bbr)
+bbr_get_sockopt(struct inpcb *inp, struct sockopt *sopt)
 {
+	struct tcpcb *tp;
+	struct tcp_bbr *bbr;
 	int32_t error, optval;
 
+	tp = intotcpcb(inp);
+	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
+	if (bbr == NULL) {
+		INP_WUNLOCK(inp);
+		return (EINVAL);
+	}
 	/*
 	 * Because all our options are either boolean or an int, we can just
 	 * pull everything into optval and then unlock and copy. If we ever
@@ -14781,7 +14788,7 @@ bbr_get_sockopt(struct socket *so, struct sockopt *sopt,
 			optval |= BBR_INCL_ENET_OH;
 		break;
 	default:
-		return (tcp_default_ctloutput(so, sopt, inp, tp));
+		return (tcp_default_ctloutput(inp, sopt));
 		break;
 	}
 	INP_WUNLOCK(inp);
@@ -14793,24 +14800,15 @@ bbr_get_sockopt(struct socket *so, struct sockopt *sopt,
  * return 0 on success, error-num on failure
  */
 static int
-bbr_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp, struct tcpcb *tp)
+bbr_ctloutput(struct inpcb *inp, struct sockopt *sopt)
 {
-	int32_t error = EINVAL;
-	struct tcp_bbr *bbr;
-
-	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
-	if (bbr == NULL) {
-		/* Huh? */
-		goto out;
-	}
 	if (sopt->sopt_dir == SOPT_SET) {
-		return (bbr_set_sockopt(so, sopt, inp, tp, bbr));
+		return (bbr_set_sockopt(inp, sopt));
 	} else if (sopt->sopt_dir == SOPT_GET) {
-		return (bbr_get_sockopt(so, sopt, inp, tp, bbr));
+		return (bbr_get_sockopt(inp, sopt));
+	} else {
+		panic("%s: sopt_dir $%d", __func__, sopt->sopt_dir);
 	}
-out:
-	INP_WUNLOCK(inp);
-	return (error);
 }
 
 static const char *bbr_stack_names[] = {

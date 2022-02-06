@@ -88,7 +88,7 @@ struct tseg_qent {
 	struct  mbuf   *tqe_last;	/* last mbuf in chain */
 	tcp_seq tqe_start;		/* TCP Sequence number start */
 	int	tqe_len;		/* TCP segment data length */
-	uint32_t tqe_flags;		/* The flags from the th->th_flags */
+	uint32_t tqe_flags;		/* The flags from tcp_get_flags() */
 	uint32_t tqe_mbuf_cnt;		/* Count of mbuf overhead */
 };
 TAILQ_HEAD(tsegqe_head, tseg_qent);
@@ -358,8 +358,7 @@ struct tcp_function_block {
 			    struct socket *, struct tcpcb *,
 			    int, int, uint8_t,
 			    int, struct timeval *);
-	int     (*tfb_tcp_ctloutput)(struct socket *so, struct sockopt *sopt,
-			    struct inpcb *inp, struct tcpcb *tp);
+	int     (*tfb_tcp_ctloutput)(struct inpcb *inp, struct sockopt *sopt);
 	/* Optional memory allocation/free routine */
 	int	(*tfb_tcp_fb_init)(struct tcpcb *);
 	void	(*tfb_tcp_fb_fini)(struct tcpcb *, int);
@@ -1128,7 +1127,7 @@ int find_tcp_function_alias(struct tcp_function_block *blk, struct tcp_function_
 void tcp_switch_back_to_default(struct tcpcb *tp);
 struct tcp_function_block *
 find_and_ref_tcp_fb(struct tcp_function_block *fs);
-int tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp, struct tcpcb *tp);
+int tcp_default_ctloutput(struct inpcb *inp, struct sockopt *sopt);
 
 extern counter_u64_t tcp_inp_lro_direct_queue;
 extern counter_u64_t tcp_inp_lro_wokeup_queue;
@@ -1256,6 +1255,19 @@ tcp_fields_to_net(struct tcphdr *th)
 	th->th_ack = htonl(th->th_ack);
 	th->th_win = htons(th->th_win);
 	th->th_urp = htons(th->th_urp);
+}
+
+static inline uint16_t
+tcp_get_flags(const struct tcphdr *th)
+{
+        return (((uint16_t)th->th_x2 << 8) | th->th_flags);
+}
+
+static inline void
+tcp_set_flags(struct tcphdr *th, uint16_t flags)
+{
+        th->th_x2    = (flags >> 8) & 0x0f;
+        th->th_flags = flags & 0xff;
 }
 
 static inline void

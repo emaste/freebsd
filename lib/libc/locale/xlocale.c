@@ -63,13 +63,12 @@ _Thread_local locale_t __thread_locale;
  * Flag indicating that one or more per-thread locales exist.
  */
 int __has_thread_locale;
+
 /*
  * Private functions in setlocale.c.
  */
-const char *
-__get_locale_env(int category);
-int
-__detect_path_locale(void);
+const char *__get_locale_env(int category);
+int __detect_path_locale(void);
 
 struct _xlocale __xlocale_global_locale = {
 	{0},
@@ -100,7 +99,7 @@ struct _xlocale __xlocale_C_locale = {
 	0
 };
 
-static void*(*constructors[])(const char*, locale_t) =
+static void *(*constructors[])(const char *, locale_t) =
 {
 	__collate_load,
 	__ctype_load,
@@ -114,13 +113,19 @@ static pthread_key_t locale_info_key;
 static int fake_tls;
 static locale_t thread_local_locale;
 
-static void init_key(void)
+static void
+init_key(void)
 {
+	int error;
 
-	pthread_key_create(&locale_info_key, xlocale_release);
-	pthread_setspecific(locale_info_key, (void*)42);
-	if (pthread_getspecific(locale_info_key) == (void*)42) {
-		pthread_setspecific(locale_info_key, 0);
+	error = pthread_key_create(&locale_info_key, xlocale_release);
+	if (error == 0) {
+		pthread_setspecific(locale_info_key, (void*)42);
+		if (pthread_getspecific(locale_info_key) == (void*)42) {
+			pthread_setspecific(locale_info_key, 0);
+		} else {
+			fake_tls = 1;
+		}
 	} else {
 		fake_tls = 1;
 	}
@@ -138,7 +143,7 @@ get_thread_locale(void)
 	_once(&once_control, init_key);
 	
 	return (fake_tls ? thread_local_locale :
-		pthread_getspecific(locale_info_key));
+	    pthread_getspecific(locale_info_key));
 }
 
 static void
@@ -192,11 +197,15 @@ alloc_locale(void)
 {
 	locale_t new = calloc(sizeof(struct _xlocale), 1);
 
+	if (new == NULL)
+		return (NULL);
+
 	new->header.destructor = destruct_locale;
 	new->monetary_locale_changed = 1;
 	new->numeric_locale_changed = 1;
 	return (new);
 }
+
 static void
 copyflags(locale_t new, locale_t old)
 {
@@ -206,7 +215,8 @@ copyflags(locale_t new, locale_t old)
 	new->using_messages_locale = old->using_messages_locale;
 }
 
-static int dupcomponent(int type, locale_t base, locale_t new) 
+static int
+dupcomponent(int type, locale_t base, locale_t new)
 {
 	/* Always copy from the global locale, since it has mutable components.
 	 */
@@ -237,7 +247,8 @@ static int dupcomponent(int type, locale_t base, locale_t new)
  * xlocale interface.  
  */
 
-locale_t newlocale(int mask, const char *locale, locale_t base)
+locale_t
+newlocale(int mask, const char *locale, locale_t base)
 {
 	locale_t orig_base;
 	int type;
@@ -245,12 +256,12 @@ locale_t newlocale(int mask, const char *locale, locale_t base)
 	int useenv = 0;
 	int success = 1;
 
-	_once(&once_control, init_key);
-
 	locale_t new = alloc_locale();
 	if (NULL == new) {
 		return (NULL);
 	}
+
+	_once(&once_control, init_key);
 
 	orig_base = base;
 	FIX_LOCALE(base);
@@ -294,17 +305,18 @@ locale_t newlocale(int mask, const char *locale, locale_t base)
 	return (new);
 }
 
-locale_t duplocale(locale_t base)
+locale_t
+duplocale(locale_t base)
 {
 	locale_t new = alloc_locale();
 	int type;
-
-	_once(&once_control, init_key);
 
 	if (NULL == new) {
 		return (NULL);
 	}
 	
+	_once(&once_control, init_key);
+
 	FIX_LOCALE(base);
 	copyflags(new, base);
 
@@ -337,7 +349,8 @@ freelocale(locale_t loc)
  * Returns the name or version of the locale for a particular component of a
  * locale_t.
  */
-const char *querylocale(int mask, locale_t loc)
+const char *
+querylocale(int mask, locale_t loc)
 {
 	int type = ffs(mask & ~LC_VERSION_MASK) - 1;
 	FIX_LOCALE(loc);
@@ -357,7 +370,8 @@ const char *querylocale(int mask, locale_t loc)
 /*
  * Installs the specified locale_t as this thread's locale.
  */
-locale_t uselocale(locale_t loc)
+locale_t
+uselocale(locale_t loc)
 {
 	locale_t old = get_thread_locale();
 	if (NULL != loc) {

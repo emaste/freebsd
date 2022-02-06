@@ -4355,6 +4355,7 @@ netinet/sctp_usrreq.c		optional inet sctp | inet6 sctp
 netinet/sctputil.c		optional inet sctp | inet6 sctp
 netinet/siftr.c			optional inet siftr alq | inet6 siftr alq
 netinet/tcp_debug.c		optional tcpdebug
+netinet/tcp_ecn.c		optional inet | inet6
 netinet/tcp_fastopen.c		optional inet tcp_rfc7413 | inet6 tcp_rfc7413
 netinet/tcp_hostcache.c		optional inet | inet6
 netinet/tcp_input.c		optional inet | inet6
@@ -4953,7 +4954,7 @@ opencrypto/xform_sha1.c		optional crypto
 opencrypto/xform_sha2.c		optional crypto
 contrib/libsodium/src/libsodium/crypto_core/ed25519/ref10/ed25519_ref10.c \
 	optional crypto \
-	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium -Wno-unused-function"
 contrib/libsodium/src/libsodium/crypto_core/hchacha20/core_hchacha20.c \
 	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
@@ -4968,7 +4969,7 @@ contrib/libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve255
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
 contrib/libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/x25519_ref10.c \
 	optional crypto \
-	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium -Wno-unused-function"
 contrib/libsodium/src/libsodium/crypto_stream/chacha20/stream_chacha20.c \
 	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
