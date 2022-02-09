@@ -68,13 +68,22 @@ if [ -n "$author" ]; then
 fi
 
 # Commits in from_branch after branch point
-git rev-list --first-parent $authorarg $to_branch..$from_branch "$@" |\
-    sort > from_list
+commits_from()
+{
+	git rev-list --first-parent $authorarg $to_branch..$from_branch "$@" |\
+	    sort
+}
 
 # "cherry picked from" hashes from commits in to_branch after branch point
-git log $from_branch..$to_branch --grep 'cherry picked from' "$@" |\
-    sed -E -n 's/^[[:space:]]*\(cherry picked from commit ([0-9a-f]+)\)[[:space:]]*$/\1/p' |\
-    sort > to_list
+commits_to()
+{
+	git log $from_branch..$to_branch --grep 'cherry picked from' "$@" |\
+	    sed -E -n 's/^[[:space:]]*\(cherry picked from commit ([0-9a-f]+)\)[[:space:]]*$/\1/p' |\
+	    sort
+}
+
+commits_from "$@" > from_list
+commits_to "$@" > to_list
 
 comm -23 from_list to_list > candidates
 
