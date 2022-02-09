@@ -3,7 +3,7 @@
 #
 # Warning flags for compiling the kernel and components of the kernel:
 #
-CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
+CWARNFLAGS?=	-Wall -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Wcast-qual \
 		-Wundef -Wno-pointer-sign ${FORMAT_EXTENSIONS} \
 		-Wmissing-include-dirs -fdiagnostics-show-option \
@@ -27,6 +27,9 @@ NO_WCAST_QUAL=			-Wno-error=cast-qual
 NO_WTAUTOLOGICAL_POINTER_COMPARE= -Wno-tautological-pointer-compare
 .if ${COMPILER_VERSION} >= 100000
 NO_WMISLEADING_INDENTATION=	-Wno-misleading-indentation
+.endif
+.if ${COMPILER_VERSION} >= 140000
+NO_WBITWISE_INSTEAD_OF_LOGICAL=	-Wno-bitwise-instead-of-logical
 .endif
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is

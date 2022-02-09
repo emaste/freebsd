@@ -60,7 +60,7 @@ CWARNFLAGS+=	-Wcast-align
 .endif # !NO_WCAST_ALIGN !NO_WCAST_ALIGN.${COMPILER_TYPE}
 .endif # WARNS >= 4
 .if ${WARNS} >= 6
-CWARNFLAGS+=	-Wchar-subscripts -Wnested-externs -Wredundant-decls\
+CWARNFLAGS+=	-Wchar-subscripts -Wnested-externs \
 		-Wold-style-definition
 .if !defined(NO_WMISSING_VARIABLE_DECLARATIONS)
 CWARNFLAGS.clang+=	-Wmissing-variable-declarations
@@ -112,6 +112,9 @@ CWARNFLAGS.clang+=	-Wno-array-bounds
       ${COMPILER_TYPE} == "gcc")
 CWARNFLAGS+=		-Wno-misleading-indentation
 .endif # NO_WMISLEADING_INDENTATION
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 140000
+NO_WBITWISE_INSTEAD_OF_LOGICAL=	-Wno-bitwise-instead-of-logical
+.endif
 .endif # WARNS
 
 .if defined(FORMAT_AUDIT)
@@ -164,7 +167,6 @@ CWARNFLAGS+=	-Wno-error=address			\
 CWARNFLAGS+=	-Wno-error=empty-body			\
 		-Wno-error=maybe-uninitialized		\
 		-Wno-error=nonnull-compare		\
-		-Wno-error=redundant-decls		\
 		-Wno-error=shift-negative-value		\
 		-Wno-error=tautological-compare		\
 		-Wno-error=unused-const-variable
