@@ -2387,17 +2387,20 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	KASSERT(cnp->cn_namelen <= NAME_MAX,
 	    ("%s: passed len %ld exceeds NAME_MAX (%d)", __func__, cnp->cn_namelen,
 	    NAME_MAX));
-#ifdef notyet
-	/*
-	 * Not everything doing this is weeded out yet.
-	 */
-	VNPASS(dvp != vp, dvp);
-#endif
 	VNPASS(!VN_IS_DOOMED(dvp), dvp);
 	VNPASS(dvp->v_type != VNON, dvp);
 	if (vp != NULL) {
 		VNPASS(!VN_IS_DOOMED(vp), vp);
 		VNPASS(vp->v_type != VNON, vp);
+	}
+	if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
+		KASSERT(dvp == vp,
+		    ("%s: different vnodes for dot entry (%p; %p)\n", __func__,
+		    dvp, vp));
+	} else {
+		KASSERT(dvp != vp,
+		    ("%s: same vnode for non-dot entry [%s] (%p)\n", __func__,
+		    cnp->cn_nameptr, dvp));
 	}
 
 #ifdef DEBUG_CACHE
@@ -4830,7 +4833,6 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	struct vnode *dvp, *tvp;
 	seqc_t dvp_seqc;
 	int error;
-	bool docache;
 
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
@@ -4839,6 +4841,8 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 
 	MPASS((cnp->cn_flags & MAKEENTRY) == 0);
 	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
+	if (cnp->cn_nameiop == LOOKUP)
+		MPASS((cnp->cn_flags & NOCACHE) == 0);
 	MPASS(!cache_fpl_isdotdot(cnp));
 
 	/*
@@ -4915,10 +4919,7 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	/*
 	 * TODO: provide variants which don't require locking either vnode.
 	 */
-	cnp->cn_flags |= ISLASTCN;
-	docache = (cnp->cn_flags & NOCACHE) ^ NOCACHE;
-	if (docache)
-		cnp->cn_flags |= MAKEENTRY;
+	cnp->cn_flags |= ISLASTCN | MAKEENTRY;
 	cnp->cn_lkflags = LK_SHARED;
 	if ((cnp->cn_flags & LOCKSHARED) == 0) {
 		cnp->cn_lkflags = LK_EXCLUSIVE;
