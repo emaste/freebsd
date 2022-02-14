@@ -1,10 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020 The FreeBSD Foundation
- *
- * This software was developed by Björn Zeeb under sponsorship from
- * the FreeBSD Foundation.
+ * Copyright (c) 2022 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,56 +27,18 @@
  * $FreeBSD$
  */
 
-#ifndef	_LINUXKPI_ASM_UNALIGNED_H
-#define	_LINUXKPI_ASM_UNALIGNED_H
+#ifndef	_LINUXKPI_LINUX_TRACEPOINT_H
+#define	_LINUXKPI_LINUX_TRACEPOINT_H
 
-#include <linux/types.h>
-#include <asm/byteorder.h>
+#define	TP_PROTO(...)			__VA_ARGS__
+#define	TP_ARGS(...)
+#define	TP_STRUCT__entry(...)
+#define	TP_fast_assign(...)
+#define	TP_printk(...)
 
-static __inline uint16_t
-get_unaligned_le16(const void *p)
-{
-
-	return (le16_to_cpup((const __le16 *)p));
+#define	TRACE_EVENT(_name, _proto, _args, _struct, _assign, _printk)	\
+static void trace_ ## _name(_proto)					\
+{									\
 }
 
-static __inline uint32_t
-get_unaligned_le32(const void *p)
-{
-
-	return (le32_to_cpup((const __le32 *)p));
-}
-
-static __inline void
-put_unaligned_le32(__le32 v, void *p)
-{
-	__le32 x;
-
-	x = cpu_to_le32(v);
-	memcpy(p, &x, sizeof(x));
-}
-
-static __inline void
-put_unaligned_le64(__le64 v, void *p)
-{
-	__le64 x;
-
-	x = cpu_to_le64(v);
-	memcpy(p, &x, sizeof(x));
-}
-
-static __inline uint16_t
-get_unaligned_be16(const void *p)
-{
-
-	return (be16_to_cpup((const __be16 *)p));
-}
-
-static __inline uint32_t
-get_unaligned_be32(const void *p)
-{
-
-	return (be32_to_cpup((const __be32 *)p));
-}
-
-#endif	/* _LINUXKPI_ASM_UNALIGNED_H */
+#endif	/* _LINUXKPI_LINUX_TRACEPOINT_H */

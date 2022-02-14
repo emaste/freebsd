@@ -74,10 +74,6 @@ struct fdescenttbl {
 };
 #define	fd_seqc(fdt, fd)	(&(fdt)->fdt_ofiles[(fd)].fde_seqc)
 
-/*
- * This structure is used for the management of descriptors.  It may be
- * shared by multiple processes.
- */
 #define NDSLOTTYPE	u_long
 
 /*
@@ -87,20 +83,24 @@ struct fdescenttbl {
  * Check pwd_* routines for usage.
  */
 struct pwd {
-	volatile u_int pwd_refcount;
-	struct	vnode *pwd_cdir;		/* current directory */
-	struct	vnode *pwd_rdir;		/* root directory */
-	struct	vnode *pwd_jdir;		/* jail root directory */
+	u_int		pwd_refcount;
+	struct	vnode	*pwd_cdir;	/* current directory */
+	struct	vnode	*pwd_rdir;	/* root directory */
+	struct	vnode	*pwd_jdir;	/* jail root directory */
 };
 typedef SMR_POINTER(struct pwd *) smrpwd_t;
 
 struct pwddesc {
 	struct mtx	pd_lock;	/* protects members of this struct */
 	smrpwd_t	pd_pwd;		/* directories */
-	volatile u_int	pd_refcount;
+	u_int		pd_refcount;
 	u_short		pd_cmask;	/* mask for file creation */
 };
 
+/*
+ * This structure is used for the management of descriptors.  It may be
+ * shared by multiple processes.
+ */
 struct filedesc {
 	struct	fdescenttbl *fd_files;	/* open files table */
 	NDSLOTTYPE *fd_map;		/* bitmap of free fds */
@@ -183,6 +183,18 @@ struct filedesc_to_leader {
 	MPASS(curproc->p_fd == _fdp);						\
 	(curproc->p_numthreads == 1 && refcount_load(&_fdp->fd_refcnt) == 1);	\
 })
+#define	FILEDESC_FOREACH_FDE(fdp, _iterator, _fde)				\
+	struct filedesc *_fdp = (fdp);						\
+	int _lastfile = fdlastfile_single(_fdp);				\
+	for (_iterator = 0; _iterator <= _lastfile; _iterator++)		\
+		if ((_fde = &_fdp->fd_ofiles[_iterator])->fde_file != NULL)
+
+#define	FILEDESC_FOREACH_FP(fdp, _iterator, _fp)				\
+	struct filedesc *_fdp = (fdp);						\
+	int _lastfile = fdlastfile_single(_fdp);				\
+	for (_iterator = 0; _iterator <= _lastfile; _iterator++)		\
+		if ((_fp = _fdp->fd_ofiles[_iterator].fde_file) != NULL)
+
 #else
 
 /*
@@ -254,7 +266,7 @@ void	fdunshare(struct thread *td);
 void	fdescfree(struct thread *td);
 int	fdlastfile(struct filedesc *fdp);
 int	fdlastfile_single(struct filedesc *fdp);
-struct	filedesc *fdinit(struct filedesc *fdp, bool prepfiles, int *lastfile);
+struct	filedesc *fdinit(void);
 struct	filedesc *fdshare(struct filedesc *fdp);
 struct filedesc_to_leader *
 	filedesc_to_leader_alloc(struct filedesc_to_leader *old,

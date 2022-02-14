@@ -1919,13 +1919,15 @@ t4_suspend(device_t dev)
 
 		for_each_vi(pi, j, vi) {
 			vi->xact_addr_filt = -1;
+			mtx_lock(&vi->tick_mtx);
+			vi->flags |= VI_SKIP_STATS;
+			mtx_unlock(&vi->tick_mtx);
 			if (!(vi->flags & VI_INIT_DONE))
 				continue;
 
 			ifp = vi->ifp;
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				mtx_lock(&vi->tick_mtx);
-				vi->flags |= VI_SKIP_STATS;
 				callout_stop(&vi->tick);
 				mtx_unlock(&vi->tick_mtx);
 				callout_drain(&vi->tick);
@@ -2256,6 +2258,9 @@ t4_resume(device_t dev)
 		for_each_port(sc, i) {
 			pi = sc->port[i];
 			for_each_vi(pi, j, vi) {
+				mtx_lock(&vi->tick_mtx);
+				vi->flags &= ~VI_SKIP_STATS;
+				mtx_unlock(&vi->tick_mtx);
 				if (!(vi->flags & VI_INIT_DONE))
 					continue;
 				rc = vi_full_init(vi);
@@ -2292,7 +2297,6 @@ t4_resume(device_t dev)
 					TXQ_UNLOCK(txq);
 				}
 				mtx_lock(&vi->tick_mtx);
-				vi->flags &= ~VI_SKIP_STATS;
 				callout_schedule(&vi->tick, hz);
 				mtx_unlock(&vi->tick_mtx);
 			}
@@ -3165,7 +3169,7 @@ cxgbe_media_change(struct ifnet *ifp)
 		if (IFM_OPTIONS(ifm->ifm_media) & IFM_ETH_TXPAUSE)
 			lc->requested_fc |= PAUSE_TX;
 	}
-	if (pi->up_vis > 0) {
+	if (pi->up_vis > 0 && !hw_off_limits(sc)) {
 		fixup_link_config(pi);
 		rc = apply_link_config(pi);
 	}
@@ -3333,7 +3337,7 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 		return;
 	PORT_LOCK(pi);
 
-	if (pi->up_vis == 0) {
+	if (pi->up_vis == 0 && !hw_off_limits(sc)) {
 		/*
 		 * If all the interfaces are administratively down the firmware
 		 * does not report transceiver changes.  Refresh port info here
@@ -7019,7 +7023,7 @@ vi_refresh_stats(struct vi_info *vi)
 
 	mtx_assert(&vi->tick_mtx, MA_OWNED);
 
-	if (!(vi->flags & VI_INIT_DONE) || vi->flags & VI_SKIP_STATS)
+	if (vi->flags & VI_SKIP_STATS)
 		return;
 
 	getmicrotime(&tv);
