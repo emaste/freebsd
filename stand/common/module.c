@@ -605,8 +605,7 @@ file_load_dependencies(struct preloaded_file *base_file)
 		verinfo = (struct mod_depend*)md->md_data;
 		dmodname = (char *)(verinfo + 1);
 		if (file_findmodule(NULL, dmodname, verinfo) == NULL) {
-			if (module_verbose > MODULE_VERBOSE_SILENT)
-				printf("loading required module '%s'\n", dmodname);
+			printf("loading required module '%s'\n", dmodname);
 			error = mod_load(dmodname, verinfo, 0, NULL);
 			if (error)
 				break;
@@ -798,8 +797,7 @@ file_loadraw(const char *fname, char *type, int insert)
 	if (archsw.arch_loadaddr != NULL)
 		loadaddr = archsw.arch_loadaddr(LOAD_RAW, name, loadaddr);
 
-	if (module_verbose > MODULE_VERBOSE_SILENT)
-		printf("%s ", name);
+	printf("%s ", name);
 
 	laddr = loadaddr;
 	for (;;) {
@@ -821,8 +819,7 @@ file_loadraw(const char *fname, char *type, int insert)
 		laddr += got;
 	}
 
-	if (module_verbose > MODULE_VERBOSE_SILENT)
-		printf("size=%#jx\n", (uintmax_t)(laddr - loadaddr));
+	printf("size=%#jx\n", (uintmax_t)(laddr - loadaddr));
 #ifdef LOADER_VERIEXEC_VECTX
 	verror = vectx_close(vctx, VE_MUST, __func__);
 	if (verror) {
