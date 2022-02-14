@@ -152,7 +152,7 @@ FILES+=	$t.LC_COLLATE
 FILESDIR_$t.LC_COLLATE=	${LOCALEDIR}/$t
 FILESDIR_${t}.LC_COLLATEPACKAGE=	locales
 $t.LC_COLLATE: ${.CURDIR}/$f.src
-	localedef ${LOCALEDEF_ENDIAN} -D -U -i ${.ALLSRC} \
+	localedef ${LOCALEDEF_ENDIAN} -D -U -i ${.CURDIR}/${f}.src \
 	-V ${CLDR_VERSION} \
 		-f ${MAPLOC}/map.${.TARGET:T:R:E:C/@.*//} \
 		${.OBJDIR}/${.TARGET:T:R}
