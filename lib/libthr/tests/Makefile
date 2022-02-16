@@ -50,7 +50,7 @@ PROGS+=		h_resolv
 
 ${PACKAGE}FILES+=		d_mach
 
-TESTS_SUBDIRS=		dlopen
+TESTS_SUBDIRS=		dlopen unwind
 
 .include <netbsd-tests.test.mk>
 
