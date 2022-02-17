@@ -442,6 +442,8 @@
         ..
         mdconfig
         ..
+        newfs_msdos
+        ..
         nvmecontrol
         ..
         pfctl
@@ -1007,6 +1009,8 @@
         du
         ..
         file2c
+        ..
+        file
         ..
         find
         ..

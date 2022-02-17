@@ -1022,7 +1022,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	seqc_write_begin(&newfde->fde_seqc);
 #endif
 	oioctls = filecaps_free_prep(&newfde->fde_caps);
-	memcpy(newfde, oldfde, fde_change_size);
+	fde_copy(oldfde, newfde);
 	filecaps_copy_finish(&oldfde->fde_caps, &newfde->fde_caps,
 	    nioctls);
 	if ((flags & FDDUP_FLAG_CLOEXEC) != 0)
@@ -2941,7 +2941,7 @@ fgetvp_lookup_smr(int fd, struct nameidata *ndp, struct vnode **vpp, bool *fsear
 	 */
 	atomic_thread_fence_acq();
 	fdt = fdp->fd_files;
-	if (__predict_false(!seqc_consistent_nomb(fd_seqc(fdt, fd), seq)))
+	if (__predict_false(!seqc_consistent_no_fence(fd_seqc(fdt, fd), seq)))
 		return (EAGAIN);
 	/*
 	 * If file descriptor doesn't have all rights,
@@ -3058,7 +3058,7 @@ fget_unlocked_seq(struct thread *td, int fd, cap_rights_t *needrightsp,
 		 */
 		atomic_thread_fence_acq();
 		fdt = fdp->fd_files;
-		if (seqc_consistent_nomb(fd_seqc(fdt, fd), seq))
+		if (seqc_consistent_no_fence(fd_seqc(fdt, fd), seq))
 			break;
 		fdrop(fp, td);
 	}
@@ -3157,7 +3157,7 @@ fget_unlocked(struct thread *td, int fd, cap_rights_t *needrightsp,
 	atomic_thread_fence_acq();
 	fdt = fdp->fd_files;
 #ifdef	CAPABILITIES
-	if (__predict_false(!seqc_consistent_nomb(fd_seqc(fdt, fd), seq)))
+	if (__predict_false(!seqc_consistent_no_fence(fd_seqc(fdt, fd), seq)))
 #else
 	if (__predict_false(fp != fdt->fdt_ofiles[fd].fde_file))
 #endif
@@ -3628,7 +3628,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 #ifdef CAPABILITIES
 		seqc_write_begin(&newfde->fde_seqc);
 #endif
-		memcpy(newfde, oldfde, fde_change_size);
+		fde_copy(oldfde, newfde);
 		filecaps_copy_finish(&oldfde->fde_caps, &newfde->fde_caps,
 		    ioctls);
 #ifdef CAPABILITIES
@@ -3642,13 +3642,15 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 		newfde = &fdp->fd_ofiles[indx];
 		oldfde = &fdp->fd_ofiles[dfd];
 #ifdef CAPABILITIES
+		seqc_write_begin(&oldfde->fde_seqc);
 		seqc_write_begin(&newfde->fde_seqc);
 #endif
-		memcpy(newfde, oldfde, fde_change_size);
+		fde_copy(oldfde, newfde);
 		oldfde->fde_file = NULL;
 		fdunused(fdp, dfd);
 #ifdef CAPABILITIES
 		seqc_write_end(&newfde->fde_seqc);
+		seqc_write_end(&oldfde->fde_seqc);
 #endif
 		break;
 	}
