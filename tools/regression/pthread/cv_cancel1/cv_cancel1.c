@@ -63,7 +63,7 @@ int main(int argc __unused, char **argv __unused)
 		wake = 0;
 
 		pthread_create(&td, NULL, thr_routine, NULL);
-		sleep(1);
+		usleep(10000);
 		printf("trying: %d\n", i);
 		pthread_mutex_lock(&m);
 		wake = 1;
