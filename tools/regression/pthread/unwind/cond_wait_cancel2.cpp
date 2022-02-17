@@ -48,7 +48,7 @@ main()
 	pthread_mutex_init(&mtx, NULL);
 	pthread_cond_init(&cv, NULL);
 	pthread_create(&td, NULL, thr, NULL);
-	sleep(1);
+	usleep(10000);
 	pthread_cancel(td);
 	pthread_join(td, NULL);
 	check_destruct2();
