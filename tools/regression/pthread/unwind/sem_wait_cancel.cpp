@@ -27,7 +27,7 @@ main()
 
 	sem_init(&sem, 0, 0);
 	pthread_create(&td, NULL, thr, NULL);
-	sleep(1);
+	usleep(10000);
 	pthread_cancel(td);
 	pthread_join(td, NULL);
 	check_destruct();
