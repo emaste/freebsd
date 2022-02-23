@@ -1,4 +1,5 @@
 /* $OpenBSD: readconf.h,v 1.146 2021/12/19 22:14:47 djm Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
