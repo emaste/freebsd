@@ -599,25 +599,25 @@
 /* #undef HAVE_FEATURES_H */
 
 /* Define to 1 if you have the `fido_assert_set_clientdata' function. */
-/* #undef HAVE_FIDO_ASSERT_SET_CLIENTDATA */
+#define HAVE_FIDO_ASSERT_SET_CLIENTDATA 1
 
 /* Define to 1 if you have the `fido_cred_prot' function. */
-/* #undef HAVE_FIDO_CRED_PROT */
+#define HAVE_FIDO_CRED_PROT 1
 
 /* Define to 1 if you have the `fido_cred_set_clientdata' function. */
-/* #undef HAVE_FIDO_CRED_SET_CLIENTDATA */
+#define HAVE_FIDO_CRED_SET_CLIENTDATA 1
 
 /* Define to 1 if you have the `fido_cred_set_prot' function. */
-/* #undef HAVE_FIDO_CRED_SET_PROT */
+#define HAVE_FIDO_CRED_SET_PROT 1
 
 /* Define to 1 if you have the `fido_dev_get_touch_begin' function. */
-/* #undef HAVE_FIDO_DEV_GET_TOUCH_BEGIN */
+#define HAVE_FIDO_DEV_GET_TOUCH_BEGIN 1
 
 /* Define to 1 if you have the `fido_dev_get_touch_status' function. */
-/* #undef HAVE_FIDO_DEV_GET_TOUCH_STATUS */
+#define HAVE_FIDO_DEV_GET_TOUCH_STATUS 1
 
 /* Define to 1 if you have the `fido_dev_supports_cred_prot' function. */
-/* #undef HAVE_FIDO_DEV_SUPPORTS_CRED_PROT */
+#define HAVE_FIDO_DEV_SUPPORTS_CRED_PROT 1
 
 /* Define to 1 if you have the <floatingpoint.h> header file. */
 #define HAVE_FLOATINGPOINT_H 1
