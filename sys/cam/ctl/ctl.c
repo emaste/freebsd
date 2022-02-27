@@ -1104,7 +1104,7 @@ ctl_isc_ua(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	uint32_t iid;
 
 	if (len < sizeof(msg->ua)) {
-		printf("%s: Received truncated message %d < %lu\n",
+		printf("%s: Received truncated message %d < %zu\n",
 		    __func__, len, sizeof(msg->ua));
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 		return;
@@ -1145,14 +1145,14 @@ ctl_isc_lun_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	uint32_t targ_lun;
 
 	if (len < offsetof(struct ctl_ha_msg_lun, data[0])) {
-		printf("%s: Received truncated message %d < %lu\n",
+		printf("%s: Received truncated message %d < %zu\n",
 		    __func__, len, offsetof(struct ctl_ha_msg_lun, data[0]));
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 		return;
 	}
 	i = msg->lun.lun_devid_len + msg->lun.pr_key_count * sizeof(pr_key);
 	if (len < offsetof(struct ctl_ha_msg_lun, data[i])) {
-		printf("%s: Received truncated message data %d < %lu\n",
+		printf("%s: Received truncated message data %d < %zu\n",
 		    __func__, len, offsetof(struct ctl_ha_msg_lun, data[i]));
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 		return;
@@ -1229,7 +1229,7 @@ ctl_isc_port_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	int i, new;
 
 	if (len < offsetof(struct ctl_ha_msg_port, data[0])) {
-		printf("%s: Received truncated message %d < %lu\n",
+		printf("%s: Received truncated message %d < %zu\n",
 		    __func__, len, offsetof(struct ctl_ha_msg_port, data[0]));
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 		return;
@@ -1238,7 +1238,7 @@ ctl_isc_port_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	    msg->port.port_devid_len + msg->port.target_devid_len +
 	    msg->port.init_devid_len;
 	if (len < offsetof(struct ctl_ha_msg_port, data[i])) {
-		printf("%s: Received truncated message data %d < %lu\n",
+		printf("%s: Received truncated message data %d < %zu\n",
 		    __func__, len, offsetof(struct ctl_ha_msg_port, data[i]));
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 		return;
@@ -1358,14 +1358,14 @@ ctl_isc_iid_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	int i, iid;
 
 	if (len < offsetof(struct ctl_ha_msg_iid, data[0])) {
-		printf("%s: Received truncated message %d < %lu\n",
+		printf("%s: Received truncated message %d < %zu\n",
 		    __func__, len, offsetof(struct ctl_ha_msg_iid, data[0]));
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 		return;
 	}
 	i = msg->iid.name_len;
 	if (len < offsetof(struct ctl_ha_msg_iid, data[i])) {
-		printf("%s: Received truncated message data %d < %lu\n",
+		printf("%s: Received truncated message data %d < %zu\n",
 		    __func__, len, offsetof(struct ctl_ha_msg_iid, data[i]));
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 		return;
@@ -1396,7 +1396,7 @@ ctl_isc_login(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 {
 
 	if (len < sizeof(msg->login)) {
-		printf("%s: Received truncated message %d < %lu\n",
+		printf("%s: Received truncated message %d < %zu\n",
 		    __func__, len, sizeof(msg->login));
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 		return;
@@ -1436,14 +1436,14 @@ ctl_isc_mode_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	uint32_t initidx, targ_lun;
 
 	if (len < offsetof(struct ctl_ha_msg_mode, data[0])) {
-		printf("%s: Received truncated message %d < %lu\n",
+		printf("%s: Received truncated message %d < %zu\n",
 		    __func__, len, offsetof(struct ctl_ha_msg_mode, data[0]));
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 		return;
 	}
 	i = msg->mode.page_len;
 	if (len < offsetof(struct ctl_ha_msg_mode, data[i])) {
-		printf("%s: Received truncated message data %d < %lu\n",
+		printf("%s: Received truncated message data %d < %zu\n",
 		    __func__, len, offsetof(struct ctl_ha_msg_mode, data[i]));
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 		return;
