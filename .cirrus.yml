@@ -40,7 +40,7 @@ task:
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
   script:
-  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
+  - su user -c "make -s -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
   package_script:
   - su user -c "make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
   test_script:
