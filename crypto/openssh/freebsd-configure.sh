@@ -12,7 +12,6 @@ configure_args="
     --with-libedit
     --with-ssl-engine
     --without-xauth
-    --without-security-key-internal
 "
 
 set -e
@@ -34,8 +33,19 @@ sh configure $configure_args --with-kerberos5=/usr
 mv config.log config.log.kerberos5
 mv config.h config.h.kerberos5
 
+# Generate config.h with built-in security key support
+env CFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib \
+    sh configure $configure_args --with-security-key-builtin
+mv config.log config.log.sk-builtin
+mv config.h config.h.sk-builtin
+
 # Generate config.h without krb5
 sh configure $configure_args --without-kerberos5
+
+# Extract the difference - SK
+diff -u config.h.sk-builtin config.h |
+    sed -n '/^-#define/s/^-//p' |
+    grep -Ff /dev/stdin config.h.sk-builtin >> sk_config.h
 
 # Extract the difference
 echo '/* $Free''BSD$ */' > krb5_config.h
