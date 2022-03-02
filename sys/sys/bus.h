@@ -129,6 +129,7 @@ struct devreq {
 #define	DEV_FREEZE	_IOW('D', 11, struct devreq)
 #define	DEV_THAW	_IOW('D', 12, struct devreq)
 #define	DEV_RESET	_IOW('D', 13, struct devreq)
+#define	DEV_GET_PATH	_IOWR('D', 14, struct devreq)
 
 /* Flags for DEV_DETACH and DEV_DISABLE. */
 #define	DEVF_FORCE_DETACH	0x0000001
@@ -491,6 +492,8 @@ int	bus_generic_unmap_resource(device_t dev, device_t child, int type,
 				   struct resource_map *map);
 int	bus_generic_write_ivar(device_t dev, device_t child, int which,
 			       uintptr_t value);
+int	bus_generic_get_device_path(device_t bus, device_t child, const char *locator,
+				    struct sbuf *sb);
 int	bus_helper_reset_post(device_t dev, int flags);
 int	bus_helper_reset_prepare(device_t dev, int flags);
 int	bus_null_rescan(device_t dev);
@@ -734,6 +737,10 @@ void	bus_data_generation_update(void);
 #define	BUS_PASS_ORDER_LATE	7
 #define	BUS_PASS_ORDER_LAST	9
 
+#define BUS_LOCATOR_ACPI	"ACPI"
+#define BUS_LOCATOR_FREEBSD	"FreeBSD"
+#define BUS_LOCATOR_UEFI	"UEFI"
+
 extern int bus_current_pass;
 
 void	bus_set_pass(int pass);
@@ -834,6 +841,13 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)		\
 	    __func__, device_get_nameunit(dev),				\
 	    device_get_nameunit(device_get_parent(dev)), e));		\
 }
+
+struct device_location_cache;
+typedef struct device_location_cache device_location_cache_t;
+device_location_cache_t *dev_wired_cache_init(void);
+void dev_wired_cache_fini(device_location_cache_t *dcp);
+bool dev_wired_cache_match(device_location_cache_t *dcp, device_t dev, const char *at);
+
 
 /**
  * Shorthand macros, taking resource argument

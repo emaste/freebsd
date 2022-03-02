@@ -265,9 +265,6 @@ tsc_freq_8254(uint64_t *res)
 static void
 probe_tsc_freq(void)
 {
-	if ((cpu_feature & CPUID_TSC) == 0)
-		return;
-
 #ifdef __i386__
 	/* The TSC is known to be broken on certain CPUs. */
 	switch (cpu_vendor_id) {
