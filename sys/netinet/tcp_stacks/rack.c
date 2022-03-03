@@ -6258,10 +6258,10 @@ static int
 rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 {
 	struct tcptemp *t_template;
-	struct inpcb *inp;
+#ifdef INVARIANTS
+	struct inpcb *inp = tp->t_inpcb;
+#endif
 	int32_t retval = 1;
-
-	inp = tp->t_inpcb;
 
 	if (tp->t_timers->tt_flags & TT_STOPPED) {
 		return (1);
@@ -15742,7 +15742,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 	if (TCPS_HAVERCVDSYN(tp->t_state) &&
 	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
-		int ect = tcp_ecn_output_established(tp, &flags, len);
+		int ect = tcp_ecn_output_established(tp, &flags, len, true);
 		if ((tp->t_state == TCPS_SYN_RECEIVED) &&
 		    (tp->t_flags2 & TF2_ECN_SND_ECE))
 		    tp->t_flags2 &= ~TF2_ECN_SND_ECE;
@@ -16217,7 +16217,7 @@ again:
 	}
 	if (rack->r_ctl.fsb.rfo_apply_push &&
 	    (len == rack->r_ctl.fsb.left_to_send)) {
-		tcp_set_flags(th, flags | TH_PUSH);
+		flags |= TH_PUSH;
 		add_flag |= RACK_HAD_PUSH;
 	}
 	if ((m->m_next == NULL) || (len <= 0)){
@@ -16233,7 +16233,7 @@ again:
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 	if (TCPS_HAVERCVDSYN(tp->t_state) &&
 	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
-		int ect = tcp_ecn_output_established(tp, &flags, len);
+		int ect = tcp_ecn_output_established(tp, &flags, len, false);
 		if ((tp->t_state == TCPS_SYN_RECEIVED) &&
 		    (tp->t_flags2 & TF2_ECN_SND_ECE))
 			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
@@ -18278,7 +18278,7 @@ send:
 	/* Also handle parallel SYN for ECN */
 	if (TCPS_HAVERCVDSYN(tp->t_state) &&
 	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
-		int ect = tcp_ecn_output_established(tp, &flags, len);
+		int ect = tcp_ecn_output_established(tp, &flags, len, sack_rxmit);
 		if ((tp->t_state == TCPS_SYN_RECEIVED) &&
 		    (tp->t_flags2 & TF2_ECN_SND_ECE))
 			tp->t_flags2 &= ~TF2_ECN_SND_ECE;

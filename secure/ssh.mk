@@ -5,8 +5,12 @@
 SSHDIR=		${SRCTOP}/crypto/openssh
 
 CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
-SRCS+=	 ssh_namespace.h
+
+.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
+CFLAGS+= -include krb5_config.h
+.endif
 
 .if ${MK_USB} != "no"
-CFLAGS+=	-DENABLE_SK_INTERNAL=1
+# Built-in security key support
+CFLAGS+= -include sk_config.h
 .endif

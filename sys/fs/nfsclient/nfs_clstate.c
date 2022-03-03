@@ -158,7 +158,7 @@ static int nfsrpc_reopen(struct nfsmount *, u_int8_t *, int, u_int32_t,
 static void nfscl_freedeleg(struct nfscldeleghead *, struct nfscldeleg *,
     bool);
 static int nfscl_errmap(struct nfsrv_descript *, u_int32_t);
-static u_int nfscl_cleanup_common(struct nfsclclient *, u_int8_t *);
+static void nfscl_cleanup_common(struct nfsclclient *, u_int8_t *);
 static int nfscl_recalldeleg(struct nfsclclient *, struct nfsmount *,
     struct nfscldeleg *, vnode_t, struct ucred *, NFSPROC_T *, int,
     vnode_t *);
@@ -1649,7 +1649,8 @@ nfscl_freeopenowner(struct nfsclowner *owp, int local)
 	 * calls in nfscl_renewthread() that do not hold a reference
 	 * count on the nfsclclient and just the mutex.
 	 * The mutex will not be held for calls done with the exclusive
-	 * nfsclclient lock held.
+	 * nfsclclient lock held, in particular, nfscl_hasexpired()
+	 * and nfscl_recalldeleg() might do this.
 	 */
 	owned = mtx_owned(NFSCLSTATEMUTEXPTR);
 	if (owned == 0)
@@ -1678,7 +1679,8 @@ nfscl_freelockowner(struct nfscllockowner *lp, int local)
 	 * calls in nfscl_renewthread() that do not hold a reference
 	 * count on the nfsclclient and just the mutex.
 	 * The mutex will not be held for calls done with the exclusive
-	 * nfsclclient lock held.
+	 * nfsclclient lock held, in particular, nfscl_hasexpired()
+	 * and nfscl_recalldeleg() might do this.
 	 */
 	owned = mtx_owned(NFSCLSTATEMUTEXPTR);
 	if (owned == 0)
@@ -1867,32 +1869,25 @@ nfscl_expireclient(struct nfsclclient *clp, struct nfsmount *nmp,
 	}
 }
 
-#define	FREED_OPENOWNER	0x1
-#define	FREED_LOCKOWNER	0x2
-
 /*
  * This function must be called after the process represented by "own" has
  * exited. Must be called with CLSTATE lock held.
- * Return the FREED_xxx flag bits, since the caller needs to know if either
- * the open owner or lock owner lists have changed.
  */
-static u_int
+static void
 nfscl_cleanup_common(struct nfsclclient *clp, u_int8_t *own)
 {
 	struct nfsclowner *owp, *nowp;
-	struct nfscllockowner *lp, *nlp;
+	struct nfscllockowner *lp;
 	struct nfscldeleg *dp;
-	u_int didfree;
 
-	didfree = 0;
 	/* First, get rid of local locks on delegations. */
 	TAILQ_FOREACH(dp, &clp->nfsc_deleg, nfsdl_list) {
-		LIST_FOREACH_SAFE(lp, &dp->nfsdl_lock, nfsl_list, nlp) {
+		LIST_FOREACH(lp, &dp->nfsdl_lock, nfsl_list) {
 		    if (!NFSBCMP(lp->nfsl_owner, own, NFSV4CL_LOCKNAMELEN)) {
 			if ((lp->nfsl_rwlock.nfslock_lock & NFSV4LOCK_WANTED))
 			    panic("nfscllckw");
 			nfscl_freelockowner(lp, 1);
-			didfree |= FREED_LOCKOWNER;
+			break;
 		    }
 		}
 	}
@@ -1907,15 +1902,14 @@ nfscl_cleanup_common(struct nfsclclient *clp, u_int8_t *own)
 			 * here. For that case, let the renew thread clear
 			 * out the OpenOwner later.
 			 */
-			if (LIST_EMPTY(&owp->nfsow_open)) {
+			if (LIST_EMPTY(&owp->nfsow_open))
 				nfscl_freeopenowner(owp, 0);
-				didfree |= FREED_OPENOWNER;
-			} else
+			else
 				owp->nfsow_defunct = 1;
+			break;
 		}
 		owp = nowp;
 	}
-	return (didfree);
 }
 
 /*
@@ -1924,7 +1918,7 @@ nfscl_cleanup_common(struct nfsclclient *clp, u_int8_t *own)
 static void
 nfscl_cleanupkext(struct nfsclclient *clp, struct nfscllockownerfhhead *lhp)
 {
-	struct nfsclowner *owp;
+	struct nfsclowner *owp, *nowp;
 	struct nfsclopen *op;
 	struct nfscllockowner *lp, *nlp;
 	struct nfscldeleg *dp;
@@ -1938,8 +1932,7 @@ nfscl_cleanupkext(struct nfsclclient *clp, struct nfscllockownerfhhead *lhp)
 	 */
 	pidhash_slockall();
 	NFSLOCKCLSTATE();
-tryagain:
-	LIST_FOREACH(owp, &clp->nfsc_owner, nfsow_list) {
+	LIST_FOREACH_SAFE(owp, &clp->nfsc_owner, nfsow_list, nowp) {
 		LIST_FOREACH(op, &owp->nfsow_open, nfso_list) {
 			LIST_FOREACH_SAFE(lp, &op->nfso_lock, nfsl_list, nlp) {
 				if (LIST_EMPTY(&lp->nfsl_lock))
@@ -1948,9 +1941,7 @@ tryagain:
 		}
 		if (nfscl_procdoesntexist(owp->nfsow_owner)) {
 			memcpy(own, owp->nfsow_owner, NFSV4CL_LOCKNAMELEN);
-			if ((nfscl_cleanup_common(clp, own) &
-			    FREED_OPENOWNER) != 0)
-				goto tryagain;
+			nfscl_cleanup_common(clp, own);
 		}
 	}
 
@@ -1962,14 +1953,11 @@ tryagain:
 	 * nfscl_cleanup_common().
 	 */
 	TAILQ_FOREACH(dp, &clp->nfsc_deleg, nfsdl_list) {
-tryagain2:
-		LIST_FOREACH(lp, &dp->nfsdl_lock, nfsl_list) {
+		LIST_FOREACH_SAFE(lp, &dp->nfsdl_lock, nfsl_list, nlp) {
 			if (nfscl_procdoesntexist(lp->nfsl_owner)) {
 				memcpy(own, lp->nfsl_owner,
 				    NFSV4CL_LOCKNAMELEN);
-				if ((nfscl_cleanup_common(clp, own) &
-				    FREED_LOCKOWNER) != 0)
-					goto tryagain2;
+				nfscl_cleanup_common(clp, own);
 			}
 		}
 	}
