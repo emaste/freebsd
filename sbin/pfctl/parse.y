@@ -122,10 +122,17 @@ int		 atoul(char *, u_long *);
 enum {
 	PFCTL_STATE_NONE,
 	PFCTL_STATE_OPTION,
+	PFCTL_STATE_ETHER,
 	PFCTL_STATE_SCRUB,
 	PFCTL_STATE_QUEUE,
 	PFCTL_STATE_NAT,
 	PFCTL_STATE_FILTER
+};
+
+struct node_etherproto {
+	u_int16_t		 proto;
+	struct node_etherproto	*next;
+	struct node_etherproto	*tail;
 };
 
 struct node_proto {
@@ -341,6 +348,9 @@ void		 expand_label_port(const char *, char *, size_t,
 void		 expand_label_proto(const char *, char *, size_t, u_int8_t);
 void		 expand_label_nr(const char *, char *, size_t,
 		    struct pfctl_rule *);
+void		 expand_eth_rule(struct pfctl_eth_rule *,
+		    struct node_if *, struct node_etherproto *,
+		    struct node_mac *, struct node_mac *, const char *);
 void		 expand_rule(struct pfctl_rule *, struct node_if *,
 		    struct node_host *, struct node_proto *, struct node_os *,
 		    struct node_host *, struct node_port *, struct node_host *,
@@ -360,12 +370,16 @@ int	 rule_label(struct pfctl_rule *, char *s[PF_RULE_MAX_LABEL_COUNT]);
 int	 rt_tableid_max(void);
 
 void	 mv_rules(struct pfctl_ruleset *, struct pfctl_ruleset *);
+void	 mv_eth_rules(struct pfctl_eth_ruleset *, struct pfctl_eth_ruleset *);
 void	 decide_address_family(struct node_host *, sa_family_t *);
 void	 remove_invalid_hosts(struct node_host **, sa_family_t *);
 int	 invalid_redirect(struct node_host *, sa_family_t);
 u_int16_t parseicmpspec(char *, sa_family_t);
 int	 kw_casecmp(const void *, const void *);
 int	 map_tos(char *string, int *);
+struct node_mac* node_mac_from_string(const char *);
+struct node_mac* node_mac_from_string_masklen(const char *, int);
+struct node_mac* node_mac_from_string_mask(const char *, const char *);
 
 static TAILQ_HEAD(loadanchorshead, loadanchors)
     loadanchorshead = TAILQ_HEAD_INITIALIZER(loadanchorshead);
@@ -396,6 +410,7 @@ typedef struct {
 		}			 range;
 		struct node_if		*interface;
 		struct node_proto	*proto;
+		struct node_etherproto	*etherproto;
 		struct node_icmp	*icmp;
 		struct node_host	*host;
 		struct node_os		*os;
@@ -408,6 +423,14 @@ typedef struct {
 			struct peer	 src, dst;
 			struct node_os	*src_os;
 		}			 fromto;
+		struct {
+			struct node_mac	*src;
+			struct node_mac	*dst;
+		}			 etherfromto;
+		struct node_mac		*mac;
+		struct {
+			struct node_mac	*mac;
+		} etheraddr;
 		struct {
 			struct node_host	*host;
 			u_int8_t		 rt;
@@ -470,6 +493,7 @@ int	parseport(char *, struct range *r, int);
 %token	SET OPTIMIZATION TIMEOUT LIMIT LOGINTERFACE BLOCKPOLICY FAILPOLICY
 %token	RANDOMID REQUIREORDER SYNPROXY FINGERPRINTS NOSYNC DEBUG SKIP HOSTID
 %token	ANTISPOOF FOR INCLUDE KEEPCOUNTERS SYNCOOKIES
+%token	ETHER
 %token	BITMASK RANDOM SOURCEHASH ROUNDROBIN STATICPORT PROBABILITY MAPEPORTSET
 %token	ALTQ CBQ CODEL PRIQ HFSC FAIRQ BANDWIDTH TBRSIZE LINKSHARE REALTIME
 %token	UPPERLIMIT QUEUE PRIORITY QLIMIT HOGS BUCKETS RTABLE TARGET INTERVAL
@@ -488,6 +512,7 @@ int	parseport(char *, struct range *r, int);
 %type	<v.probability>		probability
 %type	<v.i>			no dir af fragcache optimizer syncookie_val
 %type	<v.i>			sourcetrack flush unaryop statelock
+%type	<v.i>			etherprotoval
 %type	<v.b>			action nataction natpasslog scrubaction
 %type	<v.b>			flags flag blockspec prio
 %type	<v.range>		portplain portstar portrange
@@ -515,7 +540,7 @@ int	parseport(char *, struct range *r, int);
 %type	<v.state_opt>		state_opt_spec state_opt_list state_opt_item
 %type	<v.logquick>		logquick quick log logopts logopt
 %type	<v.interface>		antispoof_ifspc antispoof_iflst antispoof_if
-%type	<v.qassign>		qname
+%type	<v.qassign>		qname etherqname
 %type	<v.queue>		qassign qassign_list qassign_item
 %type	<v.queue_options>	scheduler
 %type	<v.number>		cbqflags_list cbqflags_item
@@ -524,7 +549,7 @@ int	parseport(char *, struct range *r, int);
 %type	<v.fairq_opts>		fairqopts_list fairqopts_item fairq_opts
 %type	<v.codel_opts>		codelopts_list codelopts_item codel_opts
 %type	<v.queue_bwspec>	bandwidth
-%type	<v.filter_opts>		filter_opts filter_opt filter_opts_l
+%type	<v.filter_opts>		filter_opts filter_opt filter_opts_l etherfilter_opts etherfilter_opt etherfilter_opts_l
 %type	<v.filter_opts>		filter_sets filter_set filter_sets_l
 %type	<v.antispoof_opts>	antispoof_opts antispoof_opt antispoof_opts_l
 %type	<v.queue_opts>		queue_opts queue_opt queue_opts_l
@@ -534,12 +559,18 @@ int	parseport(char *, struct range *r, int);
 %type	<v.tagged>		tagged
 %type	<v.rtableid>		rtable
 %type	<v.watermarks>		syncookie_opts
+%type	<v.etherproto>		etherproto etherproto_list etherproto_item
+%type	<v.etherfromto>		etherfromto
+%type	<v.etheraddr>		etherfrom etherto
+%type	<v.mac>			xmac mac mac_list macspec
 %%
 
 ruleset		: /* empty */
 		| ruleset include '\n'
 		| ruleset '\n'
 		| ruleset option '\n'
+		| ruleset etherrule '\n'
+		| ruleset etheranchorrule '\n'
 		| ruleset scrubrule '\n'
 		| ruleset natrule '\n'
 		| ruleset binatrule '\n'
@@ -1148,6 +1179,151 @@ scrubaction	: no SCRUB {
 				$$.b1 = PF_NOSCRUB;
 			else
 				$$.b1 = PF_SCRUB;
+		}
+		;
+
+etherrule	: ETHER action dir quick interface etherproto etherfromto etherfilter_opts
+		{
+			struct pfctl_eth_rule	r;
+
+			bzero(&r, sizeof(r));
+
+			if (check_rulestate(PFCTL_STATE_ETHER))
+				YYERROR;
+
+			r.action = $2.b1;
+			r.direction = $3;
+			r.quick = $4.quick;
+			if ($8.tag != NULL)
+				memcpy(&r.tagname, $8.tag, sizeof(r.tagname));
+			if ($8.queues.qname != NULL)
+				memcpy(&r.qname, $8.queues.qname, sizeof(r.qname));
+			r.dnpipe = $8.dnpipe;
+			r.dnflags = $8.free_flags;
+
+			expand_eth_rule(&r, $5, $6, $7.src, $7.dst, "");
+		}
+		;
+
+etherpfa_anchorlist	: /* empty */
+		| etherpfa_anchorlist '\n'
+		| etherpfa_anchorlist etherrule '\n'
+		| etherpfa_anchorlist etheranchorrule '\n'
+		;
+
+etherpfa_anchor	: '{'
+		{
+			char ta[PF_ANCHOR_NAME_SIZE];
+			struct pfctl_eth_ruleset *rs;
+
+			/* steping into a brace anchor */
+			pf->asd++;
+			pf->bn++;
+
+			/* create a holding ruleset in the root */
+			snprintf(ta, PF_ANCHOR_NAME_SIZE, "_%d", pf->bn);
+			rs = pf_find_or_create_eth_ruleset(ta);
+			if (rs == NULL)
+				err(1, "etherpfa_anchor: pf_find_or_create_eth_ruleset");
+			pf->eastack[pf->asd] = rs->anchor;
+			pf->eanchor = rs->anchor;
+		} '\n' etherpfa_anchorlist '}'
+		{
+			pf->ealast = pf->eanchor;
+			pf->asd--;
+			pf->eanchor = pf->eastack[pf->asd];
+		}
+		| /* empty */
+		;
+
+etheranchorrule	: ETHER ANCHOR anchorname dir quick interface etherproto etherfromto etherpfa_anchor
+		{
+			struct pfctl_eth_rule	r;
+
+			if (check_rulestate(PFCTL_STATE_ETHER)) {
+				free($3);
+				YYERROR;
+			}
+
+			if ($3 && ($3[0] == '_' || strstr($3, "/_") != NULL)) {
+				free($3);
+				yyerror("anchor names beginning with '_' "
+				    "are reserved for internal use");
+				YYERROR;
+			}
+
+			memset(&r, 0, sizeof(r));
+			if (pf->eastack[pf->asd + 1]) {
+				/* move inline rules into relative location */
+				pfctl_eth_anchor_setup(pf, &r,
+				    &pf->eastack[pf->asd]->ruleset,
+				    $3 ? $3 : pf->ealast->name);
+				if (r.anchor == NULL)
+					err(1, "etheranchorrule: unable to "
+					    "create ruleset");
+
+				if (pf->ealast != r.anchor) {
+					if (r.anchor->match) {
+						yyerror("inline anchor '%s' "
+						    "already exists",
+						    r.anchor->name);
+						YYERROR;
+					}
+					mv_eth_rules(&pf->ealast->ruleset,
+					    &r.anchor->ruleset);
+				}
+				pf_remove_if_empty_eth_ruleset(&pf->ealast->ruleset);
+				pf->ealast = r.anchor;
+			} else {
+				if (!$3) {
+					yyerror("anchors without explicit "
+					    "rules must specify a name");
+					YYERROR;
+				}
+			}
+
+			r.direction = $4;
+			r.quick = $5.quick;
+
+			expand_eth_rule(&r, $6, $7, $8.src, $8.dst,
+			    pf->eastack[pf->asd + 1] ? pf->ealast->name : $3);
+
+			free($3);
+			pf->eastack[pf->asd + 1] = NULL;
+		}
+		;
+
+etherfilter_opts	:	{
+				bzero(&filter_opts, sizeof filter_opts);
+			}
+		    etherfilter_opts_l
+			{ $$ = filter_opts; }
+		| /* empty */	{
+			bzero(&filter_opts, sizeof filter_opts);
+			$$ = filter_opts;
+		}
+		;
+
+etherfilter_opts_l	: etherfilter_opts_l etherfilter_opt
+			| etherfilter_opt
+
+etherfilter_opt	: etherqname	{
+			if (filter_opts.queues.qname) {
+				yyerror("queue cannot be redefined");
+				YYERROR;
+			}
+			filter_opts.queues = $1;
+		}
+		| TAG string				{
+			filter_opts.tag = $2;
+		}
+		| DNPIPE number {
+			filter_opts.dnpipe = $2;
+			filter_opts.free_flags |= PFRULE_DN_IS_PIPE;
+		}
+		| DNQUEUE number {
+			filter_opts.dnpipe = $2;
+			filter_opts.free_flags |= PFRULE_DN_IS_QUEUE;
 		}
 		;
 
@@ -2978,6 +3154,56 @@ af		: /* empty */			{ $$ = 0; }
 		| INET6				{ $$ = AF_INET6; }
 		;
 
+etherproto	: /* empty */				{ $$ = NULL; }
+		| PROTO etherproto_item			{ $$ = $2; }
+		| PROTO '{' optnl etherproto_list '}'	{ $$ = $4; }
+		;
+
+etherproto_list	: etherproto_item optnl			{ $$ = $1; }
+		| etherproto_list comma etherproto_item optnl	{
+			$1->tail->next = $3;
+			$1->tail = $3;
+			$$ = $1;
+		}
+		;
+
+etherproto_item	: etherprotoval		{
+			u_int16_t	pr;
+
+			pr = (u_int16_t)$1;
+			if (pr == 0) {
+				yyerror("proto 0 cannot be used");
+				YYERROR;
+			}
+			$$ = calloc(1, sizeof(struct node_proto));
+			if ($$ == NULL)
+				err(1, "proto_item: calloc");
+			$$->proto = pr;
+			$$->next = NULL;
+			$$->tail = $$;
+		}
+		;
+
+etherprotoval	: NUMBER			{
+			if ($1 < 0 || $1 > 65565) {
+				yyerror("protocol outside range");
+				YYERROR;
+			}
+		}
+		| STRING
+		{
+			if (!strncmp($1, "0x", 2)) {
+				if (sscanf($1, "0x%4x", &$$) != 1) {
+					free($1);
+					yyerror("invalid EtherType hex");
+					YYERROR;
+				}
+			} else {
+				yyerror("Symbolic EtherType not yet supported");
+			}
+		}
+		;
+
 proto		: /* empty */				{ $$ = NULL; }
 		| PROTO proto_item			{ $$ = $2; }
 		| PROTO '{' optnl proto_list '}'	{ $$ = $4; }
@@ -3027,6 +3253,83 @@ protoval	: STRING			{
 			}
 		}
 		;
+
+etherfromto	: ALL				{
+			$$.src = NULL;
+			$$.dst = NULL;
+		}
+		| etherfrom etherto		{
+			$$.src = $1.mac;
+			$$.dst = $2.mac;
+		}
+		;
+
+etherfrom	: /* emtpy */			{
+			bzero(&$$, sizeof($$));
+		}
+		| FROM macspec			{
+			$$.mac = $2;
+		}
+		;
+
+etherto		: /* empty */			{
+			bzero(&$$, sizeof($$));
+		}
+		| TO macspec			{
+			$$.mac = $2;
+		}
+		;
+
+mac		: string '/' NUMBER		{
+			$$ = node_mac_from_string_masklen($1, $3);
+			free($1);
+			if ($$ == NULL)
+				YYERROR;
+		}
+		| string			{
+			if (strchr($1, '&')) {
+				/* mac&mask */
+				char *mac = strtok($1, "&");
+				char *mask = strtok(NULL, "&");
+				$$ = node_mac_from_string_mask(mac, mask);
+			} else {
+				$$ = node_mac_from_string($1);
+			}
+			free($1);
+			if ($$ == NULL)
+				YYERROR;
+
+		}
+xmac		: not mac {
+			struct node_mac	*n;
+
+			for (n = $2; n != NULL; n = n->next)
+				n->neg = $1;
+			$$ = $2;
+		}
+		;
+macspec		: xmac {
+			$$ = $1;
+		}
+		| '{' optnl mac_list '}'
+		{
+			$$ = $3;
+		}
+		;
+mac_list	: xmac optnl {
+			$$ = $1;
+		}
+		| mac_list comma xmac {
+			if ($3 == NULL)
+				$$ = $1;
+			else if ($1 == NULL)
+				$$ = $3;
+			else {
+				$1->tail->next = $3;
+				$1->tail = $3->tail;
+				$$ = $1;
+			}
+		}
 
 fromto		: ALL				{
 			$$.src.host = NULL;
@@ -3962,6 +4265,14 @@ state_opt_item	: MAXIMUM NUMBER		{
 
 label		: LABEL STRING			{
 			$$ = $2;
+		}
+		;
+
+etherqname	: QUEUE STRING				{
+			$$.qname = $2;
+		}
+		| QUEUE '(' STRING ')'			{
+			$$.qname = $3;
 		}
 		;
 
@@ -5423,6 +5734,38 @@ expand_queue(struct pf_altq *a, struct node_if *interfaces,
 }
 
 void
+expand_eth_rule(struct pfctl_eth_rule *r,
+    struct node_if *interfaces, struct node_etherproto *protos,
+    struct node_mac *srcs, struct node_mac *dsts, const char *anchor_call)
+{
+	LOOP_THROUGH(struct node_if, interface, interfaces,
+	LOOP_THROUGH(struct node_etherproto, proto, protos,
+	LOOP_THROUGH(struct node_mac, src, srcs,
+	LOOP_THROUGH(struct node_mac, dst, dsts,
+		strlcpy(r->ifname, interface->ifname,
+		    sizeof(r->ifname));
+		r->ifnot = interface->not;
+		r->proto = proto->proto;
+		bcopy(src->mac, r->src.addr, ETHER_ADDR_LEN);
+		bcopy(src->mask, r->src.mask, ETHER_ADDR_LEN);
+		r->src.neg = src->neg;
+		r->src.isset = src->isset;
+		bcopy(dst->mac, r->dst.addr, ETHER_ADDR_LEN);
+		bcopy(dst->mask, r->dst.mask, ETHER_ADDR_LEN);
+		r->dst.neg = dst->neg;
+		r->dst.isset = dst->isset;
+		r->nr = pf->eastack[pf->asd]->match++;
+
+		pfctl_append_eth_rule(pf, r, anchor_call);
+	))));
+
+	FREE_LIST(struct node_if, interfaces);
+	FREE_LIST(struct node_etherproto, protos);
+	FREE_LIST(struct node_mac, srcs);
+	FREE_LIST(struct node_mac, dsts);
+}
+
+void
 expand_rule(struct pfctl_rule *r,
     struct node_if *interfaces, struct node_host *rpool_hosts,
     struct node_proto *protos, struct node_os *src_oses,
@@ -5638,8 +5981,8 @@ int
 check_rulestate(int desired_state)
 {
 	if (require_order && (rulestate > desired_state)) {
-		yyerror("Rules must be in order: options, normalization, "
-		    "queueing, translation, filtering");
+		yyerror("Rules must be in order: options, ethernet, "
+		    "normalization, queueing, translation, filtering");
 		return (1);
 	}
 	rulestate = desired_state;
@@ -5682,6 +6025,7 @@ lookup(char *s)
 		{ "drop",		DROP},
 		{ "drop-ovl",		FRAGDROP},
 		{ "dup-to",		DUPTO},
+		{ "ether",		ETHER},
 		{ "fail-policy",	FAILPOLICY},
 		{ "fairq",		FAIRQ},
 		{ "fastroute",		FASTROUTE},
@@ -6276,6 +6620,19 @@ mv_rules(struct pfctl_ruleset *src, struct pfctl_ruleset *dst)
 }
 
 void
+mv_eth_rules(struct pfctl_eth_ruleset *src, struct pfctl_eth_ruleset *dst)
+{
+	struct pfctl_eth_rule *r;
+
+	while ((r = TAILQ_FIRST(&src->rules)) != NULL) {
+		TAILQ_REMOVE(&src->rules, r, entries);
+		TAILQ_INSERT_TAIL(&dst->rules, r, entries);
+		dst->anchor->match++;
+	}
+	src->anchor->match = 0;
+}
+
+void
 decide_address_family(struct node_host *n, sa_family_t *af)
 {
 	if (*af != 0 || n == NULL)
@@ -6551,4 +6908,70 @@ rt_tableid_max(void)
 #else
 	return (RT_TABLEID_MAX);
 #endif
+}
+
+struct node_mac*
+node_mac_from_string(const char *str)
+{
+	struct node_mac *m;
+
+	m = calloc(1, sizeof(struct node_mac));
+	if (m == NULL)
+		err(1, "mac: calloc");
+
+	if (sscanf(str, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+	    &m->mac[0], &m->mac[1], &m->mac[2], &m->mac[3], &m->mac[4],
+	    &m->mac[5]) != 6) {
+		free(m);
+		yyerror("invalid MAC address");
+		return (NULL);
+	}
+
+	memset(m->mask, 0xff, ETHER_ADDR_LEN);
+	m->isset = true;
+	m->next = NULL;
+	m->tail = m;
+
+	return (m);
+}
+
+struct node_mac*
+node_mac_from_string_masklen(const char *str, int masklen)
+{
+	struct node_mac *m;
+
+	if (masklen < 0 || masklen > (ETHER_ADDR_LEN * 8)) {
+		yyerror("invalid MAC mask length");
+		return (NULL);
+	}
+
+	m = node_mac_from_string(str);
+	if (m == NULL)
+		return (NULL);
+
+	memset(m->mask, 0, ETHER_ADDR_LEN);
+	for (int i = 0; i < masklen; i++)
+		m->mask[i / 8] |= 1 << (i % 8);
+
+	return (m);
+}
+
+struct node_mac*
+node_mac_from_string_mask(const char *str, const char *mask)
+{
+	struct node_mac *m;
+
+	m = node_mac_from_string(str);
+	if (m == NULL)
+		return (NULL);
+
+	if (sscanf(mask, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+	    &m->mask[0], &m->mask[1], &m->mask[2], &m->mask[3], &m->mask[4],
+	    &m->mask[5]) != 6) {
+		free(m);
+		yyerror("invalid MAC mask");
+		return (NULL);
+	}
+
+	return (m);
 }
