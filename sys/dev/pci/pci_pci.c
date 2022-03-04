@@ -1478,6 +1478,146 @@ pcib_detach_hotplug(struct pcib_softc *sc)
 }
 #endif
 
+static void
+pcib_dpc_intr(void *arg)
+{
+    struct pcib_softc *sc;
+    device_t dev;
+    uint16_t stat, source;
+
+    sc = (struct pcib_softc *)arg;
+    dev = sc->dev;
+
+    stat = pci_read_config(dev, sc->pcie_dpc + PCIR_DPC_STATUS, 2);
+    if ((stat & (PCIM_DPC_TRIGGERED | PCIM_DPC_INT_STATUS)) == 0)
+	return;
+
+    source = pci_read_config(dev, sc->pcie_dpc + PCIR_DPC_SOURCE, 2);
+    device_printf(dev, "DPC interrupt 0x%x source %d\n", stat, source);
+
+    stat = PCIM_DPC_TRIGGERED | PCIM_DPC_INT_STATUS;
+    pci_write_config(dev, sc->pcie_dpc + PCIR_DPC_STATUS, stat, 2);
+
+    return;
+}
+
+static int
+pcib_dpc_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    struct pcib_softc *sc;
+    uint16_t reg;
+    int error, arg;
+
+    sc = (struct pcib_softc *)arg1;
+
+    reg = (pci_read_config(sc->dev, sc->pcie_dpc + PCIR_DPC_STATUS, 2)
+	& PCIM_DPC_REASON) >> PCIM_DPC_REASON_SHIFT;
+    if (reg == PCIM_DPC_REASON_EXT)
+	arg = !!(reg & PCIM_DPC_EXT_SOFT);
+    else
+	arg = 0;
+
+    error = sysctl_handle_int(oidp, &arg, 0, req);
+    if (!error && req->newptr != NULL && arg) {
+	reg = pci_read_config(sc->dev, sc->pcie_dpc + PCIR_DPC_CONTROL, 2);
+	reg |= PCIM_DPC_SOFT_TRIGGER;
+	pci_write_config(sc->dev, sc->pcie_dpc + PCIR_DPC_CONTROL, reg, 2);
+    }
+
+    return (error);
+}
+
+static void
+pcib_probe_dpc(struct pcib_softc *sc)
+{
+    int dpc;
+
+    /*
+     * Check for PCIe.
+     * Should the LC cap be checked for the DLL_Active flag too?
+     */
+    if (pci_find_cap(sc->dev, PCIY_EXPRESS, NULL) != 0)
+	return;
+
+    if ((pci_find_extcap(sc->dev, PCIZ_DPC, &dpc)) != 0) {
+	device_printf(sc->dev, "No DPC capability\n");
+	return;
+    }
+
+    sc->pcie_dpc = dpc;
+    sc->flags |= PCIB_DPC;
+
+    return;
+}
+
+static int
+pcib_setup_dpc(struct pcib_softc *sc)
+{
+    device_t dev;
+    struct sysctl_ctx_list *sctx;
+    struct sysctl_oid	*soid;
+    uint32_t cap, control;
+    int error, count, rid = -1;
+
+    dev = sc->dev;
+
+    cap = pci_read_config(dev, sc->pcie_dpc + PCIR_DPC_CAP, 2);
+    device_printf(dev, "Downstream Port Containment: %b\n", cap,
+	"\20"
+	"\6RPExt"
+	"\7PoisonedTLP"
+	"\10SoftTrig"
+	"\15DLActiveErr");
+
+    if ((count = pci_msix_count(dev)) == 1) {
+	if (pci_alloc_msix(dev, &count) == 0)
+	    rid = 1;
+    }
+
+    if (rid < 0 && pci_msi_count(dev) > 0) {
+	count = 1;
+	if (pci_alloc_msi(dev, &count) == 0)
+	    rid = 1;
+    }
+
+    if (rid < 0)
+	rid = 0;
+
+    sc->pcie_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	RF_ACTIVE | RF_SHAREABLE);
+    if (sc->pcie_irq == NULL) {
+	device_printf(dev, "Failed to allocate interrupt for DPC\n");
+	if (rid > 0)
+	    pci_release_msi(dev);
+	return (ENXIO);
+    }
+
+    error = bus_setup_intr(dev, sc->pcie_irq, INTR_TYPE_MISC|INTR_MPSAFE,
+	NULL, pcib_dpc_intr, sc, &sc->pcie_ihand);
+    if (error) {
+	device_printf(dev, "Failed to setup PCI-e interrupt handler\n");
+	bus_release_resource(dev, SYS_RES_IRQ, rid, sc->pcie_irq);
+	if (rid > 0)
+	    pci_release_msi(dev);
+	return (ENXIO);
+    }
+
+    if (cap & PCIM_DPC_CAP_SOFT) {
+	    sctx = device_get_sysctl_ctx(dev);
+	    soid = device_get_sysctl_tree(dev);
+
+	    SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO,
+		"software_trigger_dpc", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MPSAFE,
+		sc, 0, pcib_dpc_sysctl, "I", "Trigger a software DPC");
+    }
+
+    control = pci_read_config(dev, sc->pcie_dpc + PCIR_DPC_CONTROL, 2);
+    control |= PCIM_DPC_TRIG_NONFATAL | PCIM_DPC_INT_EN;
+    pci_write_config(dev, sc->pcie_dpc + PCIR_DPC_CONTROL, control, 2);
+
+    return (0);
+}
+
 /*
  * Get current bridge configuration.
  */
@@ -1657,6 +1797,7 @@ pcib_attach_common(device_t dev)
 #ifdef PCI_HP
     pcib_probe_hotplug(sc);
 #endif
+    pcib_probe_dpc(sc);
 #ifdef NEW_PCIB
 #ifdef PCI_RES_BUS
     pcib_setup_secbus(dev, &sc->bus, 1);
@@ -1667,6 +1808,8 @@ pcib_attach_common(device_t dev)
     if (sc->flags & PCIB_HOTPLUG)
 	    pcib_setup_hotplug(sc);
 #endif
+    if (sc->flags & PCIB_DPC)
+	    pcib_setup_dpc(sc);
     if (bootverbose) {
 	device_printf(dev, "  domain            %d\n", sc->domain);
 	device_printf(dev, "  secondary bus     %d\n", sc->bus.sec);

@@ -1098,3 +1098,55 @@
 #define	PCIM_OSC_CTL_PCIE_PME		0x04	/* PCIe Native Power Mgt Events */
 #define	PCIM_OSC_CTL_PCIE_AER		0x08	/* PCIe Advanced Error Reporting */
 #define	PCIM_OSC_CTL_PCIE_CAP_STRUCT	0x10	/* Various Capability Structures */
+
+/*
+ * PCIe Downstream Port Containment (0x1d) definitions (PCIe 5.0 7.9.15)
+ */
+#define PCIR_DPC_CAP		0x04		/* Capabilities */
+#define PCIM_DPC_CAP_MSI		0x001f
+#define PCIM_DPC_CAP_MSI_SHIFT		0	/* MSI/MSI-X vector number */
+#define PCIM_DPC_CAP_RP			0x0020	/* Root Port extensions */
+#define PCIM_DPC_CAP_TLP_BLOCKING	0x0040	/* TLP Egress Blocking */
+#define PCIM_DPC_CAP_SOFT		0x0080	/* Software triggering */
+#define PCIM_DPC_CAP_LOGSIZE		0x0f00
+#define PCIM_DPC_CAP_LOGSIZE_SHIFT	8	/* Root Port log size DWORDS */
+#define PCIM_DPC_CAP_ACTIVE_ERR_COR	0x1000	/* DL_Active ERR_COR reporting */
+#define PCIR_DPC_CONTROL	0x06		/* Control */
+#define PCIM_DPC_TRIG			0x0003
+#define PCIR_DPC_TRIG_SHIFT		0	/* Enable/disable control */
+#define PCIM_DPC_TRIG_DISABLED		0x0000	/* DPC is disabled */
+#define PCIM_DPC_TRIG_FATAL		0x0001	/* DPC enabled ERR_FATAL */
+#define PCIM_DPC_TRIG_NONFATAL		0x0002	/* DPC enabled ERR_NONFATAL */
+#define PCIM_DPC_TRIG_RSVD		0x0003	/* Not used (reserved) */
+#define PCIM_DPC_COMPLETION		0x0004	/* 0 - CA, 1 - UR */
+#define PCIM_DPC_INT_EN			0x0008	/* Interrupt enable */
+#define PCIM_DPC_ERR_COR		0x0010	/* ERR_COR message enable */
+#define PCIM_DPC_TLP_BLOCKING_EN	0x0020	/* TLP Egress Blocking enable */
+#define PCIM_DPC_SOFT_TRIGGER		0x0040	/* Software trigger */
+#define PCIM_DPC_ACTIVE_ERR_COR		0x0080	/* ERR_COR DL_Active enable */
+#define PCIM_DPC_SIG_SFW		0x0100
+#define PCIR_DPC_STATUS		0x08		/* Status */
+#define PCIM_DPC_TRIGGERED		0x0001	/* DPC triggered */
+#define PCIM_DPC_REASON			0x0006
+#define PCIM_DPC_REASON_SHIFT		1	/* Trigger reason */
+#define PCIM_DPC_REASON_UNCOR		0x0000	/* Uncorrectable error */
+#define PCIM_DPC_REASON_NONFATAL	0x0001	/* ERR_NONFATAL error */
+#define PCIM_DPC_REASON_FATAL		0x0002	/* ERR_FATAL error */
+#define PCIM_DPC_REASON_EXT		0x0003	/* Reason extension field */
+#define PCIM_DPC_INT_STATUS		0x0008	/* Interrupt triggered */
+#define PCIM_DPC_RP_BUSY		0x0010	/* Root Port Busy */
+#define PCIM_DPC_EXT			0x0060
+#define PCIM_DPC_EXT_SHIFT		5	/* Trigger Reason Extension */
+#define PCIM_DPC_EXT_RP_PIO		0x0000	/* RP PIO error */
+#define PCIM_DPC_EXT_SOFT		0x0001	/* Software trigger */
+#define PCIM_DPC_EXT_RSVD1		0x0002	/* Reserved */
+#define PCIM_DPC_EXT_RSVD2		0x0003	/* Reserved */
+#define PCIM_DPC_RP_PIO_PTR		0x1f00
+#define PCIM_DPC_RP_PIO_PTR_SHIFT	8	/* RP PIO error pointer */
+#define PCIM_DPC_SIG_SFW_STATUS		0x2000
+#define PCIR_DPC_SOURCE		0x0a
+#define PCIR_DPC_PIO_STATUS	0x0c
+#define PCIR_DPC_PIO_MASK	0x10
+#define PCIR_DPC_PIO_SEV	0x14
+#define PCIR_DPC_PIO_SYSERR	0x18
+#define PCIR_DPC_PIO_LOG	0x20
