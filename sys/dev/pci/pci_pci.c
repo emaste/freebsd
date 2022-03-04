@@ -1495,6 +1495,8 @@ pcib_dpc_intr(void *arg)
     source = pci_read_config(dev, sc->pcie_dpc + PCIR_DPC_SOURCE, 2);
     device_printf(dev, "DPC interrupt 0x%x source %d\n", stat, source);
 
+    /* XXX The rest of this needs to go into a taskqueue */
+    /* XXX Need to quiesce the driver of the downstream port, maybe detach */
     stat = PCIM_DPC_TRIGGERED | PCIM_DPC_INT_STATUS;
     pci_write_config(dev, sc->pcie_dpc + PCIR_DPC_STATUS, stat, 2);
 
@@ -1550,6 +1552,7 @@ pcib_probe_dpc(struct pcib_softc *sc)
     return;
 }
 
+/* XXX Need teardown code */
 static int
 pcib_setup_dpc(struct pcib_softc *sc)
 {
@@ -1569,6 +1572,7 @@ pcib_setup_dpc(struct pcib_softc *sc)
 	"\10SoftTrig"
 	"\15DLActiveErr");
 
+    /* Can MSI/MSIX vectors be shared with HP? */
     if ((count = pci_msix_count(dev)) == 1) {
 	if (pci_alloc_msix(dev, &count) == 0)
 	    rid = 1;
@@ -1602,6 +1606,7 @@ pcib_setup_dpc(struct pcib_softc *sc)
 	return (ENXIO);
     }
 
+    /* Create taskqueue thread */
     if (cap & PCIM_DPC_CAP_SOFT) {
 	    sctx = device_get_sysctl_ctx(dev);
 	    soid = device_get_sysctl_tree(dev);
