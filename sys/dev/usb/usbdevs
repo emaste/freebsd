@@ -4715,6 +4715,7 @@ product TPLINK T4UHV2		0x010e	Archer T4UH ver 2
 product TPLINK T2UNANO		0x011e	Archer T2U Nano
 product TPLINK T2UV3		0x011f	Archer T2U ver 3
 product TPLINK T2UPLUS		0x0120	Archer T2U Plus
+product TPLINK T3U		0x012d	Archer T3U
 product TPLINK RTL8153		0x0601	RTL8153 USB 10/100/1000 LAN
 
 /* Trek Technology products */
