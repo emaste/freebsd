@@ -70,7 +70,7 @@ dumpon_start()
 			[ -c "${dev}" ] || continue
 			dumpon_try "${dev}" 2>/dev/null && return 0
 		done </etc/fstab
-		echo "No suitable dump device was found." 1>&2
+		warn "No suitable dump device was found."
 		return 1
 		;;
 	*)
