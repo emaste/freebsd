@@ -63,7 +63,7 @@ dumpon_start()
 		fi
 		while read dev mp type more ; do
 			[ "${type}" = "swap" ] || continue
-			if expr ${dev} : .*\\.eli$ >/dev/null; then
+			if expr -- ${dev} : '.*\.eli$' >/dev/null; then
 				dumpon_warn_unencrypted
 				dev=${dev%.eli}
 			fi
