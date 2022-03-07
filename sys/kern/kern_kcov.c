@@ -210,7 +210,7 @@ trace_pc(uintptr_t ret)
 	if (info->mode != KCOV_MODE_TRACE_PC)
 		return;
 
-	KASSERT(info->kvaddr != 0, ("%s: NULL buf while running"), __func__);
+	KASSERT(info->kvaddr != 0, ("%s: NULL buf while running", __func__));
 
 	buf = (uint64_t *)info->kvaddr;
 
