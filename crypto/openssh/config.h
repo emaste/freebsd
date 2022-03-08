@@ -21,7 +21,7 @@
 /* #undef BROKEN_BSM_API */
 
 /* broken in chroots on older kernels */
-#undef BROKEN_CLOSEFROM
+/* #undef BROKEN_CLOSEFROM */
 
 /* Define if cmsg_type is not passed correctly */
 /* #undef BROKEN_CMSG_TYPE */
@@ -33,7 +33,7 @@
 /* #undef BROKEN_GETGROUPS */
 
 /* getline is not what we expect */
-#undef BROKEN_GETLINE
+/* #undef BROKEN_GETLINE */
 
 /* FreeBSD glob does not do what we need */
 #define BROKEN_GLOB 1
@@ -46,7 +46,7 @@
 /* #undef BROKEN_ONE_BYTE_DIRENT_D_NAME */
 
 /* System poll(2) implementation is broken */
-#undef BROKEN_POLL
+/* #undef BROKEN_POLL */
 
 /* Can't do comparisons on readv */
 /* #undef BROKEN_READV_COMPARISON */
@@ -299,7 +299,7 @@
 #define HAVE_CLOSEFROM 1
 
 /* Define to 1 if you have the `close_range' function. */
-#undef HAVE_CLOSE_RANGE
+#define HAVE_CLOSE_RANGE 1
 
 /* Define if gai_strerror() returns const char * */
 #define HAVE_CONST_GAI_STRERROR_PROTO 1
@@ -599,13 +599,13 @@
 /* #undef HAVE_FEATURES_H */
 
 /* Define to 1 if you have the `fido_assert_set_clientdata' function. */
-#undef HAVE_FIDO_ASSERT_SET_CLIENTDATA
+/* #undef HAVE_FIDO_ASSERT_SET_CLIENTDATA */
 
 /* Define to 1 if you have the `fido_cred_prot' function. */
 /* #undef HAVE_FIDO_CRED_PROT */
 
 /* Define to 1 if you have the `fido_cred_set_clientdata' function. */
-#undef HAVE_FIDO_CRED_SET_CLIENTDATA
+/* #undef HAVE_FIDO_CRED_SET_CLIENTDATA */
 
 /* Define to 1 if you have the `fido_cred_set_prot' function. */
 /* #undef HAVE_FIDO_CRED_SET_PROT */
@@ -1008,7 +1008,7 @@
 /* #undef HAVE_NEXT */
 
 /* Define to 1 if the system has the type `nfds_t'. */
-#undef HAVE_NFDS_T
+#define HAVE_NFDS_T 1
 
 /* Define to 1 if you have the `ngetaddrinfo' function. */
 /* #undef HAVE_NGETADDRINFO */
@@ -1075,7 +1075,7 @@
 #define HAVE_POLL_H 1
 
 /* Define to 1 if you have the `ppoll' function. */
-#undef HAVE_PPOLL
+#define HAVE_PPOLL 1
 
 /* Define to 1 if you have the `prctl' function. */
 /* #undef HAVE_PRCTL */
@@ -1427,7 +1427,7 @@
 #define HAVE_STRUCT_PASSWD_PW_GECOS 1
 
 /* Define to 1 if `fd' is a member of `struct pollfd'. */
-#undef HAVE_STRUCT_POLLFD_FD
+#define HAVE_STRUCT_POLLFD_FD 1
 
 /* define if you have struct sockaddr_in6 data type */
 #define HAVE_STRUCT_SOCKADDR_IN6 1
@@ -1511,7 +1511,7 @@
 /* #undef HAVE_SYS_NERR */
 
 /* Define to 1 if you have the <sys/param.h> header file. */
-#undef HAVE_SYS_PARAM_H
+#define HAVE_SYS_PARAM_H 1
 
 /* Define to 1 if you have the <sys/poll.h> header file. */
 #define HAVE_SYS_POLL_H 1
