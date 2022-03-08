@@ -56,7 +56,15 @@
     The update and tag could instead be pushed later, along with the merge
     to main, but pushing now allows others to collaborate.
 
-09) Merge from the vendor branch:
+09) Create a local working branch:
+
+    $ git checkout -b openssh-X.YpZ-update
+
+    The update requires multiple steps including changes after the merge 
+    itself.  These will be committed to the working branch during development,
+    but will not appear in the final commit to main.
+
+10) Merge from the vendor branch:
 
     $ git subtree merge -P crypto/openssh vendor/openssh
 
@@ -65,44 +73,54 @@
     git prompts for these deleted files during the merge, choose 'd'
     (leaving them deleted).
 
-10) Resolve conflicts.  Remember to bump the version addendum in
+11) Resolve conflicts.  Remember to bump the version addendum in
     version.h, and update the default value in sshd_config and
     sshd_config.5.
 
-11) Diff against the vendor branch:
+    $ git commit -a
+
+12) Diff against the vendor branch:
 
     $ git diff --diff-filter=M vendor/openssh/X.YpZ HEAD:crypto/openssh
 
     Review the diff for any unexpected changes.
 
-12) Run the configure script:
+13) Run the configure script:
 
     $ cd crypto/openssh
     $ sh freebsd-configure.sh
+    $ git commit -a -m 'run freebsd-configure.sh'
 
-13) Review changes to config.h very carefully.
+14) Review changes to config.h very carefully.
 
     Note that libwrap should not be defined in config.h; as of
     r311585 (233932cc2a60) it is conditional on MK_TCP_WRAPPERS.
 
-14) If source files have been added or removed, update the appropriate
+15) If source files have been added or removed, update the appropriate
     makefiles to reflect changes in the vendor's Makefile.in.
 
-15) Update ssh_namespace.h:
+16) Update ssh_namespace.h:
 
     $ cd crypto/openssh
     $ sh freebsd-namespace.sh
+    $ git commit -a -m 'run freebsd-namespace.sh'
 
-16) Build and install world, reboot, test.  Pay particular attention
+17) Build and install world, reboot, test.  Pay particular attention
     to pam_ssh(8), which gropes inside libssh and will break if
     something significant changes or if ssh_namespace.h is out of
     whack.
 
-17) Check for references to obsolete configuration options
+18) Check for references to obsolete configuration options
     (e.g., ChallengeResponseAuthentication in sshd_config) which
     may exist in release/ scripts.
 
-18) Commit, and hunker down for the inevitable storm of complaints.
+19) Update working branch, commit update, and hunker down for the inevitable
+    storm of complaints.
+
+    $ git merge freebsd/main
+    $ hash=$(git commit-tree -p $main -p $vendor $tree)
+    $ git show $hash
+    $ git push freebsd $hash:main
 
 
 
