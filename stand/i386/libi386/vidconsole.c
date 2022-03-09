@@ -962,13 +962,6 @@ cons_update_mode(bool use_gfx_mode)
 		attr.ta_bgcolor = strtol(ptr, NULL, 10);
 
 		teken_set_defattr(&gfx_state.tg_teken, &attr);
-	} else {
-		snprintf(env, sizeof(env), "%d", attr.ta_fgcolor);
-		env_setenv("teken.fg_color", EV_VOLATILE, env,
-		    vidc_set_colors, env_nounset);
-		snprintf(env, sizeof(env), "%d", attr.ta_bgcolor);
-		env_setenv("teken.bg_color", EV_VOLATILE, env,
-		    vidc_set_colors, env_nounset);
 	}
 
 	/* Improve visibility */
