@@ -608,10 +608,6 @@ vidc_set_colors(struct env_var *ev, int flags, const void *value)
 		a.ta_bgcolor = val;
 	}
 
-	/* Improve visibility */
-	if (a.ta_bgcolor == TC_WHITE)
-		a.ta_bgcolor |= TC_LIGHT;
-
 	teken_set_defattr(&gfx_state.tg_teken, &a);
 	cons_draw_frame(&a);
 	env_setenv(ev->ev_name, flags | EV_NOHOOK, evalue, NULL, NULL);
@@ -958,9 +954,6 @@ cons_update_mode(bool use_gfx_mode)
 
 	gfx_fb_setcolors(&attr, vidc_set_colors, env_nounset);
 
-	/* Improve visibility */
-	if (attr.ta_bgcolor == TC_WHITE)
-		attr.ta_bgcolor |= TC_LIGHT;
 	teken_set_defattr(&gfx_state.tg_teken, &attr);
 
 	snprintf(env, sizeof (env), "%u", (unsigned)gfx_state.tg_tp.tp_row);
