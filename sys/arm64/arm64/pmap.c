@@ -360,6 +360,10 @@ void (*pmap_invalidate_vpipt_icache)(void);
 #define	COOKIE_TO_ASID(cookie)		((int)(cookie))
 #define	COOKIE_TO_EPOCH(cookie)		((int)((u_long)(cookie) >> 32))
 
+#define	TLBI_VA_SHIFT			12
+#define	TLBI_VA(addr)			((addr) >> TLBI_VA_SHIFT)
+#define	TLBI_VA_L3_INCR			(L3_SIZE >> TLBI_VA_SHIFT)
+
 static int superpages_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &superpages_enabled, 0,
@@ -1248,11 +1252,11 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 	PMAP_ASSERT_STAGE1(pmap);
 
 	dsb(ishst);
+	r = TLBI_VA(va);
 	if (pmap == kernel_pmap) {
-		r = atop(va);
 		pmap_invalidate_kernel(r, final_only);
 	} else {
-		r = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie)) | atop(va);
+		r |= ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		pmap_invalidate_user(r, final_only);
 	}
 	dsb(ish);
@@ -1273,15 +1277,15 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 
 	dsb(ishst);
 	if (pmap == kernel_pmap) {
-		start = atop(sva);
-		end = atop(eva);
-		for (r = start; r < end; r++)
+		start = TLBI_VA(sva);
+		end = TLBI_VA(eva);
+		for (r = start; r < end; r += TLBI_VA_L3_INCR)
 			pmap_invalidate_kernel(r, final_only);
 	} else {
 		start = end = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
-		start |= atop(sva);
-		end |= atop(eva);
-		for (r = start; r < end; r++)
+		start |= TLBI_VA(sva);
+		end |= TLBI_VA(eva);
+		for (r = start; r < end; r += TLBI_VA_L3_INCR)
 			pmap_invalidate_user(r, final_only);
 	}
 	dsb(ish);
@@ -1382,7 +1386,6 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 
 		KASSERT(lvl > 0 && lvl <= 3,
 		    ("pmap_extract_and_hold: Invalid level %d", lvl));
-		CTASSERT(L1_BLOCK == L2_BLOCK);
 		KASSERT((lvl == 3 && (tpte & ATTR_DESCR_MASK) == L3_PAGE) ||
 		    (lvl < 3 && (tpte & ATTR_DESCR_MASK) == L1_BLOCK),
 		    ("pmap_extract_and_hold: Invalid pte at L%d: %lx", lvl,
@@ -1945,7 +1948,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		pd_entry_t tl0;
 
 		l1index = ptepindex - NUL2E;
-		l0index = l1index >> L0_ENTRIES_SHIFT;
+		l0index = l1index >> Ln_ENTRIES_SHIFT;
 
 		l0 = &pmap->pm_l0[l0index];
 		tl0 = pmap_load(l0);
@@ -1973,7 +1976,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		pd_entry_t tl0, tl1;
 
 		l1index = ptepindex >> Ln_ENTRIES_SHIFT;
-		l0index = l1index >> L0_ENTRIES_SHIFT;
+		l0index = l1index >> Ln_ENTRIES_SHIFT;
 
 		l0 = &pmap->pm_l0[l0index];
 		tl0 = pmap_load(l0);
