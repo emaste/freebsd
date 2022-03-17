@@ -155,6 +155,18 @@ static struct pwd *pwd_alloc(void);
 #define NDBIT(x)	((NDSLOTTYPE)1 << ((x) % NDENTRIES))
 #define	NDSLOTS(x)	(((x) + NDENTRIES - 1) / NDENTRIES)
 
+#define	FILEDESC_FOREACH_FDE(fdp, _iterator, _fde)				\
+	struct filedesc *_fdp = (fdp);						\
+	int _lastfile = fdlastfile_single(_fdp);				\
+	for (_iterator = 0; _iterator <= _lastfile; _iterator++)		\
+		if ((_fde = &_fdp->fd_ofiles[_iterator])->fde_file != NULL)
+
+#define	FILEDESC_FOREACH_FP(fdp, _iterator, _fp)				\
+	struct filedesc *_fdp = (fdp);						\
+	int _lastfile = fdlastfile_single(_fdp);				\
+	for (_iterator = 0; _iterator <= _lastfile; _iterator++)		\
+		if ((_fp = _fdp->fd_ofiles[_iterator].fde_file) != NULL)
+
 /*
  * SLIST entry used to keep track of ofiles which must be reclaimed when
  * the process exits.
@@ -4194,9 +4206,9 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		if (fdp == NULL)
 			continue;
 		FILEDESC_SLOCK(fdp);
+		if (refcount_load(&fdp->fd_refcnt) == 0)
+			goto nextproc;
 		FILEDESC_FOREACH_FP(fdp, n, fp) {
-			if (refcount_load(&fdp->fd_refcnt) == 0)
-				break;
 			xf.xf_fd = n;
 			xf.xf_file = (uintptr_t)fp;
 			xf.xf_data = (uintptr_t)fp->f_data;
@@ -4207,9 +4219,16 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			xf.xf_offset = foffset_get(fp);
 			xf.xf_flag = fp->f_flag;
 			error = SYSCTL_OUT(req, &xf, sizeof(xf));
-			if (error)
+
+			/*
+			 * There is no need to re-check the fdtable refcount
+			 * here since the filedesc lock is not dropped in the
+			 * loop body.
+			 */
+			if (error != 0)
 				break;
 		}
+nextproc:
 		FILEDESC_SUNLOCK(fdp);
 		fddrop(fdp);
 		if (error)
@@ -4469,9 +4488,9 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 	if (pwd != NULL)
 		pwd_drop(pwd);
 	FILEDESC_SLOCK(fdp);
+	if (refcount_load(&fdp->fd_refcnt) == 0)
+		goto skip;
 	FILEDESC_FOREACH_FP(fdp, i, fp) {
-		if (refcount_load(&fdp->fd_refcnt) == 0)
-			break;
 #ifdef CAPABILITIES
 		rights = *cap_rights(fdp, i);
 #else /* !CAPABILITIES */
@@ -4484,9 +4503,10 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 		 * loop continues.
 		 */
 		error = export_file_to_sb(fp, i, &rights, efbuf);
-		if (error != 0)
+		if (error != 0 || refcount_load(&fdp->fd_refcnt) == 0)
 			break;
 	}
+skip:
 	FILEDESC_SUNLOCK(fdp);
 fail:
 	if (fdp != NULL)
@@ -4633,18 +4653,19 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	if (pwd != NULL)
 		pwd_drop(pwd);
 	FILEDESC_SLOCK(fdp);
+	if (refcount_load(&fdp->fd_refcnt) == 0)
+		goto skip;
 	FILEDESC_FOREACH_FP(fdp, i, fp) {
-		if (refcount_load(&fdp->fd_refcnt) == 0)
-			break;
 		export_file_to_kinfo(fp, i, NULL, kif, fdp,
 		    KERN_FILEDESC_PACK_KINFO);
 		FILEDESC_SUNLOCK(fdp);
 		kinfo_to_okinfo(kif, okif);
 		error = SYSCTL_OUT(req, okif, sizeof(*okif));
 		FILEDESC_SLOCK(fdp);
-		if (error)
+		if (error != 0 || refcount_load(&fdp->fd_refcnt) == 0)
 			break;
 	}
+skip:
 	FILEDESC_SUNLOCK(fdp);
 	fddrop(fdp);
 	pddrop(pdp);
