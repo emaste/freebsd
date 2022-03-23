@@ -326,7 +326,7 @@ hdac_pin_patch(struct hdaa_widget *w)
 	    (subid == FRAMEWORK_LAPTOP_SUBVENDOR)) {
 		switch (nid) {
 		case 10:
-			patch_str = "as=1 seq=15";
+			patch_str = "as=1 seq=15 color=Black loc=Left";
 			break;
 		}
 	} else {

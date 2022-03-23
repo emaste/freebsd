@@ -504,7 +504,6 @@ MAN=	aac.4 \
 	snd_cmi.4 \
 	snd_cs4281.4 \
 	snd_csa.4 \
-	snd_ds1.4 \
 	snd_emu10k1.4 \
 	snd_emu10kx.4 \
 	snd_envy24.4 \
@@ -515,7 +514,6 @@ MAN=	aac.4 \
 	snd_hdspe.4 \
 	snd_ich.4 \
 	snd_maestro3.4 \
-	snd_maestro.4 \
 	snd_neomagic.4 \
 	snd_solo.4 \
 	snd_spicds.4 \

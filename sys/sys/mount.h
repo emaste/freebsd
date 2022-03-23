@@ -486,8 +486,8 @@ struct mntoptnames {
 					   handle i/o state on EFAULT. */
 #define	MNTK_RECURSE		0x00000200 /* pending recursive unmount */
 #define	MNTK_UPPER_WAITER	0x00000400 /* waiting to drain MNTK_UPPER_PENDING */
-#define	MNTK_LOOKUP_EXCL_DOTDOT	0x00000800
-/* UNUSED			0x00001000 */
+/* UNUSED 			0x00000800 */
+#define	MNTK_UNLOCKED_INSMNTQUE	0x00001000 /* fs does not lock the vnode for insmntque */
 #define	MNTK_UNMAPPED_BUFS	0x00002000
 #define	MNTK_USES_BCACHE	0x00004000 /* FS uses the buffer cache. */
 /* UNUSED			0x00008000 */
@@ -939,9 +939,6 @@ vfs_statfs_t	__vfs_statfs;
 	VN_KNOTE((vp), (hint), 0);					\
 } while (0)
 
-#define	VFS_NOTIFY_UPPER_RECLAIM	1
-#define	VFS_NOTIFY_UPPER_UNLINK		2
-
 #include <sys/module.h>
 
 /*
@@ -966,6 +963,11 @@ vfs_statfs_t	__vfs_statfs;
 		& fsname ## _vfsconf				\
 	};							\
 	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE)
+
+enum vfs_notify_upper_type {
+	VFS_NOTIFY_UPPER_RECLAIM,
+	VFS_NOTIFY_UPPER_UNLINK,
+};
 
 /*
  * exported vnode operations
@@ -1020,7 +1022,7 @@ int	vfs_modevent(module_t, int, void *);
 void	vfs_mount_error(struct mount *, const char *, ...);
 void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
-void	vfs_notify_upper(struct vnode *, int);
+void	vfs_notify_upper(struct vnode *, enum vfs_notify_upper_type);
 struct mount *vfs_ref_from_vp(struct vnode *);
 void	vfs_ref(struct mount *);
 void	vfs_rel(struct mount *);
