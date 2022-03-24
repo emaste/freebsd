@@ -2433,7 +2433,7 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 	}
 
 	hw = LHW_TO_HW(lhw);
-	if ((ic->ic_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) == 0) {
+	if ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) == 0) {
 sw_scan:
 		lvif = VAP_TO_LVIF(vap);
 		vif = LVIF_TO_VIF(lvif);
@@ -2547,17 +2547,27 @@ sw_scan:
 			free(hw_req, M_LKPI80211);
 			lhw->hw_req = NULL;
 
+			ieee80211_cancel_scan(vap);
 			/*
 			 * XXX-SIGH magic number.
 			 * rtw88 has a magic "return 1" if offloading scan is
 			 * not possible.  Fall back to sw scan in that case.
 			 */
-			if (error == 1)
+			if (error == 1) {
+				vap->iv_flags_ext &= ~IEEE80211_FEXT_SCAN_OFFLOAD;
+				ieee80211_start_scan(vap,
+				    IEEE80211_SCAN_ACTIVE |
+				    IEEE80211_SCAN_NOPICK |
+				    IEEE80211_SCAN_ONCE,
+				    IEEE80211_SCAN_FOREVER,
+				    ss->ss_mindwell ? ss->ss_mindwell : msecs_to_ticks(20),
+				    ss->ss_maxdwell ? ss->ss_maxdwell : msecs_to_ticks(200),
+				    vap->iv_des_nssid, vap->iv_des_ssid);
 				goto sw_scan;
+			}
 
 			ic_printf(ic, "ERROR: %s: hw_scan returned %d\n",
 			    __func__, error);
-			ieee80211_cancel_scan(vap);
 		}
 	}
 }
@@ -2566,24 +2576,24 @@ static void
 lkpi_ic_scan_end(struct ieee80211com *ic)
 {
 	struct lkpi_hw *lhw;
+	struct ieee80211_scan_state *ss;
+	struct ieee80211vap *vap;
 
 	lhw = ic->ic_softc;
 	if ((lhw->scan_flags & LKPI_SCAN_RUNNING) == 0) {
 		return;
 	}
 
-	if (ic->ic_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) {
+	ss = ic->ic_scan;
+	vap = ss->ss_vap;
+	if (vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) {
 		/* Nothing to do. */
 	} else {
 		struct ieee80211_hw *hw;
 		struct lkpi_vif *lvif;
 		struct ieee80211_vif *vif;
-		struct ieee80211_scan_state *ss;
-		struct ieee80211vap *vap;
 
 		hw = LHW_TO_HW(lhw);
-		ss = ic->ic_scan;
-		vap = ss->ss_vap;
 		lvif = VAP_TO_LVIF(vap);
 		vif = LVIF_TO_VIF(lvif);
 		lkpi_80211_mo_sw_scan_complete(hw, vif);
@@ -2596,91 +2606,65 @@ lkpi_ic_scan_end(struct ieee80211com *ic)
 }
 
 static void
-lkpi_ic_scan_curchan_nada(struct ieee80211_scan_state *ss __unused,
-    unsigned long maxdwell __unused)
-{
-}
-
-static void
 lkpi_ic_set_channel(struct ieee80211com *ic)
 {
 	struct lkpi_hw *lhw;
 	struct ieee80211_hw *hw;
+	struct ieee80211_channel *c;
+	struct linuxkpi_ieee80211_channel *chan;
 	int error;
 
 	lhw = ic->ic_softc;
-#ifdef __no_longer__
-	/* For now only be concerned if scanning. */
-	if ((lhw->scan_flags & LKPI_SCAN_RUNNING) == 0) {
-		IMPROVE();
+
+	/* If we do not support (*config)() save us the work. */
+	if (lhw->ops->config == NULL)
+		return;
+
+	c = ic->ic_curchan;
+	if (c == NULL || c == IEEE80211_CHAN_ANYC) {
+		ic_printf(ic, "%s: c %p ops->config %p\n", __func__,
+		    c, lhw->ops->config);
 		return;
 	}
-#endif
 
-	if (ic->ic_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) {
-		/*
-		 * AP scanning is taken care of by firmware, so only switch
-		 * channels in monitor mode (maybe, maybe not; to be
-		 * investigated at the right time).
-		 */
-		if (ic->ic_opmode == IEEE80211_M_MONITOR) {
-			UNIMPLEMENTED;
-		}
+	chan = lkpi_find_lkpi80211_chan(lhw, c);
+	if (chan == NULL) {
+		ic_printf(ic, "%s: c %p chan %p\n", __func__,
+		    c, chan);
+		return;
+	}
+
+	/* XXX max power for scanning? */
+	IMPROVE();
+
+	hw = LHW_TO_HW(lhw);
+	cfg80211_chandef_create(&hw->conf.chandef, chan,
+	    NL80211_CHAN_NO_HT);
+
+	error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_CHANNEL);
+	if (error != 0 && error != EOPNOTSUPP) {
+		ic_printf(ic, "ERROR: %s: config %#0x returned %d\n",
+		    __func__, IEEE80211_CONF_CHANGE_CHANNEL, error);
+		/* XXX should we unroll to the previous chandef? */
+		IMPROVE();
 	} else {
-		struct ieee80211_channel *c = ic->ic_curchan;
-		struct linuxkpi_ieee80211_channel *chan;
-		struct cfg80211_chan_def chandef;
+		/* Update radiotap channels as well. */
+		lhw->rtap_tx.wt_chan_freq = htole16(c->ic_freq);
+		lhw->rtap_tx.wt_chan_flags = htole16(c->ic_flags);
+		lhw->rtap_rx.wr_chan_freq = htole16(c->ic_freq);
+		lhw->rtap_rx.wr_chan_flags = htole16(c->ic_flags);
+	}
 
-		if (c == NULL || c == IEEE80211_CHAN_ANYC ||
-		    lhw->ops->config == NULL) {
-			ic_printf(ic, "%s: c %p ops->config %p\n", __func__,
-			    c, lhw->ops->config);
-			return;
-		}
-
-		chan = lkpi_find_lkpi80211_chan(lhw, c);
-		if (chan == NULL) {
-			ic_printf(ic, "%s: c %p chan %p\n", __func__,
-			    c, chan);
-			return;
-		}
-
-		memset(&chandef, 0, sizeof(chandef));
-		chandef.chan = chan;
-		chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
-		chandef.center_freq1 = chandef.chan->center_freq;
-
-		/* XXX max power for scanning? */
-		IMPROVE();
-
-		hw = LHW_TO_HW(lhw);
-		hw->conf.chandef = chandef;
-
-		error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_CHANNEL);
-		if (error != 0 && error != EOPNOTSUPP) {
-			ic_printf(ic, "ERROR: %s: config %#0x returned %d\n",
-			    __func__, IEEE80211_CONF_CHANGE_CHANNEL, error);
-			/* XXX should we unroll to the previous chandef? */
-			IMPROVE();
-		} else {
-			/* Update radiotap channels as well. */
-			lhw->rtap_tx.wt_chan_freq = htole16(c->ic_freq);
-			lhw->rtap_tx.wt_chan_flags = htole16(c->ic_flags);
-			lhw->rtap_rx.wr_chan_freq = htole16(c->ic_freq);
-			lhw->rtap_rx.wr_chan_flags = htole16(c->ic_flags);
-		}
-
-		/* Currently PS is hard coded off! Not sure it belongs here. */
-		IMPROVE();
-		if (ieee80211_hw_check(hw, SUPPORTS_PS) &&
-		    (hw->conf.flags & IEEE80211_CONF_PS) != 0) {
-			hw->conf.flags &= ~IEEE80211_CONF_PS;
-			error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_PS);
-			if (error != 0 && error != EOPNOTSUPP)
-				ic_printf(ic, "ERROR: %s: config %#0x returned "
-				    "%d\n", __func__, IEEE80211_CONF_CHANGE_PS,
-				    error);
-		}
+	/* Currently PS is hard coded off! Not sure it belongs here. */
+	IMPROVE();
+	if (ieee80211_hw_check(hw, SUPPORTS_PS) &&
+	    (hw->conf.flags & IEEE80211_CONF_PS) != 0) {
+		hw->conf.flags &= ~IEEE80211_CONF_PS;
+		error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_PS);
+		if (error != 0 && error != EOPNOTSUPP)
+			ic_printf(ic, "ERROR: %s: config %#0x returned "
+			    "%d\n", __func__, IEEE80211_CONF_CHANGE_PS,
+			    error);
 	}
 }
 
@@ -3393,9 +3377,6 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	ic->ic_parent = lkpi_ic_parent;
 	ic->ic_scan_start = lkpi_ic_scan_start;
 	ic->ic_scan_end = lkpi_ic_scan_end;
-	if (lhw->ops->hw_scan &&
-	    ieee80211_hw_check(hw, SINGLE_SCAN_ON_ALL_BANDS))
-		ic->ic_scan_curchan = lkpi_ic_scan_curchan_nada;
 	ic->ic_set_channel = lkpi_ic_set_channel;
 	ic->ic_transmit = lkpi_ic_transmit;
 	ic->ic_raw_xmit = lkpi_ic_raw_xmit;
@@ -3430,15 +3411,12 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 
 		channels = supband->channels;
 		for (i = 0; i < supband->n_channels; i++) {
-			struct cfg80211_chan_def chandef;
 
 			if (channels[i].flags & IEEE80211_CHAN_DISABLED)
 				continue;
 
-			memset(&chandef, 0, sizeof(chandef));
-			cfg80211_chandef_create(&chandef, &channels[i],
+			cfg80211_chandef_create(&hw->conf.chandef, &channels[i],
 			    NL80211_CHAN_NO_HT);
-			hw->conf.chandef = chandef;
 			break;
 		}
 	}
