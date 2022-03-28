@@ -2134,7 +2134,6 @@ mps_user_btdh(struct mps_softc *sc, mps_btdh_mapping_t *data)
 	return (0);
 }
 
-#define MPS_IOCTL_MAX_LEN (16 * 1024 * 1024)
 static int
 mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
     struct thread *td)
@@ -2157,8 +2156,7 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		mps_unlock(sc);
 		break;
 	case MPSIO_READ_CFG_PAGE:
-		if (page_req->len < (int)sizeof(MPI2_CONFIG_PAGE_HEADER) ||
-		    page_req->len > MPS_IOCTL_MAX_LEN) {
+		if (page_req->len < (int)sizeof(MPI2_CONFIG_PAGE_HEADER)) {
 			error = EINVAL;
 			break;
 		}
@@ -2181,8 +2179,7 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		break;
 	case MPSIO_READ_EXT_CFG_PAGE:
 		if (ext_page_req->len <
-		    (int)sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER) ||
-		    ext_page_req->len > MPS_IOCTL_MAX_LEN) {
+		    (int)sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER)) {
 			error = EINVAL;
 			break;
 		}
@@ -2199,8 +2196,7 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		error = copyout(mps_page, ext_page_req->buf, ext_page_req->len);
 		break;
 	case MPSIO_WRITE_CFG_PAGE:
-		if (page_req->len < (int)sizeof(MPI2_CONFIG_PAGE_HEADER) ||
-		    page_req->len > MPS_IOCTL_MAX_LEN) {
+		if (page_req->len < (int)sizeof(MPI2_CONFIG_PAGE_HEADER)) {
 			error = EINVAL;
 			break;
 		}
