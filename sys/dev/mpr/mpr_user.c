@@ -2244,6 +2244,7 @@ mpr_user_btdh(struct mpr_softc *sc, mpr_btdh_mapping_t *data)
 	return (0);
 }
 
+#define MPR_IOCTL_MAX_LEN (16 * 1024 * 1024)
 static int
 mpr_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
     struct thread *td)
@@ -2266,6 +2267,11 @@ mpr_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		mpr_unlock(sc);
 		break;
 	case MPRIO_READ_CFG_PAGE:
+		if (page_req->len < (int)sizeof(MPI2_CONFIG_PAGE_HEADER) ||
+		    page_req->len > MPR_IOCTL_MAX_LEN) {
+			error = EINVAL;
+			break;
+		}
 		mpr_page = malloc(page_req->len, M_MPRUSER, M_WAITOK | M_ZERO);
 		error = copyin(page_req->buf, mpr_page,
 		    sizeof(MPI2_CONFIG_PAGE_HEADER));
@@ -2284,6 +2290,12 @@ mpr_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		mpr_unlock(sc);
 		break;
 	case MPRIO_READ_EXT_CFG_PAGE:
+		if (ext_page_req->len <
+		    (int)sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER) ||
+		    ext_page_req->len > MPR_IOCTL_MAX_LEN) {
+			error = EINVAL;
+			break;
+		}
 		mpr_page = malloc(ext_page_req->len, M_MPRUSER,
 		    M_WAITOK | M_ZERO);
 		error = copyin(ext_page_req->buf, mpr_page,
@@ -2298,6 +2310,11 @@ mpr_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		error = copyout(mpr_page, ext_page_req->buf, ext_page_req->len);
 		break;
 	case MPRIO_WRITE_CFG_PAGE:
+		if (page_req->len < (int)sizeof(MPI2_CONFIG_PAGE_HEADER) ||
+		    page_req->len > MPR_IOCTL_MAX_LEN) {
+			error = EINVAL;
+			break;
+		}
 		mpr_page = malloc(page_req->len, M_MPRUSER, M_WAITOK|M_ZERO);
 		error = copyin(page_req->buf, mpr_page, page_req->len);
 		if (error)
