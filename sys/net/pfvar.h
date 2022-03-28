@@ -357,6 +357,11 @@ extern struct mtx_padalign pf_unlnkdrules_mtx;
 #define	PF_UNLNKDRULES_UNLOCK()	mtx_unlock(&pf_unlnkdrules_mtx)
 #define	PF_UNLNKDRULES_ASSERT()	mtx_assert(&pf_unlnkdrules_mtx, MA_OWNED)
 
+extern struct sx pf_config_lock;
+#define	PF_CONFIG_LOCK()	sx_xlock(&pf_config_lock)
+#define	PF_CONFIG_UNLOCK()	sx_xunlock(&pf_config_lock)
+#define	PF_CONFIG_ASSERT()	sx_assert(&pf_config_lock, SA_XLOCKED)
+
 extern struct rmlock pf_rules_lock;
 #define	PF_RULES_RLOCK_TRACKER	struct rm_priotracker _pf_rules_tracker
 #define	PF_RULES_RLOCK()	rm_rlock(&pf_rules_lock, &_pf_rules_tracker)
@@ -668,6 +673,9 @@ union pf_krule_ptr {
 	u_int32_t		 nr;
 };
 
+RB_HEAD(pf_krule_global, pf_krule);
+RB_PROTOTYPE(pf_krule_global, pf_krule, entry_global, pf_krule_compare);
+
 struct pf_krule {
 	struct pf_rule_addr	 src;
 	struct pf_rule_addr	 dst;
@@ -764,6 +772,8 @@ struct pf_krule {
 		struct pf_addr		addr;
 		u_int16_t		port;
 	}			divert;
+	u_int8_t		 md5sum[PF_MD5_DIGEST_LENGTH];
+	RB_ENTRY(pf_krule)	 entry_global;
 
 #ifdef PF_WANT_32_TO_64_COUNTER
 	LIST_ENTRY(pf_krule)	 allrulelist;
@@ -1134,6 +1144,7 @@ struct pf_kruleset {
 			u_int32_t		 rcount;
 			u_int32_t		 ticket;
 			int			 open;
+			struct pf_krule_global 	 *tree;
 		}			 active, inactive;
 	}			 rules[PF_RULESET_MAX];
 	struct pf_kanchor	*anchor;
@@ -1526,7 +1537,7 @@ struct pf_divert {
 
 /*
  * The number of entries in the fragment queue must be limited
- * to avoid DoS by linear seaching.  Instead of a global limit,
+ * to avoid DoS by linear searching.  Instead of a global limit,
  * use a limit per entry point.  For large packets these sum up.
  */
 #define PF_FRAG_ENTRY_LIMIT		64

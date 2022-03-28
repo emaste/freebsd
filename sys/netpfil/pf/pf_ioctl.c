@@ -123,7 +123,8 @@ static void		 pf_qid_unref(uint16_t);
 static int		 pf_begin_rules(u_int32_t *, int, const char *);
 static int		 pf_rollback_rules(u_int32_t, int, char *);
 static int		 pf_setup_pfsync_matching(struct pf_kruleset *);
-static void		 pf_hash_rule(MD5_CTX *, struct pf_krule *);
+static void		 pf_hash_rule_rolling(MD5_CTX *, struct pf_krule *);
+static void		 pf_hash_rule(struct pf_krule *);
 static void		 pf_hash_rule_addr(MD5_CTX *, struct pf_rule_addr *);
 static int		 pf_commit_rules(u_int32_t, int, char *);
 static int		 pf_addr_setup(struct pf_kruleset *,
@@ -139,6 +140,11 @@ static int		 pf_import_kaltq(struct pfioc_altq_v1 *,
 #endif /* ALTQ */
 
 VNET_DEFINE(struct pf_krule,	pf_default_rule);
+
+static __inline int             pf_krule_compare(struct pf_krule *,
+				    struct pf_krule *);
+
+RB_GENERATE(pf_krule_global, pf_krule, entry_global, pf_krule_compare);
 
 #ifdef ALTQ
 VNET_DEFINE_STATIC(int,		pf_altq_running);
@@ -529,6 +535,7 @@ pf_free_rule(struct pf_krule *rule)
 {
 
 	PF_RULES_WASSERT();
+	PF_CONFIG_ASSERT();
 
 	if (rule->tag)
 		tag_unref(&V_pf_tags, rule->tag);
@@ -1140,6 +1147,7 @@ out:
 static int
 pf_begin_rules(u_int32_t *ticket, int rs_num, const char *anchor)
 {
+	struct pf_krule_global *tree;
 	struct pf_kruleset	*rs;
 	struct pf_krule		*rule;
 
@@ -1147,9 +1155,18 @@ pf_begin_rules(u_int32_t *ticket, int rs_num, const char *anchor)
 
 	if (rs_num < 0 || rs_num >= PF_RULESET_MAX)
 		return (EINVAL);
+	tree = malloc(sizeof(struct pf_krule_global), M_TEMP, M_NOWAIT);
+	if (tree == NULL)
+		return (ENOMEM);
+	RB_INIT(tree);
 	rs = pf_find_or_create_kruleset(anchor);
-	if (rs == NULL)
+	if (rs == NULL) {
+		free(tree, M_TEMP);
 		return (EINVAL);
+	}
+	free(rs->rules[rs_num].inactive.tree, M_TEMP);
+	rs->rules[rs_num].inactive.tree = tree;
+
 	while ((rule = TAILQ_FIRST(rs->rules[rs_num].inactive.ptr)) != NULL) {
 		pf_unlink_rule(rs->rules[rs_num].inactive.ptr, rule);
 		rs->rules[rs_num].inactive.rcount--;
@@ -1223,7 +1240,7 @@ pf_hash_rule_addr(MD5_CTX *ctx, struct pf_rule_addr *pfr)
 }
 
 static void
-pf_hash_rule(MD5_CTX *ctx, struct pf_krule *rule)
+pf_hash_rule_rolling(MD5_CTX *ctx, struct pf_krule *rule)
 {
 	u_int16_t x;
 	u_int32_t y;
@@ -1260,30 +1277,34 @@ pf_hash_rule(MD5_CTX *ctx, struct pf_krule *rule)
 	PF_MD5_UPD(rule, allow_opts);
 	PF_MD5_UPD(rule, rt);
 	PF_MD5_UPD(rule, tos);
+	if (rule->anchor != NULL)
+		PF_MD5_UPD_STR(rule, anchor->path);
 }
 
-static bool
+static void
+pf_hash_rule(struct pf_krule *rule)
+{
+	MD5_CTX		ctx;
+
+	MD5Init(&ctx);
+	pf_hash_rule_rolling(&ctx, rule);
+	MD5Final(rule->md5sum, &ctx);
+}
+
+static int
 pf_krule_compare(struct pf_krule *a, struct pf_krule *b)
 {
-	MD5_CTX		ctx[2];
-	u_int8_t	digest[2][PF_MD5_DIGEST_LENGTH];
 
-	MD5Init(&ctx[0]);
-	MD5Init(&ctx[1]);
-	pf_hash_rule(&ctx[0], a);
-	pf_hash_rule(&ctx[1], b);
-	MD5Final(digest[0], &ctx[0]);
-	MD5Final(digest[1], &ctx[1]);
-
-	return (memcmp(digest[0], digest[1], PF_MD5_DIGEST_LENGTH) == 0);
+	return (memcmp(a->md5sum, b->md5sum, PF_MD5_DIGEST_LENGTH));
 }
 
 static int
 pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 {
 	struct pf_kruleset	*rs;
-	struct pf_krule		*rule, **old_array, *tail;
+	struct pf_krule		*rule, **old_array, *old_rule;
 	struct pf_krulequeue	*old_rules;
+	struct pf_krule_global  *old_tree;
 	int			 error;
 	u_int32_t		 old_rcount;
 
@@ -1307,40 +1328,43 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	old_rules = rs->rules[rs_num].active.ptr;
 	old_rcount = rs->rules[rs_num].active.rcount;
 	old_array = rs->rules[rs_num].active.ptr_array;
+	old_tree = rs->rules[rs_num].active.tree;
 
 	rs->rules[rs_num].active.ptr =
 	    rs->rules[rs_num].inactive.ptr;
 	rs->rules[rs_num].active.ptr_array =
 	    rs->rules[rs_num].inactive.ptr_array;
+	rs->rules[rs_num].active.tree =
+	    rs->rules[rs_num].inactive.tree;
 	rs->rules[rs_num].active.rcount =
 	    rs->rules[rs_num].inactive.rcount;
 
 	/* Attempt to preserve counter information. */
-	if (V_pf_status.keep_counters) {
+	if (V_pf_status.keep_counters && old_tree != NULL) {
 		TAILQ_FOREACH(rule, rs->rules[rs_num].active.ptr,
 		    entries) {
-			tail = TAILQ_FIRST(old_rules);
-			while ((tail != NULL) && ! pf_krule_compare(tail, rule))
-				tail = TAILQ_NEXT(tail, entries);
-			if (tail != NULL) {
-				pf_counter_u64_critical_enter();
-				pf_counter_u64_add_protected(&rule->evaluations,
-				    pf_counter_u64_fetch(&tail->evaluations));
-				pf_counter_u64_add_protected(&rule->packets[0],
-				    pf_counter_u64_fetch(&tail->packets[0]));
-				pf_counter_u64_add_protected(&rule->packets[1],
-				    pf_counter_u64_fetch(&tail->packets[1]));
-				pf_counter_u64_add_protected(&rule->bytes[0],
-				    pf_counter_u64_fetch(&tail->bytes[0]));
-				pf_counter_u64_add_protected(&rule->bytes[1],
-				    pf_counter_u64_fetch(&tail->bytes[1]));
-				pf_counter_u64_critical_exit();
+			old_rule = RB_FIND(pf_krule_global, old_tree, rule);
+			if (old_rule == NULL) {
+				continue;
 			}
+			pf_counter_u64_critical_enter();
+			pf_counter_u64_add_protected(&rule->evaluations,
+			    pf_counter_u64_fetch(&old_rule->evaluations));
+			pf_counter_u64_add_protected(&rule->packets[0],
+			    pf_counter_u64_fetch(&old_rule->packets[0]));
+			pf_counter_u64_add_protected(&rule->packets[1],
+			    pf_counter_u64_fetch(&old_rule->packets[1]));
+			pf_counter_u64_add_protected(&rule->bytes[0],
+			    pf_counter_u64_fetch(&old_rule->bytes[0]));
+			pf_counter_u64_add_protected(&rule->bytes[1],
+			    pf_counter_u64_fetch(&old_rule->bytes[1]));
+			pf_counter_u64_critical_exit();
 		}
 	}
 
 	rs->rules[rs_num].inactive.ptr = old_rules;
 	rs->rules[rs_num].inactive.ptr_array = old_array;
+	rs->rules[rs_num].inactive.tree = NULL;
 	rs->rules[rs_num].inactive.rcount = old_rcount;
 
 	rs->rules[rs_num].active.ticket =
@@ -1358,6 +1382,7 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	rs->rules[rs_num].inactive.rcount = 0;
 	rs->rules[rs_num].inactive.open = 0;
 	pf_remove_if_empty_kruleset(rs);
+	free(old_tree, M_TEMP);
 
 	return (0);
 }
@@ -1392,7 +1417,7 @@ pf_setup_pfsync_matching(struct pf_kruleset *rs)
 
 		TAILQ_FOREACH(rule, rs->rules[rs_cnt].inactive.ptr,
 		    entries) {
-			pf_hash_rule(&ctx, rule);
+			pf_hash_rule_rolling(&ctx, rule);
 			(rs->rules[rs_cnt].inactive.ptr_array)[rule->nr] = rule;
 		}
 	}
@@ -2086,6 +2111,7 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	rule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
 	TAILQ_INIT(&rule->rpool.list);
 
+	PF_CONFIG_LOCK();
 	PF_RULES_WLOCK();
 #ifdef PF_WANT_32_TO_64_COUNTER
 	LIST_INSERT_HEAD(&V_pf_allrulelist, rule, allrulelist);
@@ -2201,12 +2227,22 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	ruleset->rules[rs_num].inactive.rcount++;
 
 	PF_RULES_WUNLOCK();
+	pf_hash_rule(rule);
+	if (RB_INSERT(pf_krule_global, ruleset->rules[rs_num].inactive.tree, rule) != NULL) {
+		PF_RULES_WLOCK();
+		pf_free_rule(rule);
+		rule = NULL;
+		error = EINVAL;
+		ERROUT(error);
+	}
+	PF_CONFIG_UNLOCK();
 
 	return (0);
 
 #undef ERROUT
 errout:
 	PF_RULES_WUNLOCK();
+	PF_CONFIG_UNLOCK();
 errout_unlocked:
 	pf_kkif_free(kif);
 	pf_krule_free(rule);
