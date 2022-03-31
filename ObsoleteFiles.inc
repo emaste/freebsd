@@ -56,6 +56,7 @@
 OLD_FILES+=usr/share/man/man4/snd_ad1816.4
 OLD_FILES+=usr/share/man/man4/snd_ess.4
 OLD_FILES+=usr/share/man/man4/snd_gusc.4
+OLD_FILES+=usr/share/man/man4/snd_mss.4
 
 # 20220418: uudecode merged into uuencode and renamed to bintrans
 OLD_FILES+=usr/lib/debug/usr/bin/uuencode.debug
