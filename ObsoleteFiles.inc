@@ -54,6 +54,7 @@
 
 
 # 20220326: ISA sound card drivers removed
+OLD_FILES+=usr/share/man/man4/snd_ad1816.4
 
 # 20220612: new clang import which bumps version from 14.0.4 to 14.0.5
 OLD_FILES+=usr/lib/clang/14.0.4/include/cuda_wrappers/algorithm
