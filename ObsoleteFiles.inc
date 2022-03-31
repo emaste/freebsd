@@ -52,6 +52,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220326: ISA sound card drivers removed
+
 # 20220318: snd_ds1 and snd_maestro drivers removed
 OLD_FILES+=usr/share/man/man4/snd_ds1.4.gz
 OLD_FILES+=usr/share/man/man4/snd_maestro.4.gz
