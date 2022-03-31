@@ -1,5 +1,5 @@
 /* deflate.c -- compress data using the deflation algorithm
- * Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
+ * Copyright (C) 1995-2022 Jean-loup Gailly and Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -52,7 +52,7 @@
 #include "deflate.h"
 
 const char deflate_copyright[] =
-   " deflate 1.2.11 Copyright 1995-2017 Jean-loup Gailly and Mark Adler ";
+   " deflate 1.2.12 Copyright 1995-2022 Jean-loup Gailly and Mark Adler ";
 /*
   If you use the zlib library in a product, an acknowledgment is welcome
   in the documentation of your product. If for some reason you cannot
@@ -528,7 +528,7 @@ int ZEXPORT deflateResetKeep (strm)
 #ifdef GZIP
         s->wrap == 2 ? GZIP_STATE :
 #endif
-        s->wrap ? INIT_STATE : BUSY_STATE;
+        INIT_STATE;
     strm->adler =
 #ifdef GZIP
         s->wrap == 2 ? crc32(0L, Z_NULL, 0) :
@@ -589,7 +589,8 @@ int ZEXPORT deflatePrime (strm, bits, value)
 
     if (deflateStateCheck(strm)) return Z_STREAM_ERROR;
     s = strm->state;
-    if (s->sym_buf < s->pending_out + ((Buf_size + 7) >> 3))
+    if (bits < 0 || bits > 16 ||
+        s->sym_buf < s->pending_out + ((Buf_size + 7) >> 3))
         return Z_BUF_ERROR;
     do {
         put = Buf_size - s->bi_valid;
@@ -851,6 +852,8 @@ int ZEXPORT deflate (strm, flush)
     }
 
     /* Write the header */
+    if (s->status == INIT_STATE && s->wrap == 0)
+        s->status = BUSY_STATE;
     if (s->status == INIT_STATE) {
         /* zlib header */
         uInt header = (Z_DEFLATED + ((s->w_bits-8)<<4)) << 8;
@@ -1550,6 +1553,8 @@ local void fill_window(s)
             s->match_start -= wsize;
             s->strstart    -= wsize; /* we now have strstart >= MAX_DIST */
             s->block_start -= (long) wsize;
+            if (s->insert > s->strstart)
+                s->insert = s->strstart;
             slide_hash(s);
             more += wsize;
         }
@@ -1781,6 +1786,7 @@ local block_state deflate_stored(s, flush)
             s->matches = 2;         /* clear hash */
             zmemcpy(s->window, s->strm->next_in - s->w_size, s->w_size);
             s->strstart = s->w_size;
+            s->insert = s->strstart;
         }
         else {
             if (s->window_size - s->strstart <= used) {
@@ -1789,12 +1795,14 @@ local block_state deflate_stored(s, flush)
                 zmemcpy(s->window, s->window + s->w_size, s->strstart);
                 if (s->matches < 2)
                     s->matches++;   /* add a pending slide_hash() */
+                if (s->insert > s->strstart)
+                    s->insert = s->strstart;
             }
             zmemcpy(s->window + s->strstart, s->strm->next_in - used, used);
             s->strstart += used;
+            s->insert += MIN(used, s->w_size - s->insert);
         }
         s->block_start = s->strstart;
-        s->insert += MIN(used, s->w_size - s->insert);
     }
     if (s->high_water < s->strstart)
         s->high_water = s->strstart;
@@ -1809,7 +1817,7 @@ local block_state deflate_stored(s, flush)
         return block_done;
 
     /* Fill the window with any remaining input. */
-    have = s->window_size - s->strstart - 1;
+    have = s->window_size - s->strstart;
     if (s->strm->avail_in > have && s->block_start >= (long)s->w_size) {
         /* Slide the window down. */
         s->block_start -= s->w_size;
@@ -1818,12 +1826,15 @@ local block_state deflate_stored(s, flush)
         if (s->matches < 2)
             s->matches++;           /* add a pending slide_hash() */
         have += s->w_size;          /* more space now */
+        if (s->insert > s->strstart)
+            s->insert = s->strstart;
     }
     if (have > s->strm->avail_in)
         have = s->strm->avail_in;
     if (have) {
         read_buf(s->strm, s->window + s->strstart, have);
         s->strstart += have;
+        s->insert += MIN(have, s->w_size - s->insert);
     }
     if (s->high_water < s->strstart)
         s->high_water = s->strstart;

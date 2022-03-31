@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2022
+.Dd March 31, 2022
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -40,10 +40,12 @@
 .Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Ar interface
 .Op Cm create
+.Oo
 .Ar address_family
 .Oo
 .Ar address
 .Op Ar dest_address
+.Oc
 .Oc
 .Op Ar parameters
 .Nm
@@ -63,6 +65,7 @@
 .Nm
 .Fl l
 .Op Fl du
+.Op Fl g Ar groupname
 .Op Ar address_family
 .Nm
 .Op Fl dkLmuv
@@ -200,6 +203,19 @@ may contain shell patterns in which case it should be quoted.
 Limit the output to the members of the specified
 .Ar groupname .
 .Pp
+If
+.Fl g
+is specified before other significant flags like, e.g.,
+.Fl a ,
+.Fl l ,
+or
+.Fl C ,
+then
+.Nm
+lists names of interfaces beloning to
+.Ar groupname .
+Any other flags and arguments are ignored in this case.
+.Pp
 Only one option
 .Fl g
 should be specified as later override previous ones
@@ -225,8 +241,17 @@ with no other additional information.
 If an
 .Ar address_family
 is specified, only interfaces of that type will be listed.
-.Ql ifconfig -l ether
-will list only Ethernet adapters, excluding the loopback interface.
+.Pp
+If the
+.Ar address_family
+is set to
+.Cm ether ,
+then
+.Fl l
+will exclude loopback interfaces from the list of Ethernet interfaces.
+This is a special case, because all the other synonyms of the
+.Cm link
+address family will include loopback interfaces in the list.
 .Pp
 Use of this flag is mutually exclusive
 with all other flags and commands, except for
@@ -261,49 +286,32 @@ That is, one can specify an address like
 .Li 192.168.0.1/16 .
 .Pp
 For the
-.Dq inet6
+.Cm inet6
 family, it is also possible to specify the prefix length using the slash
 notation, like
 .Li ::1/128 .
 See the
 .Cm prefixlen
 parameter below for more information.
-.\" For the Xerox Network Systems(tm) family,
-.\" addresses are
-.\" .Ar net:a.b.c.d.e.f ,
-.\" where
-.\" .Ar net
-.\" is the assigned network number (in decimal),
-.\" and each of the six bytes of the host number,
-.\" .Ar a
-.\" through
-.\" .Ar f ,
-.\" are specified in hexadecimal.
-.\" The host number may be omitted on IEEE 802 protocol
-.\" (Ethernet, FDDI, and Token Ring) interfaces,
-.\" which use the hardware physical address,
-.\" and on interfaces other than the first.
-.\" For the ISO family, addresses are specified as a long hexadecimal string,
-.\" as in the Xerox family.
-.\" However, two consecutive dots imply a zero
-.\" byte, and the dots are optional, if the user wishes to (carefully)
-.\" count out long strings of digits in network byte order.
 .Pp
 The link-level
-.Pq Dq link
+.Pq Cm link
 address
 is specified as a series of colon-separated hex digits.
 This can be used to, for example,
 set a new MAC address on an Ethernet interface, though the
 mechanism used is not Ethernet specific.
+.Pp
 Use the
-.Pq Dq random
+.Cm random
 keyword to set a randomly generated MAC address.
 A randomly-generated MAC address might be the same as one already in use
 in the network.
 Such duplications are extremely unlikely.
+.Pp
 If the interface is already
-up when this option is used, it will be briefly brought down and
+up when the link-level address is modified,
+it will be briefly brought down and
 then brought back up again in order to ensure that the receive
 filter in the underlying Ethernet hardware is properly reprogrammed.
 .It Ar address_family
@@ -313,32 +321,25 @@ which affects interpretation of the remaining parameters.
 Since an interface can receive transmissions in differing protocols
 with different naming schemes, specifying the address family is recommended.
 The address or protocol families currently
-supported are
-.Dq inet ,
-.Dq inet6 ,
-and
-.Dq link .
-The default if available is
-.Dq inet
-or otherwise
-.Dq link .
-.Dq ether
-and
-.Dq lladdr
-are synonyms for
-.Dq link .
-When using the
+supported are:
+.Bl -tag
+.It Cm ether
+Synonymous with
+.Cm link
+.Po with some exceptions, see
 .Fl l
-flag, the
-.Dq ether
-address family has special meaning and is no longer synonymous with
-.Dq link
-or
-.Dq lladdr .
-Specifying
-.Fl l Dq ether
-will list only Ethernet interfaces, excluding all other interface types,
-including the loopback interface.
+.Pc .
+.It Cm inet
+Default, if available.
+.It Cm inet6
+.It Cm link
+Default, if
+.Cm inet
+is not available.
+.It Cm lladdr
+Synonymous with
+.Cm link .
+.El
 .It Ar dest_address
 Specify the address of the correspondent on the other end
 of a point to point link.
@@ -3084,12 +3085,8 @@ Add the IPv4 address
 with the CIDR network prefix
 .Li /28 ,
 to the interface
-.Li em0 ,
-using
-.Cm add
-as a synonym for the canonical form of the option
-.Cm alias :
-.Dl # ifconfig em0 inet 192.0.2.45/28 add
+.Li em0 :
+.Dl # ifconfig em0 inet 192.0.2.45/28 alias
 .Pp
 Remove the IPv4 address
 .Li 192.0.2.45
@@ -3110,17 +3107,15 @@ Note that lower case hexadecimal IPv6 addresses are acceptable.
 Remove the IPv6 address added in the above example,
 using the
 .Li /
-character as shorthand for the network prefix,
-and using
-.Cm delete
-as a synonym for the canonical form of the option
-.Fl alias :
-.Dl # ifconfig em0 inet6 2001:db8:bdbd::123/48 delete
+character as shorthand for the network prefix:
+.Dl # ifconfig em0 inet6 2001:db8:bdbd::123/48 -alias
 .Pp
 Configure a single CARP redundant address on igb0, and then switch it
 to be master:
-.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar up
-.Dl # ifconfig igb0 vhid 1 state master
+.Bd -literal -offset indent -compact
+# ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar up
+# ifconfig igb0 vhid 1 state master
+.Ed
 .Pp
 Configure the interface
 .Li xl0 ,
@@ -3147,6 +3142,46 @@ Display inet and inet6 address subnet masks in CIDR notation
 .Pp
 Display interfaces that are up with the exception of loopback
 .Dl # ifconfig -a -u -G lo
+.Pp
+Display a list of interface names beloning to the wlan group:
+.Bd -literal -offset indent -compact
+# ifconfig -g wlan
+wlan0
+wlan1
+.Ed
+.Pp
+Display details about the interfaces belonging to the wlan group:
+.Bd -literal -offset indent -compact
+# ifconfig -a -g wlan
+wlan0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
+        ether 75:4c:61:6b:7a:73
+        inet6 fe80::4c75:636a:616e:ffd8%wlan0 prefixlen 64 scopeid 0x3
+        inet6 2001:5761:6e64:6152:6f6d:616e:fea4:ffe2 prefixlen 64 autoconf
+        inet 192.168.10.5 netmask 0xffffff00 broadcast 192.168.10.255
+        groups: wlan
+        ssid "Hotspot" channel 11 (2462 MHz 11g) bssid 12:34:ff:ff:43:21
+        regdomain ETSI country DE authmode WPA2/802.11i privacy ON
+        deftxkey UNDEF AES-CCM 2:128-bit AES-CCM 3:128-bit txpower 30 bmiss 10
+        scanvalid 60 protmode CTS wme roaming MANUAL
+        parent interface: iwm0
+        media: IEEE 802.11 Wireless Ethernet DS/2Mbps mode 11g
+        status: associated
+        nd6 options=23<PERFORMNUD,ACCEPT_RTADV,AUTO_LINKLOCAL>
+wlan1: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
+        ether 00:50:69:6f:74:72
+        groups: wlan
+        ssid "" channel 2 (2417 MHz 11g)
+        regdomain FCC country US authmode OPEN privacy OFF txpower 30 bmiss 7
+        scanvalid 60 bgscan bgscanintvl 300 bgscanidle 250 roam:rssi 7
+        roam:rate 5 protmode CTS wme bintval 0
+        parent interface: rum0
+        media: IEEE 802.11 Wireless Ethernet autoselect (autoselect)
+        status: no carrier
+        nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+.Ed
+.Pp
+Set a randomly-generated MAC address on tap0:
+.Dl # ifconfig tap0 ether random
 .Sh DIAGNOSTICS
 Messages indicating the specified interface does not exist, the
 requested address is unknown, or the user is not privileged and
@@ -3161,7 +3196,6 @@ tried to alter an interface's configuration.
 .Xr vlan 4 ,
 .Xr vxlan 4 ,
 .Xr devd.conf 5 ,
-.\" .Xr eon 5 ,
 .Xr devd 8 ,
 .Xr jail 8 ,
 .Xr rc 8 ,
