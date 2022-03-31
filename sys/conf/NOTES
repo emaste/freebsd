@@ -2045,8 +2045,6 @@ device		sound
 # snd_envy24:		VIA Envy24 and compatible, needs snd_spicds.
 # snd_envy24ht:		VIA Envy24HT and compatible, needs snd_spicds.
 # snd_es137x:		Ensoniq AudioPCI ES137x PCI.
-# snd_ess:		Ensoniq ESS ISA PnP/non-PnP, to be used in
-#			conjunction with snd_sbc.
 # snd_fm801:		Forte Media FM801 PCI.
 # snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
 # snd_hda:		Intel High Definition Audio (Controller) and
@@ -2083,7 +2081,6 @@ device		snd_emu10kx
 device		snd_envy24
 device		snd_envy24ht
 device		snd_es137x
-device		snd_ess
 device		snd_fm801
 device		snd_gusc
 device		snd_hda
