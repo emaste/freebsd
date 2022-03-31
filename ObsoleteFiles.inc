@@ -52,6 +52,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220326: ISA sound card drivers removed
+
 # 20220418: uudecode merged into uuencode and renamed to bintrans
 OLD_FILES+=usr/lib/debug/usr/bin/uuencode.debug
 OLD_FILES+=usr/lib/debug/usr/bin/uudecode.debug
