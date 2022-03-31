@@ -2034,7 +2034,6 @@ device		sound
 #		    zero if don't know what to put in (and you don't,
 #		    since this is unsupported at the moment...).
 #
-# snd_ad1816:		Analog Devices AD1816 ISA PnP/non-PnP.
 # snd_als4000:		Avance Logic ALS4000 PCI.
 # snd_atiixp:		ATI IXP 200/300/400 PCI.
 # snd_cmi:		CMedia CMI8338/CMI8738 PCI.
@@ -2074,7 +2073,6 @@ device		sound
 # snd_via82c686:	VIA VT82C686A PCI.
 # snd_vibes:		S3 Sonicvibes PCI.
 
-device		snd_ad1816
 device		snd_als4000
 device		snd_atiixp
 device		snd_cmi
