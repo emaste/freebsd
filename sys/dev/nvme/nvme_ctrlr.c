@@ -389,7 +389,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	cc |= 4 << NVME_CC_REG_IOCQES_SHIFT; /* CQ entry size == 16 == 2^4 */
 
 	/* This evaluates to 0, which is according to spec. */
-	cc |= (PAGE_SIZE >> 13) << NVME_CC_REG_MPS_SHIFT;
+	cc |= (PAGE_SHIFT - NVME_BASE_SHIFT) << NVME_CC_REG_MPS_SHIFT;
 
 	nvme_ctrlr_barrier(ctrlr, BUS_SPACE_BARRIER_WRITE);
 	nvme_mmio_write_4(ctrlr, cc, cc);
@@ -1388,7 +1388,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	if (bus_get_domain(dev, &ctrlr->domain) != 0)
 		ctrlr->domain = 0;
 
-	cap_lo = nvme_mmio_read_4(ctrlr, cap_lo);
+	ctrlr->cap_lo = cap_lo = nvme_mmio_read_4(ctrlr, cap_lo);
 	if (bootverbose) {
 		device_printf(dev, "CapLo: 0x%08x: MQES %u%s%s%s%s, TO %u\n",
 		    cap_lo, NVME_CAP_LO_MQES(cap_lo),
@@ -1398,7 +1398,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 		    (NVME_CAP_LO_AMS(cap_lo) & 0x2) ? " VS" : "",
 		    NVME_CAP_LO_TO(cap_lo));
 	}
-	cap_hi = nvme_mmio_read_4(ctrlr, cap_hi);
+	ctrlr->cap_hi = cap_hi = nvme_mmio_read_4(ctrlr, cap_hi);
 	if (bootverbose) {
 		device_printf(dev, "CapHi: 0x%08x: DSTRD %u%s, CSS %x%s, "
 		    "MPSMIN %u, MPSMAX %u%s%s\n", cap_hi,
