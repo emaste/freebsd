@@ -103,7 +103,7 @@ local z_crc_t multmodp OF((z_crc_t a, z_crc_t b));
 local z_crc_t x2nmodp OF((z_off64_t n, unsigned k));
 
 /* If available, use the ARM processor CRC32 instruction. */
-#if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32) && W == 8
+#if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32) && defined(W) && W == 8
 #  define ARMCRC32
 #endif
 
@@ -117,7 +117,7 @@ local z_crc_t x2nmodp OF((z_off64_t n, unsigned k));
 local z_word_t byte_swap(word)
     z_word_t word;
 {
-#  if W == 8
+#  if defined(W) && W == 8
     return
         (word & 0xff00000000000000) >> 56 |
         (word & 0xff000000000000) >> 40 |
