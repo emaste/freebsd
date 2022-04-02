@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2019
+.Dd April 1, 2022
 .Dt PW 8
 .Os
 .Sh NAME
@@ -34,154 +34,138 @@
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar useradd
-.Oo Fl n Oc name Oo Fl u Ar uid Oc
+.Cm useradd
+.Oo Fl n Oc Ar name
+.Op Fl mNoPqY
 .Op Fl C Ar config
-.Op Fl q
 .Op Fl c Ar comment
 .Op Fl d Ar dir
 .Op Fl e Ar date
-.Op Fl p Ar date
-.Op Fl g Ar group
 .Op Fl G Ar grouplist
-.Op Fl m
-.Op Fl M Ar mode
+.Op Fl g Ar group
+.Op Fl H Ar fd
+.Op Fl h Ar fd
 .Op Fl k Ar dir
-.Op Fl w Ar method
-.Op Fl s Ar shell
-.Op Fl o
 .Op Fl L Ar class
-.Op Fl h Ar fd | Fl H Ar fd
-.Op Fl N
-.Op Fl P
-.Op Fl Y
+.Op Fl M Ar mode
+.Op Fl p Ar date
+.Op Fl s Ar shell
+.Op Fl u Ar uid
+.Op Fl w Ar method
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar useradd
+.Cm useradd
 .Fl D
-.Op Fl C Ar config
 .Op Fl q
 .Op Fl b Ar dir
+.Op Fl C Ar config
 .Op Fl e Ar days
-.Op Fl p Ar days
-.Op Fl g Ar group
 .Op Fl G Ar grouplist
+.Op Fl g Ar group
+.Op Fl i Ar min , Ns Ar max
 .Op Fl k Ar dir
+.Op Fl p Ar days
+.Op Fl s Ar shell
 .Op Fl M Ar mode
 .Op Fl u Ar min , Ns Ar max
-.Op Fl i Ar min , Ns Ar max
 .Op Fl w Ar method
-.Op Fl s Ar shell
 .Op Fl y Ar path
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar userdel
-.Oo Fl n Oc name|uid | Fl u Ar uid
-.Op Fl r
-.Op Fl Y
+.Cm userdel
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
+.Op Fl rY
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar usermod
-.Oo Fl n Oc name|uid Oo Fl u Ar newuid Oc | Fl u Ar uid
+.Cm usermod
+.Oo Fl n Oc Ar name Ns | Ns Ar uid Oo Fl u Ar newuid Oc | Fl u Ar uid
+.Op Fl mNPqY
 .Op Fl C Ar config
-.Op Fl q
 .Op Fl c Ar comment
 .Op Fl d Ar dir
 .Op Fl e Ar date
-.Op Fl p Ar date
-.Op Fl g Ar group
-.Op Fl G Ar grouplist
-.Op Fl l Ar newname
-.Op Fl m
-.Op Fl M Ar mode
 .Op Fl k Ar dir
-.Op Fl w Ar method
-.Op Fl s Ar shell
+.Op Fl G Ar grouplist
+.Op Fl g Ar group
+.Op Fl H Ar fd
+.Op Fl h Ar fd
 .Op Fl L Ar class
-.Op Fl h Ar fd | Fl H Ar fd
-.Op Fl N
-.Op Fl P
-.Op Fl Y
+.Op Fl l Ar newname
+.Op Fl M Ar mode
+.Op Fl p Ar date
+.Op Fl s Ar shell
+.Op Fl w Ar method
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar usershow
-.Oo Fl n Oc name|uid | Fl u Ar uid
-.Op Fl F
-.Op Fl P
-.Op Fl 7
-.Op Fl a
+.Cm usershow
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
+.Op Fl 7aFP
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar usernext
-.Op Fl C Ar config
+.Cm usernext
 .Op Fl q
+.Op Fl C Ar config
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar groupadd
-.Oo Fl n Oc name Oo Fl g Ar gid Oc
+.Cm groupadd
+.Oo Fl n Oc Ar name
+.Op Fl oNPqY
 .Op Fl C Ar config
-.Op Fl q
+.Op Fl g Ar gid
+.Op Fl H Ar fd
+.Op Fl h Ar fd
 .Op Fl M Ar members
-.Op Fl o
-.Op Fl h Ar fd | Fl H Ar fd
-.Op Fl N
-.Op Fl P
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Cm groupdel
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl g Oc Ar gid
 .Op Fl Y
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar groupdel
-.Oo Fl n Oc name|gid | Fl g Ar gid
-.Op Fl Y
-.Nm
-.Op Fl R Ar rootdir
-.Op Fl V Ar etcdir
-.Ar groupmod
-.Oo Fl n Oc name|gid Oo Fl g Ar newgid Oc | Fl g Ar gid
+.Cm groupmod
+.Oo Fl n Oc Ar name Ns | Ns Ar gid Oo Fl g Ar newgid Oc | Fl g Ar gid
+.Op Fl NPqY
 .Op Fl C Ar config
-.Op Fl q
+.Op Fl d Ar oldmembers
+.Op Fl H Ar fd
+.Op Fl h Ar fd
 .Op Fl l Ar newname
 .Op Fl M Ar members
 .Op Fl m Ar newmembers
-.Op Fl d Ar oldmembers
-.Op Fl h Ar fd | Fl H Ar fd
-.Op Fl N
-.Op Fl P
-.Op Fl Y
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar groupshow
-.Oo Fl n Oc name|gid | Fl g Ar gid
-.Op Fl F
-.Op Fl P
-.Op Fl a
+.Cm groupshow
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl g Oc Ar gid
+.Op Fl aFP
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar groupnext
+.Cm groupnext
 .Op Fl C Ar config
 .Op Fl q
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar lock
-.Oo Fl n Oc name|uid | Fl u Ar uid
-.Op Fl C Ar config
+.Cm lock
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
 .Op Fl q
+.Op Fl C Ar config
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar unlock
-.Oo Fl n Oc name|uid | Fl u Ar uid
-.Op Fl C Ar config
+.Cm unlock
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
 .Op Fl q
+.Op Fl C Ar config
 .Sh DESCRIPTION
 The
 .Nm
@@ -202,9 +186,9 @@ server.
 The
 .Nm
 utility handles updating the
-.Pa passwd ,
-.Pa master.passwd ,
-.Pa group
+.Xr passwd 5 ,
+.Xr master.passwd 5 ,
+.Xr group 5
 and the secure and insecure
 password database files, and must be run as root.
 .Pp
@@ -212,23 +196,23 @@ The first one or two keywords provided to
 .Nm
 on the command line provide the context for the remainder of the arguments.
 The keywords
-.Ar user
+.Cm user
 and
-.Ar group
+.Cm group
 may be combined with
-.Ar add ,
-.Ar del ,
-.Ar mod ,
-.Ar show ,
+.Cm add ,
+.Cm del ,
+.Cm mod ,
+.Cm show ,
 or
-.Ar next
+.Cm next
 in any order.
 (For example,
-.Ar showuser ,
-.Ar usershow ,
-.Ar show user ,
+.Cm showuser ,
+.Cm usershow ,
+.Cm show user ,
 and
-.Ar user show
+.Cm user show
 all mean the same thing.)
 This flexibility is useful for interactive scripts calling
 .Nm
@@ -255,7 +239,9 @@ Can be used to maintain a user/group database in an alternate location.
 If this switch is specified, the system
 .Pa /etc/pw.conf
 will not be sourced for default configuration data,
-but the file pw.conf in the specified directory will be used instead
+but the file
+.Pa pw.conf
+in the specified directory will be used instead
 .Pq or none, if it does not exist .
 The
 .Fl C
@@ -286,9 +272,9 @@ is preferable to interpret status codes returned by
 rather than messing up a carefully formatted display.
 .It Fl N
 This option is available in
-.Ar add
+.Cm add
 and
-.Ar modify
+.Cm modify
 operations, and tells
 .Nm
 to output the result of the operation without updating the user or group
@@ -319,9 +305,9 @@ databases.
 .El
 .Sh USER OPTIONS
 The following options apply to the
-.Ar useradd
+.Cm useradd
 and
-.Ar usermod
+.Cm usermod
 commands:
 .Bl -tag -width "-G grouplist"
 .It Oo Fl n Oc Ar name
@@ -330,15 +316,16 @@ Required unless
 is given.
 Specify the user/account name.
 In the case of
-.Ar usermod
-can be a uid.
+.Cm usermod
+can be a
+.Ar uid .
 .It Fl u Ar uid
 Required if
 .Ar name
 is not given.
 Specify the user/account numeric id.
 In the case of
-.Ar usermod
+.Cm usermod
 if paired with
 .Ar name ,
 changes the numeric id of the named user/account.
@@ -347,22 +334,22 @@ Usually, only one of these options is required,
 as the account name will imply the uid, or vice versa.
 However, there are times when both are needed.
 For example, when changing the uid of an existing user with
-.Ar usermod ,
+.Cm usermod ,
 or overriding the default uid when creating a new account with
-.Ar useradd .
+.Cm useradd .
 To automatically allocate the uid to a new user with
-.Ar useradd ,
+.Cm useradd ,
 then do
 .Em not
 use the
 .Fl u
 option.
 Either the account or userid can also be provided immediately after the
-.Ar useradd ,
-.Ar userdel ,
-.Ar usermod
+.Cm useradd ,
+.Cm userdel ,
+.Cm usermod ,
 or
-.Ar usershow
+.Cm usershow
 keywords on the command line without using the
 .Fl n
 or
@@ -442,7 +429,7 @@ This option instructs
 .Nm
 to attempt to create the user's home directory.
 While primarily useful when adding a new account with
-.Ar useradd ,
+.Cm useradd ,
 this may also be of use when moving an existing user's home directory elsewhere
 on the file system.
 The new home directory is populated with the contents of the
@@ -457,7 +444,7 @@ prefix will be stripped.
 When
 .Fl m
 is used on an account with
-.Ar usermod ,
+.Cm usermod ,
 existing configuration files in the user's home directory are
 .Em not
 overwritten from the skeleton files.
@@ -467,7 +454,7 @@ it will by default be a subdirectory of the
 .Ar basehome
 directory as specified by the
 .Fl b
-option (see below), bearing the name of the new account.
+option, bearing the name of the new account.
 This can be overridden by the
 .Fl d
 option on the command line, if desired.
@@ -554,7 +541,7 @@ suitable for writing directly to the password database.
 .El
 .Pp
 It is possible to use
-.Ar useradd
+.Cm useradd
 to create a new account that duplicates an existing user id.
 While this is normally considered an error and will be rejected, the
 .Fl o
@@ -566,7 +553,7 @@ directory, different shell) while providing basically the same
 permissions for access to the user's files in each account.
 .Pp
 The
-.Ar useradd
+.Cm useradd
 command also has the ability to set new user and group defaults by using the
 .Fl D
 option.
@@ -651,8 +638,8 @@ See description of
 .Fl k
 for naming conventions of these files.
 .It Xo
-.Fl u Ar min , Ns Ar max ,
-.Fl i Ar min , Ns Ar max
+.Fl u Ar min Ns Cm \&, Ns Ar max ,
+.Fl i Ar min Ns Cm \&, Ns Ar max
 .Xc
 Set the minimum and maximum user and group ids allocated for new
 accounts and groups created by
@@ -676,20 +663,20 @@ accounts.
 is one of:
 .Pp
 .Bl -tag -width random -offset indent -compact
-.It no
+.It Cm no
 disable login on newly created accounts
-.It yes
+.It Cm yes
 force the password to be the account name
-.It none
+.It Cm none
 force a blank password
-.It random
+.It Cm random
 generate a random password
 .El
 .Pp
 The
-.Ql \&random
+.Cm random
 or
-.Ql \&no
+.Cm no
 methods are the most secure; in the former case,
 .Nm
 generates a password and prints it to stdout,
@@ -698,7 +685,7 @@ to select their own
 .Pq possibly poorly chosen
 password.
 The
-.Ql \&no
+.Cm no
 method requires that the superuser use
 .Xr passwd 1
 to render the account accessible with a password.
@@ -716,7 +703,7 @@ servers.
 .El
 .Pp
 The
-.Ar userdel
+.Cm userdel
 command has three distinct options.
 The
 .Fl n Ar name
@@ -734,7 +721,9 @@ The
 utility errs on the side of caution when removing files from the system.
 Firstly,
 it will not do so if the uid of the account being removed is also used by
-another account on the system, and the 'home' directory in the password file is
+another account on the system, and the
+.Dq home
+directory in the password file is
 a valid path that commences with the character
 .Ql \&/ .
 Secondly, it will only remove files and directories that are actually owned by
@@ -744,26 +733,28 @@ will be removed.
 If any additional cleanup work is required, this is left to the administrator.
 .El
 .Pp
-Mail spool files and crontabs are always removed when an account is deleted as
+Mail spool files and
+.Xr crontab 5
+files are always removed when an account is deleted as
 these are unconditionally attached to the user name.
 Jobs queued for processing by
-.Ar at
+.Xr at 1
 are also removed if the user's uid is unique and not also used by another
 account on the system.
 .Pp
 The
-.Ar usermod
+.Cm usermod
 command adds one additional option:
 .Bl -tag -width "-G grouplist"
 .It Fl l Ar newname
 This option allows changing of an existing account name to
-.Ql \&newname .
+.Ar newname .
 The new name must not already exist, and any attempt to duplicate an
 existing account name will be rejected.
 .El
 .Pp
 The
-.Ar usershow
+.Cm usershow
 command allows viewing of an account in one of two formats.
 By default, the format is identical to the format used in
 .Pa /etc/master.passwd
@@ -787,7 +778,7 @@ forces
 to print the details of an account even if it does not exist.
 .Pp
 The command
-.Ar usernext
+.Cm usernext
 returns the next available user and group ids separated by a colon.
 This is normally of interest only to interactive scripts or front-ends
 that use
@@ -807,7 +798,7 @@ Required unless
 is given.
 Specify the group name.
 In the case of
-.Ar groupmod
+.Cm groupmod
 can be a gid.
 .It Fl g Ar gid
 Required if
@@ -815,7 +806,7 @@ Required if
 is not given.
 Specify the group numeric id.
 In the case of
-.Ar groupmod
+.Cm groupmod
 if paired with
 .Ar name ,
 changes the numeric id of the named group.
@@ -827,8 +818,10 @@ You will only need to use both when setting a specific group id
 against a new group or when changing the uid of an existing group.
 .It Fl M Ar memberlist
 This option provides an alternative way to add existing users to a
-new group (in groupadd) or replace an existing membership list (in
-groupmod).
+new group
+.Pq in Cm groupadd
+or replace an existing membership list
+.Pq in Cm groupmod .
 .Ar memberlist
 is a comma separated list of valid and existing user names or uids.
 .It Fl m Ar newmembers
@@ -851,7 +844,7 @@ Login names or user ids may be used, and duplicate users are
 silently eliminated.
 .El
 .Pp
-.Ar groupadd
+.Cm groupadd
 also has a
 .Fl o
 option that allows allocation of an existing group id to a new group.
@@ -860,21 +853,21 @@ and this option overrides the check for duplicate group ids.
 There is rarely any need to duplicate a group id.
 .Pp
 The
-.Ar groupmod
+.Cm groupmod
 command adds one additional option:
 .Bl -tag -width "-m newmembers"
 .It Fl l Ar newname
 This option allows changing of an existing group name to
-.Ql \&newname .
+.Ar newname .
 The new name must not already exist,
 and any attempt to duplicate an existing group
 name will be rejected.
 .El
 .Pp
 Options for
-.Ar groupshow
+.Cm groupshow
 are the same as for
-.Ar usershow ,
+.Cm usershow ,
 with the
 .Fl g Ar gid
 replacing
@@ -883,11 +876,11 @@ to specify the group id.
 The
 .Fl 7
 option does not apply to the
-.Ar groupshow
+.Cm groupshow
 command.
 .Pp
 The command
-.Ar groupnext
+.Cm groupnext
 returns the next available group id on standard output.
 .Sh USER LOCKING
 The
@@ -897,13 +890,13 @@ supports a simple password locking mechanism for users; it works by
 prepending the string
 .Ql *LOCKED*
 to the beginning of the password field in
-.Pa master.passwd
+.Xr master.passwd 5
 to prevent successful authentication.
 .Pp
 The
-.Ar lock
+.Cm lock
 and
-.Ar unlock
+.Cm unlock
 commands take a user name or uid of the account to lock or unlock,
 respectively.
 The
@@ -917,7 +910,9 @@ For a summary of options available with each command, you can use
 .Dl pw [command] help
 For example,
 .Dl pw useradd help
-lists all available options for the useradd operation.
+lists all available options for the
+.Cm useradd
+operation.
 .Pp
 The
 .Nm
