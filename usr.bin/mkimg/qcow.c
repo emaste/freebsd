@@ -52,6 +52,7 @@ struct qcow_header {
 	uint32_t	version;
 #define	QCOW_VERSION_1		1
 #define	QCOW_VERSION_2		2
+#define	QCOW_VERSION_3		3
 	uint64_t	path_offset;
 	uint32_t	path_length;
 	uint32_t	clstr_log2sz;	/* v2 only */
@@ -73,6 +74,13 @@ struct qcow_header {
 			uint32_t	snapshot_count;
 			uint64_t	snapshot_offset;
 		} v2;
+		struct {
+			uint64_t	incompatible_features;
+			uint64_t	compatible_features;
+			uint64_t	autoclear_features;
+			uint32_t	refcount_order;
+			uint32_t	header_length;
+		} v3;
 	} u;
 };
 
@@ -97,6 +105,7 @@ qcow_resize(lba_t imgsz, u_int version)
 		clstr_log2sz = QCOW1_CLSTR_LOG2SZ;
 		break;
 	case QCOW_VERSION_2:
+	case QCOW_VERSION_3:
 		clstr_log2sz = QCOW2_CLSTR_LOG2SZ;
 		break;
 	default:
@@ -124,6 +133,26 @@ qcow2_resize(lba_t imgsz)
 {
 
 	return (qcow_resize(imgsz, QCOW_VERSION_2));
+}
+
+static int
+qcow_write_data(uint64_t clstr_imgsz, u_int blk_clstrsz, int fd)
+{
+	uint64_t n;
+	lba_t blk;
+	int error;
+
+	error = 0;
+	for (n = 0; n < clstr_imgsz; n++) {
+		blk = n * blk_clstrsz;
+		if (image_data(blk, blk_clstrsz)) {
+			error = image_copyout_region(fd, blk, blk_clstrsz);
+			if (error)
+				break;
+		}
+	}
+
+	return (error);
 }
 
 static int
@@ -310,15 +339,7 @@ qcow_write(int fd, u_int version)
 		rcblk = NULL;
 	}
 
-	error = 0;
-	for (n = 0; n < clstr_imgsz; n++) {
-		blk = n * blk_clstrsz;
-		if (image_data(blk, blk_clstrsz)) {
-			error = image_copyout_region(fd, blk, blk_clstrsz);
-			if (error)
-				break;
-		}
-	}
+	error = qcow_write_data(clstr_imgsz, blk_clstrsz, fd);
 	if (!error)
 		error = image_copyout_done(fd);
 
