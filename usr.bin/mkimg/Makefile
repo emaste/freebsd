@@ -32,7 +32,7 @@ SRCS+=	\
 
 BINDIR?=/usr/bin
 
-LIBADD=	util
+LIBADD=	util z
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
