@@ -1,10 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 1999-2001 Robert N. M. Watson
- * All rights reserved.
- *
- * This software was developed by Robert Watson for the TrustedBSD Project.
+ * Copyright (c) 2022 Rob Wing <rew@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,31 +24,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- */
-/*
- * Developed by the TrustedBSD Project.
- * Support for POSIX.1e access control lists.
  */
 
-#ifndef _UFS_UFS_ACL_H_
-#define	_UFS_UFS_ACL_H_
+#ifndef _IPC_H_
+#define _IPC_H_
 
-#ifdef _KERNEL
+#include <sys/cdefs.h>
+#include <sys/linker_set.h>
+#include <sys/nv.h>
 
-struct inode;
+struct ipc_command {
+	char *name;
+	int (*handler)(struct vmctx *ctx, const nvlist_t *nvl);
+};
 
-int	ufs_getacl_nfs4_internal(struct vnode *vp, struct acl *aclp,
-	    struct thread *td);
-int	ufs_setacl_nfs4_internal(struct vnode *vp, struct acl *aclp,
-	    struct thread *td);
-void	ufs_sync_acl_from_inode(struct inode *ip, struct acl *acl);
-void	ufs_sync_inode_from_acl(struct acl *acl, struct inode *ip);
+#define IPC_COMMAND(set, name, function)			\
+	static struct ipc_command name ## _ipc_command =	\
+	{ #name, function };					\
+	DATA_SET(set, name ## _ipc_command);
 
-int	ufs_getacl(struct vop_getacl_args *);
-int	ufs_setacl(struct vop_setacl_args *);
-int	ufs_aclcheck(struct vop_aclcheck_args *);
+#define IPC_COMMAND_FOREACH(pvar, set)	SET_FOREACH(pvar, set)
 
-#endif /* !_KERNEL */
+SET_DECLARE(ipc_cmd_set, struct ipc_command);
 
-#endif /* !_UFS_UFS_ACL_H_ */
+#endif /* _IPC_H_ */
