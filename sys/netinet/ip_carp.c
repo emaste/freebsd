@@ -398,6 +398,7 @@ carp_hmac_prepare(struct carp_softc *sc)
 
 	/* Compute ipad from key. */
 	bzero(sc->sc_pad, sizeof(sc->sc_pad));
+	// XXX ctassert sizeof(sc->sc_pad) > sizeof(sc->sc_key)
 	bcopy(sc->sc_key, sc->sc_pad, sizeof(sc->sc_key));
 	for (i = 0; i < sizeof(sc->sc_pad); i++)
 		sc->sc_pad[i] ^= 0x36;
@@ -867,6 +868,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af, int ttl)
 		goto out;
 	}
 
+	// XXX carp_advskew, carp_advbase
 	if (carp_hmac_verify(sc, ch->carp_counter, ch->carp_md)) {
 		CARPSTATS_INC(carps_badauth);
 		CARP_DEBUG("%s: incorrect hash for VHID %u@%s\n", __func__,
@@ -1078,6 +1080,7 @@ carp_prepare_ad(struct mbuf *m, struct carp_softc *sc, struct carp_header *ch)
 	ch->carp_counter[0] = htonl((sc->sc_counter>>32)&0xffffffff);
 	ch->carp_counter[1] = htonl(sc->sc_counter&0xffffffff);
 
+	// XXX carp_advskew, carp_advbase
 	carp_hmac_generate(sc, ch->carp_counter, ch->carp_md);
 }
 
