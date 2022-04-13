@@ -127,7 +127,6 @@ __DEFAULT_YES_OPTIONS = \
     LDNS \
     LDNS_UTILS \
     LEGACY_CONSOLE \
-    LIB32 \
     LIBPTHREAD \
     LIBTHR \
     LLVM_COV \
@@ -204,6 +203,7 @@ __DEFAULT_NO_OPTIONS = \
     DTRACE_TESTS \
     GH_BC \
     HESIOD \
+    LIB32 \
     LIBSOFT \
     LLVM_ASSERTIONS \
     LLVM_CXXFILT \
