@@ -5097,6 +5097,17 @@ set_params__pre_init(struct adapter *sc)
 			    "failed to enable high priority filters :%d.\n",
 			    rc);
 		}
+
+		param = FW_PARAM_DEV(PPOD_EDRAM);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+		if (rc == 0 && val == 1) {
+			rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param,
+			    &val);
+			if (rc != 0) {
+				device_printf(sc->dev,
+				    "failed to set PPOD_EDRAM: %d.\n", rc);
+			}
+		}
 	}
 
 	/* Enable opaque VIIDs with firmwares that support it. */
@@ -9824,8 +9835,9 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	ulp_region(RX_RQUDP);
 	ulp_region(RX_PBL);
 	ulp_region(TX_PBL);
-	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS)
+	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS) {
 		ulp_region(RX_TLS_KEY);
+	}
 #undef ulp_region
 
 	md->base = 0;
