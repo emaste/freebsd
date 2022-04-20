@@ -149,6 +149,10 @@ PIEFLAG=-fpie
 
 PO_FLAG=-pg
 
+.if ${MK_PIE} != "no"
+CFLAGS+= ${PIEFLAG}
+.endif
+
 .c.po:
 	${CC} ${PO_FLAG} ${STATIC_CFLAGS} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
