@@ -60,8 +60,7 @@ __DEFAULT_NO_OPTIONS = \
     EXTRA_TCP_STACKS \
     INIT_ALL_PATTERN \
     RATELIMIT \
-    REPRODUCIBLE_BUILD \
-    SET_BUT_NOTUSED_KERNEL_WARNINGS
+    REPRODUCIBLE_BUILD
 
 # Some options are totally broken on some architectures. We disable
 # them. If you need to enable them on an experimental basis, you
