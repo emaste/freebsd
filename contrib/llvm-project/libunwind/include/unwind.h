@@ -133,7 +133,7 @@ struct _Unwind_Exception {
   uintptr_t private_1; // non-zero means forced unwind
   uintptr_t private_2; // holds sp that phase1 found for phase2 to use
 #endif
-#if __SIZEOF_POINTER__ == 4
+#if __SIZEOF_POINTER__ == 4 && defined(USE_UPSTREAM_ABI_NOT_FREEBSD_13_0_ABI)
   // The implementation of _Unwind_Exception uses an attribute mode on the
   // above fields which has the side effect of causing this whole struct to
   // round up to 32 bytes in size (48 with SEH). To be more explicit, we add
@@ -143,7 +143,11 @@ struct _Unwind_Exception {
   // The Itanium ABI requires that _Unwind_Exception objects are "double-word
   // aligned".  GCC has interpreted this to mean "use the maximum useful
   // alignment for the target"; so do we.
-} __attribute__((__aligned__));
+}
+#if __SIZEOF_POINTER__ != 4 || defined(USE_UPSTREAM_ABI_NOT_FREEBSD_13_0_ABI)
+  __attribute__((__aligned__))
+#endif
+  ;
 
 typedef _Unwind_Reason_Code (*_Unwind_Stop_Fn)
     (int version,

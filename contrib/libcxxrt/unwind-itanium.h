@@ -81,10 +81,14 @@ struct _Unwind_Exception
     _Unwind_Exception_Cleanup_Fn exception_cleanup;
     uintptr_t private_1;
     uintptr_t private_2;
-#if __SIZEOF_POINTER__ == 4
+#if __SIZEOF_POINTER__ == 4 && defined(USE_UPSTREAM_ABI_NOT_FREEBSD_13_0_ABI)
     uint32_t reserved[3];
 #endif
-  } __attribute__((__aligned__));
+  }
+#if __SIZEOF_POINTER__ != 4 || defined(USE_UPSTREAM_ABI_NOT_FREEBSD_13_0_ABI)
+  __attribute__((__aligned__))
+#endif
+  ;
 
 extern _Unwind_Reason_Code _Unwind_RaiseException (struct _Unwind_Exception *);
 extern _Unwind_Reason_Code _Unwind_ForcedUnwind (struct _Unwind_Exception *,
