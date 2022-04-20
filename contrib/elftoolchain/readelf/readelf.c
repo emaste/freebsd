@@ -3819,7 +3819,18 @@ dump_notes_data(struct readelf *re, const char *name, uint32_t type,
 	}
 	ubuf = (const uint32_t *)(const void *)buf;
 
-	if (strcmp(name, "FreeBSD") == 0) {
+	if (strcmp(name, "FDO") == 0) {
+		switch (type) {
+		case 0xcafe1a7e:
+			printf("   Package metadata: ");
+			for (i = 0; i < sz; i++) {
+				printf(isprint(buf[i]) ? "%c" : "<%02x>",
+				    buf[i]);
+			}
+			printf("\n");
+			return;
+		}
+	} else if (strcmp(name, "FreeBSD") == 0) {
 		switch (type) {
 		case NT_FREEBSD_ABI_TAG:
 			if (sz != 4)
