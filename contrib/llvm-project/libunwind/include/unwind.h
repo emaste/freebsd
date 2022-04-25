@@ -140,10 +140,7 @@ struct _Unwind_Exception {
   // pad fields added for binary compatibility.
   uint32_t reserved[3];
 #endif
-  // The Itanium ABI requires that _Unwind_Exception objects are "double-word
-  // aligned".  GCC has interpreted this to mean "use the maximum useful
-  // alignment for the target"; so do we.
-} __attribute__((__aligned__));
+};
 
 typedef _Unwind_Reason_Code (*_Unwind_Stop_Fn)
     (int version,
