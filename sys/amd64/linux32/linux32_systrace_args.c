@@ -3007,22 +3007,38 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_timer_gettime64 */
 	case 408: {
-		*n_args = 0;
+		struct linux_timer_gettime64_args *p = params;
+		iarg[a++] = p->timerid; /* l_timer_t */
+		uarg[a++] = (intptr_t)p->setting; /* struct l_itimerspec64 * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_timer_settime64 */
 	case 409: {
-		*n_args = 0;
+		struct linux_timer_settime64_args *p = params;
+		iarg[a++] = p->timerid; /* l_timer_t */
+		iarg[a++] = p->flags; /* l_int */
+		uarg[a++] = (intptr_t)p->new; /* const struct l_itimerspec64 * */
+		uarg[a++] = (intptr_t)p->old; /* struct l_itimerspec64 * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_timerfd_gettime64 */
 	case 410: {
-		*n_args = 0;
+		struct linux_timerfd_gettime64_args *p = params;
+		iarg[a++] = p->fd; /* l_int */
+		uarg[a++] = (intptr_t)p->old_value; /* struct l_itimerspec64 * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_timerfd_settime64 */
 	case 411: {
-		*n_args = 0;
+		struct linux_timerfd_settime64_args *p = params;
+		iarg[a++] = p->fd; /* l_int */
+		iarg[a++] = p->flags; /* l_int */
+		uarg[a++] = (intptr_t)p->new_value; /* const struct l_itimerspec64 * */
+		uarg[a++] = (intptr_t)p->old_value; /* struct l_itimerspec64 * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_utimensat_time64 */
@@ -3065,7 +3081,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_recvmmsg_time64 */
 	case 417: {
-		*n_args = 0;
+		struct linux_recvmmsg_time64_args *p = params;
+		iarg[a++] = p->s; /* l_int */
+		uarg[a++] = (intptr_t)p->msg; /* struct l_mmsghdr * */
+		iarg[a++] = p->vlen; /* l_uint */
+		iarg[a++] = p->flags; /* l_uint */
+		uarg[a++] = (intptr_t)p->timeout; /* struct l_timespec64 * */
+		*n_args = 5;
 		break;
 	}
 	/* linux_mq_timedsend_time64 */
@@ -3107,7 +3129,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_sched_rr_get_interval_time64 */
 	case 423: {
-		*n_args = 0;
+		struct linux_sched_rr_get_interval_time64_args *p = params;
+		iarg[a++] = p->pid; /* l_pid_t */
+		uarg[a++] = (intptr_t)p->interval; /* struct l_timespec64 * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_pidfd_send_signal */
@@ -8128,15 +8153,67 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timer_gettime64 */
 	case 408:
+		switch (ndx) {
+		case 0:
+			p = "l_timer_t";
+			break;
+		case 1:
+			p = "userland struct l_itimerspec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timer_settime64 */
 	case 409:
+		switch (ndx) {
+		case 0:
+			p = "l_timer_t";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland const struct l_itimerspec64 *";
+			break;
+		case 3:
+			p = "userland struct l_itimerspec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timerfd_gettime64 */
 	case 410:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland struct l_itimerspec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timerfd_settime64 */
 	case 411:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland const struct l_itimerspec64 *";
+			break;
+		case 3:
+			p = "userland struct l_itimerspec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_utimensat_time64 */
 	case 412:
@@ -8209,6 +8286,25 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_recvmmsg_time64 */
 	case 417:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland struct l_mmsghdr *";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		case 4:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_mq_timedsend_time64 */
 	case 418:
@@ -8265,6 +8361,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_rr_get_interval_time64 */
 	case 423:
+		switch (ndx) {
+		case 0:
+			p = "l_pid_t";
+			break;
+		case 1:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_pidfd_send_signal */
 	case 424:
@@ -10051,12 +10157,24 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timer_gettime64 */
 	case 408:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timer_settime64 */
 	case 409:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timerfd_gettime64 */
 	case 410:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timerfd_settime64 */
 	case 411:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_utimensat_time64 */
 	case 412:
 		if (ndx == 0 || ndx == 1)
@@ -10076,6 +10194,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 416:
 	/* linux_recvmmsg_time64 */
 	case 417:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_mq_timedsend_time64 */
 	case 418:
 	/* linux_mq_timedreceive_time64 */
@@ -10094,6 +10215,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_rr_get_interval_time64 */
 	case 423:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_pidfd_send_signal */
 	case 424:
 		if (ndx == 0 || ndx == 1)
