@@ -54,7 +54,7 @@ ufs_size=10g
 do_ufs_part()
 {
 	cd $stagedir
-	makefs -D -B little -o label=FreeBSD_root -o version=2 -s $ufs_size ufs.part METALOG 2>&1 | tee -a $log
+	makefs -D -B little -o label=FreeBSD_root -o version=2 -o density=4096 -s $ufs_size ufs.part METALOG 2>&1 | tee -a $log
 	cd - 
 }
 
