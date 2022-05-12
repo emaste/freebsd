@@ -84,7 +84,7 @@ do_image()
 }
 
 set -e
-do_build
+#do_build
 do_stage
 do_stage_files
 do_ufs_part

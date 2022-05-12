@@ -22,6 +22,9 @@ task:
   - uname -a
   - df -m
   - pkg --version
+  build_script:
+  - make -s -j$(sysctl -n hw.ncpu) buildworld
+  - make -s -j$(sysctl -n hw.ncpu) buildkernel
   script:
   - sh build.sh
   post_script:
