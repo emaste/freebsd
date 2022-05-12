@@ -25,8 +25,10 @@ task:
   build_script:
   - make -s -j$(sysctl -n hw.ncpu) buildworld
   - make -s -j$(sysctl -n hw.ncpu) buildkernel
-  script:
-  - sh build.sh
+  #script:
+  #- sh build.sh
+  release_script:
+  - make -s -DNOPORTS -DNOSRC KERNCONF=GENERIC WITH_CLOUDWARE=yes CLOUDWARE=OCI cloudware-release
   post_script:
   - df -m
   - du -m -s /usr/obj
