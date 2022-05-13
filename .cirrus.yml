@@ -28,6 +28,7 @@ task:
   #script:
   #- sh build.sh
   release_script:
+  - cd release
   - make -s -DNOPORTS -DNOSRC KERNCONF=GENERIC WITH_CLOUDWARE=yes CLOUDWARE=OCI cloudware-release
   post_script:
   - df -m
