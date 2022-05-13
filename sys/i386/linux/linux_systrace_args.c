@@ -1204,10 +1204,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 172: {
 		struct linux_prctl_args *p = params;
 		iarg[a++] = p->option; /* l_int */
-		iarg[a++] = p->arg2; /* l_int */
-		iarg[a++] = p->arg3; /* l_int */
-		iarg[a++] = p->arg4; /* l_int */
-		iarg[a++] = p->arg5; /* l_int */
+		uarg[a++] = (intptr_t)p->arg2; /* l_uintptr_t */
+		uarg[a++] = (intptr_t)p->arg3; /* l_uintptr_t */
+		uarg[a++] = (intptr_t)p->arg4; /* l_uintptr_t */
+		uarg[a++] = (intptr_t)p->arg5; /* l_uintptr_t */
 		*n_args = 5;
 		break;
 	}
@@ -3141,7 +3141,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_semtimedop_time64 */
 	case 420: {
-		*n_args = 0;
+		struct linux_semtimedop_time64_args *p = params;
+		iarg[a++] = p->semid; /* l_int */
+		uarg[a++] = (intptr_t)p->tsops; /* struct sembuf * */
+		iarg[a++] = p->nsops; /* l_size_t */
+		uarg[a++] = (intptr_t)p->timeout; /* struct l_timespec64 * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_rt_sigtimedwait_time64 */
@@ -5126,16 +5131,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 1:
-			p = "l_int";
+			p = "l_uintptr_t";
 			break;
 		case 2:
-			p = "l_int";
+			p = "l_uintptr_t";
 			break;
 		case 3:
-			p = "l_int";
+			p = "l_uintptr_t";
 			break;
 		case 4:
-			p = "l_int";
+			p = "l_uintptr_t";
 			break;
 		default:
 			break;
@@ -8391,6 +8396,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_semtimedop_time64 */
 	case 420:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland struct sembuf *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		case 3:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_rt_sigtimedwait_time64 */
 	case 421:
@@ -10309,6 +10330,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 419:
 	/* linux_semtimedop_time64 */
 	case 420:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_rt_sigtimedwait_time64 */
 	case 421:
 		if (ndx == 0 || ndx == 1)

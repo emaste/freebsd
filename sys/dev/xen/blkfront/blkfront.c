@@ -593,8 +593,7 @@ xbd_dump_complete(struct xbd_command *cm)
 }
 
 static int
-xbd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
-    size_t length)
+xbd_dump(void *arg, void *virtual, off_t offset, size_t length)
 {
 	struct disk *dp = arg;
 	struct xbd_softc *sc = dp->d_drv1;
@@ -1646,6 +1645,5 @@ static driver_t xbd_driver = {
 	xbd_methods, 
 	sizeof(struct xbd_softc),                      
 }; 
-devclass_t xbd_devclass; 
 
-DRIVER_MODULE(xbd, xenbusb_front, xbd_driver, xbd_devclass, 0, 0); 
+DRIVER_MODULE(xbd, xenbusb_front, xbd_driver, 0, 0); 

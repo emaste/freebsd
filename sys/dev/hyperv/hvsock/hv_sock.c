@@ -763,7 +763,7 @@ hvs_trans_soreceive(struct socket *so, struct sockaddr **paddr,
 		 * Wait and block until (more) data comes in.
 		 * Note: Drops the sockbuf lock during wait.
 		 */
-		error = sbwait(sb);
+		error = sbwait(so, SO_RCV);
 
 		if (error)
 			break;
@@ -859,7 +859,7 @@ hvs_trans_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 				 * Sleep wait until space avaiable to send
 				 * Note: Drops the sockbuf lock during wait.
 				 */
-				error = sbwait(sb);
+				error = sbwait(so, SO_SND);
 
 				if (error)
 					break;
@@ -1753,8 +1753,6 @@ static driver_t hvsock_driver = {
 	sizeof(struct hvsock_sc)
 };
 
-static devclass_t hvsock_devclass;
-
-DRIVER_MODULE(hvsock, vmbus, hvsock_driver, hvsock_devclass, NULL, NULL);
+DRIVER_MODULE(hvsock, vmbus, hvsock_driver, NULL, NULL);
 MODULE_VERSION(hvsock, 1);
 MODULE_DEPEND(hvsock, vmbus, 1, 1, 1);
