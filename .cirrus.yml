@@ -31,5 +31,6 @@ task:
   - cd release
   - make -s -DNOPORTS -DNOSRC KERNCONF=GENERIC WITH_CLOUDWARE=yes CLOUDWARE=OCI cloudware-release
   post_script:
+  - find -x / -name disk.qcow2
   - df -m
   - du -m -s /usr/obj
