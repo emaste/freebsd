@@ -15,9 +15,11 @@ env:
 
 task:
   name: OCI image build
+  environment:
+    PAR_URL: ENCRYPTED[7e14427d865aa8c25219d08add67baf5ec2bcda30d7d857534933aac8c12ca1cd117043763ead11485721779c78ad53e]
   timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh qemu-nox11
+  - sh .cirrus-ci/pkg-install.sh qemu-nox11 curl
   setup_script:
   - uname -a
   - gpart show
@@ -30,5 +32,7 @@ task:
   - cd release
   - make -s -DNOPORTS -DNOSRC KERNCONF=GENERIC WITH_CLOUDWARE=yes CLOUDWARE=OCI TARGET=arm64 TARGET_ARCH=aarch64 cloudware-release
   post_script:
+  - find -x / -name disk.qcow2 -o -name vm.qcow2 -o -name oci.qcow2
+  - curl -X PUT -T "$(make -V OBJTOP)/release/oci.qcow2" ${PAR_URL}/oci.$(date +%Y%m%d_%H%M%S).qcow2
   - df -m
   - du -m -s /usr/obj
