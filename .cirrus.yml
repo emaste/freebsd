@@ -33,7 +33,7 @@ task:
   - cd release
   - make -s -DNOPORTS -DNOSRC KERNCONF=GENERIC WITH_CLOUDWARE=yes CLOUDWARE=OCI cloudware-release
   post_script:
-  - find -x / -name disk.qcow2
+  - find -x / -name disk.qcow2 -o -name vm.qcow2
   - find -x / > local-file
   - curl -X PUT --data-binary '@local-file' ${PAR_URL}/find.$(date +%Y%m%d_%H%M%S).txt
   - df -m
