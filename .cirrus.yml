@@ -17,7 +17,6 @@ task:
   name: World and kernel gcc9 amd64 build and boot smoke test
   environment:
     PAR_URL: ENCRYPTED[362fb89525a4100345f9d85509f3dcbf16f933baa8e556875ddb2794c2497d60de0002f01ab47a5da0f1cd0db0c6bbad]
-
   timeout_in: 120m
   install_script:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11 curl
