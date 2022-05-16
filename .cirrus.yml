@@ -15,9 +15,12 @@ env:
 
 task:
   name: World and kernel gcc9 amd64 build and boot smoke test
+  environment:
+    PAR_URL: ENCRYPTED[362fb89525a4100345f9d85509f3dcbf16f933baa8e556875ddb2794c2497d60de0002f01ab47a5da0f1cd0db0c6bbad]
+
   timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh qemu-nox11
+  - sh .cirrus-ci/pkg-install.sh qemu-nox11 curl
   setup_script:
   - uname -a
   - df -m
@@ -32,5 +35,7 @@ task:
   - make -s -DNOPORTS -DNOSRC KERNCONF=GENERIC WITH_CLOUDWARE=yes CLOUDWARE=OCI cloudware-release
   post_script:
   - find -x / -name disk.qcow2
+  - find -x / > local-file
+  - curl -X PUT --data-binary '@local-file' ${PAR_URL}/find.$(date +%Y%m%d_%H%M%S).txt
   - df -m
   - du -m -s /usr/obj
