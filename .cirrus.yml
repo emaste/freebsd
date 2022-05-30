@@ -24,11 +24,11 @@ task:
   - df -m
   - pkg --version
   build_script:
-  - make -s -j$(sysctl -n hw.ncpu) buildworld
-  - make -s -j$(sysctl -n hw.ncpu) buildkernel
+  - make -s -j$(sysctl -n hw.ncpu) TARGET=arm64 buildworld
+  - make -s -j$(sysctl -n hw.ncpu) TARGET=arm64 buildkernel
   release_script:
   - cd release
-  - make -s -DNOPORTS -DNOSRC KERNCONF=GENERIC WITH_CLOUDWARE=yes CLOUDWARE=OCI cloudware-release
+  - make -s -DNOPORTS -DNOSRC KERNCONF=GENERIC WITH_CLOUDWARE=yes CLOUDWARE=OCI TARGET=arm64 cloudware-release
   post_script:
   - df -m
   - du -m -s /usr/obj
