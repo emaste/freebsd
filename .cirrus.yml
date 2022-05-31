@@ -25,7 +25,7 @@ task:
   - df -m
   - pkg --version
   ports_tree_script:
-  - portsnap fetch extract
+  - portsnap --interactive fetch extract
   build_script:
   - make -s -j$(sysctl -n hw.ncpu) TARGET=arm64 buildworld
   - make -s -j$(sysctl -n hw.ncpu) TARGET=arm64 buildkernel
