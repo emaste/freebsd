@@ -33,6 +33,6 @@ task:
   - make -s -DNOPORTS -DNOSRC KERNCONF=GENERIC WITH_CLOUDWARE=yes CLOUDWARE=OCI TARGET=arm64 TARGET_ARCH=aarch64 cloudware-release
   post_script:
   - find -x / -name disk.qcow2 -o -name vm.qcow2 -o -name oci.qcow2
-  - curl -X PUT -T "$(make TARGET=arm64 TARGET_ARCH=aarch64 -V OBJTOP)/release/oci.qcow2" ${PAR_URL}/oci.$(date +%Y%m%d_%H%M%S).qcow2
+  - curl -X PUT -T "$(make TARGET=arm64 TARGET_ARCH=aarch64 -V OBJTOP)/release/oci.qcow2" ${PAR_URL}/freebsd.13.1.oci.$(date +%Y%m%d_%H%M%S).qcow2
   - df -m
   - du -m -s /usr/obj
