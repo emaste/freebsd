@@ -16,7 +16,7 @@ env:
 task:
   name: OCI image build
   environment:
-    PAR_URL: ENCRYPTED[7e14427d865aa8c25219d08add67baf5ec2bcda30d7d857534933aac8c12ca1cd117043763ead11485721779c78ad53e]
+    PAR_URL: ENCRYPTED[baf3e352089bf35d84bad31e5f882dee355cdb50c517a923913a971f58d5e06cd380650dff9031ee083426ebc559806b]
   timeout_in: 120m
   install_script:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11 curl
