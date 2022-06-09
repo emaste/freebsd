@@ -93,6 +93,9 @@ main() {
 		. "${VMCONFIG}"
 	fi
 
+	# Bail if any of the VM image creation steps fail
+	set -e
+
 	vm_create_base
 	vm_install_base
 	vm_extra_install_base
