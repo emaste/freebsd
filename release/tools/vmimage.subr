@@ -134,6 +134,9 @@ vm_extra_install_packages() {
 	for p in ${VM_EXTRA_PACKAGES}; do
 		chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
 			/usr/sbin/pkg install -y ${p}
+		if [ $? -ne 0 ]; then
+			err "Package ${p} installation failed"
+		fi
 	done
 	umount_loop ${DESTDIR}/dev
 
