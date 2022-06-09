@@ -226,7 +226,8 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
 	uint8_t ev, umask;
-	uint32_t caps, flags, config;
+	uint32_t caps;
+	uint64_t config, flags;
 	const struct pmc_md_iap_op_pmcallocate *iap;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -471,8 +472,7 @@ iaf_stop_pmc(int cpu, int ri)
 	cc->pc_iafctrl &= ~(IAF_MASK << (ri * 4));
 	wrmsr(IAF_CTRL, cc->pc_iafctrl);
 
-	cc->pc_globalctrl &= ~(1ULL << (ri + IAF_OFFSET));
-	wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
+	/* Don't need to write IA_GLOBAL_CTRL, one disable is enough. */
 
 	PMCDBG4(MDP,STO,1,"iafctrl=%x(%x) globalctrl=%jx(%jx)",
 	    cc->pc_iafctrl, (uint32_t) rdmsr(IAF_CTRL),
@@ -777,6 +777,8 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	case PMC_CPU_INTEL_ATOM:
 	case PMC_CPU_INTEL_ATOM_SILVERMONT:
 	case PMC_CPU_INTEL_ATOM_GOLDMONT:
+	case PMC_CPU_INTEL_ATOM_GOLDMONT_P:
+	case PMC_CPU_INTEL_ATOM_TREMONT:
 	case PMC_CPU_INTEL_SKYLAKE:
 	case PMC_CPU_INTEL_SKYLAKE_XEON:
 	case PMC_CPU_INTEL_ICELAKE:
@@ -907,7 +909,7 @@ static int
 iap_start_pmc(int cpu, int ri)
 {
 	struct pmc *pm;
-	uint32_t evsel;
+	uint64_t evsel;
 	struct core_cpu *cc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -974,10 +976,7 @@ iap_stop_pmc(int cpu, int ri)
 
 	wrmsr(IAP_EVSEL0 + ri, 0);
 
-	if (core_version >= 2) {
-		cc->pc_globalctrl &= ~(1ULL << ri);
-		wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
-	}
+	/* Don't need to write IA_GLOBAL_CTRL, one disable is enough. */
 
 	return (0);
 }

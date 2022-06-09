@@ -43,6 +43,7 @@ __DEFAULT_YES_OPTIONS = \
     IPFILTER \
     IPSEC_SUPPORT \
     ISCSI \
+    SPLIT_KERNEL_DEBUG \
     KERNEL_RETPOLINE \
     KERNEL_SYMBOLS \
     NETGRAPH \
@@ -177,6 +178,10 @@ MK_${var}_SUPPORT:= yes
 .endif
 .endif
 .endfor
+
+.if ${MK_SPLIT_KERNEL_DEBUG} == "no"
+MK_KERNEL_SYMBOLS:=	no
+.endif
 
 # Some modules only compile successfully if option FDT is set, due to #ifdef FDT
 # wrapped around declarations.  Module makefiles can optionally compile such

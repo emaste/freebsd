@@ -377,27 +377,30 @@ iommu_gas_lowermatch(struct iommu_gas_match_args *a, struct iommu_map_entry *ent
 {
 	struct iommu_map_entry *child;
 
+	/*
+	 * If the subtree doesn't have free space for the requested allocation
+	 * plus two guard pages, give up.
+	 */
+	if (entry->free_down < a->size + a->offset + 2 * IOMMU_PAGE_SIZE)
+		return (ENOMEM);
+	if (entry->first >= a->common->lowaddr)
+		return (ENOMEM);
 	child = RB_RIGHT(entry, rb_entry);
+	if (child != NULL && 0 == iommu_gas_lowermatch(a, child))
+		return (0);
 	if (child != NULL && entry->end < a->common->lowaddr &&
 	    iommu_gas_match_one(a, entry->end, child->first,
 	    a->common->lowaddr)) {
 		iommu_gas_match_insert(a);
 		return (0);
 	}
-	if (entry->free_down < a->size + a->offset + IOMMU_PAGE_SIZE)
-		return (ENOMEM);
-	if (entry->first >= a->common->lowaddr)
-		return (ENOMEM);
 	child = RB_LEFT(entry, rb_entry);
-	if (child != NULL && 0 == iommu_gas_lowermatch(a, child))
-		return (0);
 	if (child != NULL && child->last < a->common->lowaddr &&
 	    iommu_gas_match_one(a, child->last, entry->start,
 	    a->common->lowaddr)) {
 		iommu_gas_match_insert(a);
 		return (0);
 	}
-	child = RB_RIGHT(entry, rb_entry);
 	if (child != NULL && 0 == iommu_gas_lowermatch(a, child))
 		return (0);
 	return (ENOMEM);
@@ -408,7 +411,11 @@ iommu_gas_uppermatch(struct iommu_gas_match_args *a, struct iommu_map_entry *ent
 {
 	struct iommu_map_entry *child;
 
-	if (entry->free_down < a->size + a->offset + IOMMU_PAGE_SIZE)
+	/*
+	 * If the subtree doesn't have free space for the requested allocation
+	 * plus two guard pages, give up.
+	 */
+	if (entry->free_down < a->size + a->offset + 2 * IOMMU_PAGE_SIZE)
 		return (ENOMEM);
 	if (entry->last < a->common->highaddr)
 		return (ENOMEM);
