@@ -17,6 +17,7 @@ PKGCONFBRANCH?=	latest
 .  endif
 . endif
 .endif
+.info Using ${PKGCONFBRANCH} packages for ${MACHINE} ${BRANCH} branch
 PKGCONF?=	FreeBSD.conf.${PKGCONFBRANCH}
 CONFS=		${PKGCONF}
 CONFSNAME_${PKGCONF}=	${PKGCONF:C/\.conf.+$/.conf/}
