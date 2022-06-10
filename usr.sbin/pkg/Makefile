@@ -10,6 +10,7 @@ PKGCONFBRANCH?=	latest
 . if ${BRANCH:MBETA*} || ${BRANCH:MRC*} || ${BRANCH:MRELEASE*}
 PKGCONFBRANCH?=	quarterly
 . else
+.info BRANCH is ${BRANCH} (else case)
 .  if ${MACHINE} != "amd64" && ${MACHINE} != "i386" && ${MACHINE} != "arm64"
 PKGCONFBRANCH?=	quarterly
 .  else
