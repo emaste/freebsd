@@ -1351,6 +1351,9 @@ efi_cons_getchar(void)
 	if ((c = keybuf_getchar()) != 0)
 		return (c);
 
+	if (!boot_services_active)
+		return (-1);
+
 	key_pending = 0;
 
 	if (coninex == NULL) {
@@ -1371,6 +1374,9 @@ efi_cons_poll(void)
 
 	if (keybuf_ischar() || key_pending)
 		return (1);
+
+	if (!boot_services_active)
+		return (0);
 
 	/*
 	 * Some EFI implementation (u-boot for example) do not support
