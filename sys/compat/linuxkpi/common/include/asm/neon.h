@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2009 Rick Macklem, University of Guelph
- * All rights reserved.
+ * Copyright (c) 2022 Greg V <greg@unrelenting.technology>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -24,20 +23,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _NFS_NFSKPIPORT_H_
-#define	_NFS_NFSKPIPORT_H_
-/*
- * These definitions are needed since the generic code is now using Darwin8
- * KPI stuff. (I know, seems a bit silly, but I want the code to build on
- * Darwin8 and hopefully subsequent releases from Apple.)
- */
-typedef	struct mount *		mount_t;
+#ifndef	_LINUXKPI_ASM_NEON_H_
+#define	_LINUXKPI_ASM_NEON_H_
 
-typedef struct vnode *		vnode_t;
-#define	vnode_vtype(v)		((v)->v_type)
+#define	kernel_neon_begin() \
+   lkpi_kernel_fpu_begin()
 
-#endif	/* _NFS_NFSKPIPORT_H */
+#define	kernel_neon_end() \
+   lkpi_kernel_fpu_end()
+
+extern void lkpi_kernel_fpu_begin(void);
+extern void lkpi_kernel_fpu_end(void);
+
+#endif /* _LINUXKPI_ASM_NEON_H_ */
