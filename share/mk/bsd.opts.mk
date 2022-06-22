@@ -66,7 +66,6 @@ __DEFAULT_YES_OPTIONS = \
     NIS \
     NLS \
     OPENSSH \
-    RELRO \
     RETPOLINE \
     SSP \
     TESTS \
@@ -81,6 +80,7 @@ __DEFAULT_NO_OPTIONS = \
     INIT_ALL_PATTERN \
     INSTALL_AS_USER \
     MANSPLITPKG \
+    RELRO \
     STALE_STAGED \
     UBSAN
 
