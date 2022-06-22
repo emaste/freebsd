@@ -924,8 +924,6 @@ The system will not have a usable tool chain unless a linker is provided
 some other way.
 .It Va WITHOUT_LLVM_ASSERTIONS
 Disable debugging assertions in LLVM.
-.It Va WITH_LLVM_BINUTILS
-Install LLVM's binutils (ar, addr2line, nm, etc.) instead of ELF Tool Chain's.
 .It Va WITHOUT_LLVM_COV
 Do not build the
 .Xr llvm-cov 1
@@ -1405,11 +1403,6 @@ and related files.
 Do not build
 .Xr ppp 8
 and related programs.
-.It Va WITH_PROFILE
-Build profiled libraries for use with
-.Xr gprof 8 .
-This option is deprecated and may not be present in a future version of
-.Fx .
 .It Va WITHOUT_QUOTAS
 Do not build
 .Xr quota 1
@@ -1663,6 +1656,15 @@ When set, it enforces these options:
 .Va WITHOUT_LLDB
 .It
 .Va WITHOUT_LLVM_COV
+.El
+.Pp
+When set, these options are also in effect:
+.Pp
+.Bl -inset -compact
+.It Va WITHOUT_LLVM_BINUTILS
+(unless
+.Va WITH_LLVM_BINUTILS
+is set explicitly)
 .El
 .It Va WITH_UBSAN
 Build the base system with Undefined Behavior Sanitizer (UBSan) to detect
