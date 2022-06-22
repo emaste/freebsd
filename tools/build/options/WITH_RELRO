@@ -1,0 +1,2 @@
+Build all binaries with the Relocation Read-Only (RELRO) vulnerability
+mitigation applied.

@@ -66,6 +66,7 @@ __DEFAULT_YES_OPTIONS = \
     NIS \
     NLS \
     OPENSSH \
+    RELRO \
     RETPOLINE \
     SSP \
     TESTS \
