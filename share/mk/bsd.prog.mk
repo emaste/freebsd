@@ -41,10 +41,14 @@ MK_DEBUG_FILES=	no
 .if ${MK_BIND_NOW} != "no"
 LDFLAGS+= -Wl,-znow
 .endif
+.if ${LINKER_FEATURES:Mrelro}
 .if ${MK_RELRO} == "no"
 LDFLAGS+= -Wl,-znorelro
 .else
 LDFLAGS+= -Wl,-zrelro
+.endif
+.else
+.warning Linker does not support WITH_RELRO/WITHOUT_RELRO, option ignored
 .endif
 .if ${MK_PIE} != "no"
 # Static PIE is not yet supported/tested.

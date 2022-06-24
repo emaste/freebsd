@@ -13,6 +13,7 @@
 # linker support for that feature:
 #
 # - build-id:  support for generating a Build-ID note
+# - relro:     Relocation Read-Only
 # - retpoline: support for generating PLT with retpoline speculative
 #              execution vulnerability mitigation
 #
@@ -112,6 +113,9 @@ ${X_}LINKER_FEATURES+=	retpoline
 .endif
 .if ${${X_}LINKER_TYPE} == "lld" && ${${X_}LINKER_VERSION} >= 90000
 ${X_}LINKER_FEATURES+=	ifunc-noplt
+.if ${${X_}LINKER_TYPE} == "lld" || ${${X_}LINKER_TYPE} == "bfd"
+${X_}LINKER_FEATURES+=	relro
+.endif
 .endif
 .endif
 .else
