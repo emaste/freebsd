@@ -229,7 +229,8 @@ set_nhop_gw_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 		struct sockaddr_dl *sdl = (struct sockaddr_dl *)gw;
 		struct ifnet *ifp = ifnet_byindex(sdl->sdl_index);
 		if (ifp == NULL) {
-			FIB_NH_LOG(LOG_WARNING, nh, "invalid ifindex %d", sdl->sdl_index);
+			FIB_NH_LOG(LOG_DEBUG, nh, "error: invalid ifindex %d",
+			    sdl->sdl_index);
 			return (EINVAL);
 		}
 		fill_sdl_from_ifp(&nh->gwl_sa, ifp);
@@ -247,9 +248,9 @@ set_nhop_gw_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 		 *   happy.
 		 */
 		if (gw->sa_len > sizeof(struct sockaddr_in6)) {
-			FIB_NH_LOG(LOG_WARNING, nh, "nhop SA size too big: AF %d len %u",
+			FIB_NH_LOG(LOG_DEBUG, nh, "nhop SA size too big: AF %d len %u",
 			    gw->sa_family, gw->sa_len);
-			return (ENOMEM);
+			return (EINVAL);
 		}
 		memcpy(&nh->gw_sa, gw, gw->sa_len);
 	}
@@ -323,8 +324,10 @@ nhop_create_from_info(struct rib_head *rnh, struct rt_addrinfo *info,
 
 	NET_EPOCH_ASSERT();
 
-	if (info->rti_info[RTAX_GATEWAY] == NULL)
+	if (info->rti_info[RTAX_GATEWAY] == NULL) {
+		FIB_RH_LOG(LOG_DEBUG, rnh, "error: empty gateway");
 		return (EINVAL);
+	}
 
 	nh_priv = alloc_nhop_structure();
 
@@ -584,7 +587,7 @@ finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
 		 *  the epoch end, as nexthop is not used
 		 *  and return.
 		 */
-		char nhbuf[48];
+		char nhbuf[NHOP_PRINT_BUFSIZE];
 		FIB_NH_LOG(LOG_WARNING, nh, "failed to link %s",
 		    nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
 		destroy_nhop(nh_priv);
@@ -593,7 +596,7 @@ finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
 	}
 
 #if DEBUG_MAX_LEVEL >= LOG_DEBUG
-	char nhbuf[48];
+	char nhbuf[NHOP_PRINT_BUFSIZE];
 	FIB_NH_LOG(LOG_DEBUG, nh, "finalized: %s", nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
 #endif
 
@@ -655,7 +658,7 @@ nhop_free(struct nhop_object *nh)
 		return;
 
 #if DEBUG_MAX_LEVEL >= LOG_DEBUG
-	char nhbuf[48];
+	char nhbuf[NHOP_PRINT_BUFSIZE];
 	FIB_NH_LOG(LOG_DEBUG, nh, "deleting %s", nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
 #endif
 
@@ -683,7 +686,7 @@ nhop_free(struct nhop_object *nh)
 		ctl = nh_priv->nh_control;
 		if (unlink_nhop(ctl, nh_priv) == NULL) {
 			/* Do not try to reclaim */
-			char nhbuf[48];
+			char nhbuf[NHOP_PRINT_BUFSIZE];
 			FIB_NH_LOG(LOG_WARNING, nh, "failed to unlink %s",
 			    nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
 			NET_EPOCH_EXIT(et);
@@ -862,6 +865,17 @@ nhop_print_buf(const struct nhop_object *nh, char *buf, size_t bufsize)
 	}
 
 	return (buf);
+}
+
+char *
+nhop_print_buf_any(const struct nhop_object *nh, char *buf, size_t bufsize)
+{
+#ifdef ROUTE_MPATH
+	if (NH_IS_NHGRP(nh))
+		return (nhgrp_print_buf((const struct nhgrp_object *)nh, buf, bufsize));
+	else
+#endif
+		return (nhop_print_buf(nh, buf, bufsize));
 }
 
 /*
