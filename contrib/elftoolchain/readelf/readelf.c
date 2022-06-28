@@ -593,6 +593,7 @@ elf_machine(unsigned int mach)
 	case EM_UNICORE: return "Microprocessor series from PKU-Unity Ltd";
 	case EM_AARCH64: return "AArch64";
 	case EM_RISCV: return "RISC-V";
+	case 262: return "NXP 56800EF Digital Signal Controller (DSC)";
 	default:
 		snprintf(s_mach, sizeof(s_mach), "<unknown: %#x>", mach);
 		return (s_mach);
