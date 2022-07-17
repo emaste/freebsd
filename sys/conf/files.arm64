@@ -306,7 +306,7 @@ dev/uart/uart_dev_mu.c				optional uart uart_mu
 dev/uart/uart_dev_pl011.c			optional uart pl011
 
 dev/usb/controller/dwc_otg_hisi.c		optional dwcotg fdt soc_hisi_hi6220
-dev/usb/controller/dwc3.c			optional fdt dwc3
+dev/usb/controller/dwc3.c			optional xhci acpi dwc3 | xhci fdt dwc3
 dev/usb/controller/ehci_mv.c			optional ehci_mv fdt
 dev/usb/controller/generic_ehci.c		optional ehci
 dev/usb/controller/generic_ehci_acpi.c		optional ehci acpi
@@ -555,6 +555,7 @@ arm64/qoriq/qoriq_therm_if.m			optional pci fdt SOC_NXP_LS
 arm64/qoriq/clk/ls1028a_clkgen.c		optional clk SOC_NXP_LS
 arm64/qoriq/clk/ls1028a_flexspi_clk.c		optional clk SOC_NXP_LS
 arm64/qoriq/clk/ls1046a_clkgen.c		optional clk SOC_NXP_LS
+arm64/qoriq/clk/ls1088a_clkgen.c		optional clk SOC_NXP_LS
 arm64/qoriq/clk/lx2160a_clkgen.c		optional clk SOC_NXP_LS
 arm64/qoriq/clk/qoriq_clk_pll.c			optional clk SOC_NXP_LS
 arm64/qoriq/clk/qoriq_clkgen.c			optional clk SOC_NXP_LS

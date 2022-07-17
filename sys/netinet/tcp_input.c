@@ -919,7 +919,7 @@ findpcb:
 		 * completely ignore the segment and drop it.
 		 */
 		if (((V_blackhole == 1 && (thflags & TH_SYN)) ||
-		    V_blackhole == 2) && (V_blackhole_local ||
+		    V_blackhole == 2) && (V_blackhole_local || (
 #ifdef INET6
 		    isipv6 ? !in6_localaddr(&ip6->ip6_src) :
 #endif
@@ -928,7 +928,7 @@ findpcb:
 #else
 		    true
 #endif
-		    ))
+		    )))
 			goto dropunlock;
 
 		rstreason = BANDLIM_RST_CLOSEDPORT;
@@ -2315,8 +2315,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * If new data are received on a connection after the
 	 * user processes are gone, then RST the other end.
 	 */
-	if ((so->so_state & SS_NOFDREF) &&
-	    tp->t_state > TCPS_CLOSE_WAIT && tlen) {
+	if ((tp->t_flags & TF_CLOSED) && tlen) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
 			log(LOG_DEBUG, "%s; %s: %s: Received %d bytes of data "
 			    "after socket was closed, "
