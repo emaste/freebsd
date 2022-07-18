@@ -452,7 +452,7 @@ sleepq_check_ast_sc_locked(struct thread *td, struct sleepqueue_chain *sc)
 	 * thread.  If not, we can switch immediately.
 	 */
 	thread_lock(td);
-	if ((td->td_flags & (TDF_NEEDSIGCHK | TDF_NEEDSUSPCHK)) == 0)
+	if ((td->td_ast & TDAI2(TDA_SIG, TDA_SUSPEND)) == 0)
 		return (0);
 
 	thread_unlock(td);
