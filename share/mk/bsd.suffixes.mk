@@ -54,10 +54,6 @@
 	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.s.o:
-	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
-	${CTFCONVERT_CMD}
-
 # XXX not -j safe
 .y.o:
 	${YACC} ${YFLAGS} ${.IMPSRC}
