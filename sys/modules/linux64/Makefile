@@ -74,7 +74,7 @@ linux_vdso.so: linux_vdso.so.o
 	    linux_vdso.so.o ${.TARGET}
 	${STRIPBIN} -N _binary_linux_vdso_so_o_size ${.TARGET}
 
-linux_support.o: assym.inc linux_assym.h
+linux_support.o: linux_support.s assym.inc linux_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 
