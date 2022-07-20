@@ -76,7 +76,7 @@ linux_vdso.so: linux_vdso.so.o
 
 linux_support.o: linux_support.s assym.inc linux_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
-	    linux_support.s -o ${.TARGET}
+	    ${SRCTOP}/sys/${MACHINE}/linux/linux_support.s -o ${.TARGET}
 
 linux_genassym.o: offset.inc
 	${CC} -c ${CFLAGS:N-flto:N-fno-common} -fcommon ${.IMPSRC}
