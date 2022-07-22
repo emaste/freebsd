@@ -81,7 +81,7 @@ struct g_event {
 #define EV_INPROGRESS	0x10000
 
 void
-g_waitidle(void)
+g_waitidle(struct thread *td)
 {
 
 	g_topology_assert_not();
@@ -97,13 +97,13 @@ g_waitidle(void)
 }
 
 static void
-ast_geom(struct thread *td __unused, int tda __unused)
+ast_geom(struct thread *td, int tda __unused)
 {
 	/*
 	 * If this thread tickled GEOM, we need to wait for the giggling to
 	 * stop before we return to userland.
 	 */
-	g_waitidle();
+	g_waitidle(td);
 }
 
 static void
