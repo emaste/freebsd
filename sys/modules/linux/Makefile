@@ -104,8 +104,7 @@ linux${SFX}_vdso.so: linux${SFX}_vdso.so.o
 .if ${MACHINE_CPUARCH} == "amd64"
 linux${SFX}_support.o: linux${SFX}_support.s linux${SFX}_assym.h assym.inc
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
-	    ${SRCTOP}/sys/${MACHINE_CPUARCH}/linux${SFX}/linux${SFX}_support.s \
-	    -o ${.TARGET}
+	    ${.ALLSRC:M*.s} -o ${.TARGET}
 .endif
 
 linux${SFX}_genassym.o: offset.inc
