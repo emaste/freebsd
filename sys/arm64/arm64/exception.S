@@ -181,7 +181,7 @@ __FBSDID("$FreeBSD$");
 	ldr	x1, [x1]
 
 	/* Check if we have a non-zero AST mask */
-	cbz	x2, 2f
+	cbz	x1, 2f
 
 	/* Restore interrupts */
 	msr	daif, x19
