@@ -6,7 +6,7 @@
 #include <sys/cdefs.h>
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] __unused = "@(#)localtime.c	8.14";
+//static char	elsieid[] __unused = "@(#)localtime.c	8.14";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 __FBSDID("$FreeBSD$");
@@ -833,9 +833,7 @@ getsecs(const char *strp, long * const secsp)
 */
 
 static const char *
-getoffset(strp, offsetp)
-const char *	strp;
-long * const		offsetp;
+getoffset(const char *strp, long * const offsetp)
 {
 	int	neg = 0;
 
@@ -860,9 +858,7 @@ long * const		offsetp;
 */
 
 static const char *
-getrule(strp, rulep)
-const char *			strp;
-struct rule * const	rulep;
+getrule(const char *strp, struct rule * const rulep)
 {
 	if (*strp == 'J') {
 		/*
@@ -914,11 +910,8 @@ struct rule * const	rulep;
 */
 
 static time_t
-transtime(janfirst, year, rulep, offset)
-const time_t				janfirst;
-const int				year;
-const struct rule * const	rulep;
-const long				offset;
+transtime(const time_t janfirst, const int year,
+    const struct rule * const rulep, const long offset)
 {
 	int	leapyear;
 	time_t	value;
@@ -1009,10 +1002,7 @@ const long				offset;
 */
 
 static int
-tzparse(name, sp, lastditch)
-const char *			name;
-struct state * const	sp;
-const int			lastditch;
+tzparse(const char * name, struct state * const sp, const int lastditch)
 {
 	const char *			stdname;
 	const char *			dstname;
@@ -1831,9 +1821,7 @@ increment_overflow(int *number, int delta)
 }
 
 static int
-long_increment_overflow(number, delta)
-long *	number;
-int	delta;
+long_increment_overflow(long *number, int delta)
 {
 	long	number0;
 
