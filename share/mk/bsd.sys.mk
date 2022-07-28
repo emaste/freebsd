@@ -38,6 +38,7 @@ WARNS=	${DEFAULTWARNS}
 
 # -pedantic is problematic because it also imposes namespace restrictions
 #CFLAGS+=	-pedantic
+CFLAGS+=	-Wold-style-definition
 .if defined(WARNS)
 .if ${WARNS} >= 1
 CWARNFLAGS+=	-Wsystem-headers
