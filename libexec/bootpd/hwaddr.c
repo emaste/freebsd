@@ -303,8 +303,7 @@ haddr_conv802(addr_in, addr_out, len)
  * bit-reverse table above.
  */
 static int
-bitrev(n)
-	int n;
+bitrev(int n)
 {
 	int i, r;
 
