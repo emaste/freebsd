@@ -22,7 +22,7 @@
 
 #ifndef lint
 #ifndef NOID
-static const char	elsieid[] = "@(#)strftime.3	8.3";
+//static const char	elsieid[] = "@(#)strftime.3	8.3";
 /*
  * Based on the UCB version with the ID appearing below.
  * This is ANSIish only when "multibyte character == plain character".

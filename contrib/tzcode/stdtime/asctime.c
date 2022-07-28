@@ -12,7 +12,7 @@
 #include <sys/cdefs.h>
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] __unused = "@(#)asctime.c	8.5";
+//static char	elsieid[] __unused = "@(#)asctime.c	8.5";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 __FBSDID("$FreeBSD$");

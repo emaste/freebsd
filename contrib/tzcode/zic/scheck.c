@@ -5,7 +5,7 @@
 
 #ifndef lint
 #ifndef NOID
-static const char	elsieid[] = "@(#)scheck.c	8.19";
+//static const char	elsieid[] = "@(#)scheck.c	8.19";
 #endif /* !defined lint */
 #endif /* !defined NOID */
 
