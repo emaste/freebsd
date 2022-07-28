@@ -13,6 +13,7 @@ compute_engine_instance:
 task:
   matrix:
   - name: World and kernel amd64 build and boot smoke test
+    trigger_type: manual
     env:
       TARGET: amd64
       TARGET_ARCH: amd64
@@ -24,7 +25,6 @@ task:
       TARGET_ARCH: aarch64
       TOOLCHAIN_PKG: llvm14
   - name: World and kernel gcc9 amd64 build and boot smoke test
-    trigger_type: manual
     env:
       TARGET: amd64
       TARGET_ARCH: amd64
