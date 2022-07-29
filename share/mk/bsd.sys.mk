@@ -47,7 +47,6 @@ CWARNFLAGS+=	-Werror
 .endif # WARNS >= 1
 .if ${WARNS} >= 2
 CWARNFLAGS+=	-Wall -Wno-format-y2k
-CWARNFLAGS+=	-Wold-style-definition
 .endif # WARNS >= 2
 .if ${WARNS} >= 3
 CWARNFLAGS+=	-W -Wno-unused-parameter -Wstrict-prototypes\
@@ -60,6 +59,9 @@ CWARNFLAGS+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow\
 CWARNFLAGS+=	-Wcast-align
 .endif # !NO_WCAST_ALIGN !NO_WCAST_ALIGN.${COMPILER_TYPE}
 .endif # WARNS >= 4
+.if ${WARNS} >= 5
+CWARNFLAGS+=	-Wold-style-definition
+.endif
 .if ${WARNS} >= 6
 CWARNFLAGS+=	-Wchar-subscripts -Wnested-externs
 .if !defined(NO_WMISSING_VARIABLE_DECLARATIONS)
