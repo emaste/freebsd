@@ -38,7 +38,6 @@ WARNS=	${DEFAULTWARNS}
 
 # -pedantic is problematic because it also imposes namespace restrictions
 #CFLAGS+=	-pedantic
-CFLAGS+=	-Wold-style-definition
 .if defined(WARNS)
 .if ${WARNS} >= 1
 CWARNFLAGS+=	-Wsystem-headers
@@ -48,6 +47,7 @@ CWARNFLAGS+=	-Werror
 .endif # WARNS >= 1
 .if ${WARNS} >= 2
 CWARNFLAGS+=	-Wall -Wno-format-y2k
+CWARNFLAGS+=	-Wold-style-definition
 .endif # WARNS >= 2
 .if ${WARNS} >= 3
 CWARNFLAGS+=	-W -Wno-unused-parameter -Wstrict-prototypes\
@@ -61,8 +61,7 @@ CWARNFLAGS+=	-Wcast-align
 .endif # !NO_WCAST_ALIGN !NO_WCAST_ALIGN.${COMPILER_TYPE}
 .endif # WARNS >= 4
 .if ${WARNS} >= 6
-CWARNFLAGS+=	-Wchar-subscripts -Wnested-externs \
-		-Wold-style-definition
+CWARNFLAGS+=	-Wchar-subscripts -Wnested-externs
 .if !defined(NO_WMISSING_VARIABLE_DECLARATIONS)
 CWARNFLAGS.clang+=	-Wmissing-variable-declarations
 .endif
