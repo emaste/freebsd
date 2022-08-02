@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 extern bool_t xdr_ypresp_all_seq(XDR *, unsigned long *);
 
-extern int (*ypresp_allfn)();
+extern int (*ypresp_allfn)(u_long, char *, int, char *, int, void *);
 extern void *ypresp_data;
 extern DB *specdbp;
 extern enum ypstat yp_errno;

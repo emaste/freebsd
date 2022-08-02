@@ -98,7 +98,7 @@ extern bool_t xdr_ypreq_nokey(), xdr_ypresp_key_val();
 extern bool_t xdr_ypresp_all(), xdr_ypresp_all_seq();
 extern bool_t xdr_ypresp_master();
 
-int (*ypresp_allfn)();
+int (*ypresp_allfn)(u_long, char *, int, char *, int, void *);
 void *ypresp_data;
 
 static void _yp_unbind(struct dom_binding *);
