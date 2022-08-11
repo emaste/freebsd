@@ -45,6 +45,8 @@ task:
   - git submodule update
   script:
   - su user -c "make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
+  nodebug_kernel_script:
+  - su user -c "make -j$(sysctl -n hw.ncpu) KERNCONF=GENERIC-NODEBUG buildkernel"
   package_script:
   - su user -c "make WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
   test_script:
