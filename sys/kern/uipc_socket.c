@@ -927,7 +927,7 @@ sogetsockaddr(struct socket *so, struct sockaddr **nam)
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, nam);
+	error = so->so_proto->pr_sockaddr(so, nam);
 	CURVNET_RESTORE();
 	return (error);
 }
