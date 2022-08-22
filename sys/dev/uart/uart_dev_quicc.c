@@ -297,7 +297,7 @@ quicc_bus_attach(struct uart_softc *sc)
 		quicc_param(bas, di->baudrate, di->databits, di->stopbits,
 		    di->parity);
 	} else {
-		quicc_setup(bas, 9600, 8, 1, UART_PARITY_NONE);
+		quicc_setup(bas, 9600, 8, 1, UART_PARITY_NONE); // XXX
 	}
 
 	/* Enable interrupts on the receive buffer. */

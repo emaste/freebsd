@@ -334,7 +334,7 @@ z8530_bus_attach(struct uart_softc *sc)
 		z8530_param(bas, di->baudrate, di->databits, di->stopbits,
 		    di->parity, &z8530->tpc);
 	} else {
-		z8530->tpc = z8530_setup(bas, 9600, 8, 1, UART_PARITY_NONE);
+		z8530->tpc = z8530_setup(bas, 9600, 8, 1, UART_PARITY_NONE); // XXX
 		z8530->tpc &= ~(TPC_DTR|TPC_RTS);
 	}
 	z8530->txidle = 1;	/* Report SER_INT_TXIDLE. */

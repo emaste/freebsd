@@ -41,7 +41,7 @@ static EFI_GUID serial = SERIAL_IO_PROTOCOL;
 #define	COMC_TXWAIT	0x40000		/* transmit timeout */
 
 #ifndef	COMSPEED
-#define	COMSPEED	9600
+#define	COMSPEED	115200
 #endif
 
 #define	PNP0501		0x501		/* 16550A-compatible COM port */
