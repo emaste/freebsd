@@ -510,7 +510,7 @@ umcs7840_cfg_open(struct ucom_softc *ucom)
 	if (umcs7840_set_reg_sync(sc, umcs7840_port_registers[pn].reg_sp, data))
 		return;
 
-	/* Set speed 9600 */
+	/* Set speed 9600 XXX */
 	if (umcs7840_set_baudrate(sc, pn, 9600))
 		return;
 
