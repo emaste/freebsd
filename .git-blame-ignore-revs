@@ -1,0 +1,14 @@
+# List of hashes of non-functional changes to be ignored by git-blame.
+# This includes whitespace, style(9), comment typos, etc.  Changes that affect
+# built objects must not be included.
+#
+# Use `git blame --ignore-revs-file .git-blame-ignore-revs` or configure via
+# `git config --global blame.ignoreRevsFile .git-blame-ignore-revs`.  GitHub's
+# blame view also uses this by default.
+#
+# For consistency this file is sorted by hash.
+
+# elfctl whitespace
+828e50092ac84f50247fb3f400027fc7510d8141
+# bhnd(4): Correct some typos in source code comments
+88cdf609e411a1ba398e9e3e93ad82345ad8b516
