@@ -24,3 +24,5 @@ bca92be68309e9b0c8f1c1c0a9ca87081c4ab27d
 2c9764f36b6f20e9a6c71ce64a21988a394050b6
 # Remove whitespace at EOL.
 7ebcc426efefea9cd16ac6f565e72030c608f7a4
+# bhnd(4): Correct some typos in source code comments
+88cdf609e411a1ba398e9e3e93ad82345ad8b516
