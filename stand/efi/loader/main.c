@@ -975,6 +975,9 @@ parse_uefi_con_out(void)
 		 * this, but has a serial port redirect, we'll unavioidably get
 		 * doubled characters, but we'll be right in all the other more
 		 * common cases.
+		 *
+		 * XXX Some firmwares do not populate ConOut but do ConIn.
+		 * See e.g. PR 265980.  We could check both ConOut and ConIn.
 		 */
 		if (efi_has_gop())
 			how |= RB_MULTIPLE;
