@@ -548,7 +548,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	 * as soon as initialization is complete and we start sending commands
 	 * to the device.
 	 */
-	if (qpair->recovery_state != RECOVERY_NONE) {
+	if (qpair->recovery_state > RECOVERY_START) {
 		qpair->num_ignored++;
 		return (false);
 	}
