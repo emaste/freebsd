@@ -250,7 +250,7 @@ VNET_DEFINE(uma_zone_t,	 pf_state_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_key_z);
 
 VNET_DEFINE(uint64_t, pf_stateid[MAXCPU]);
-#define	PFID_CPUBITS	8
+#define	PFID_CPUBITS	10
 #define	PFID_CPUSHIFT	(sizeof(uint64_t) * NBBY - PFID_CPUBITS)
 #define	PFID_CPUMASK	((uint64_t)((1 << PFID_CPUBITS) - 1) <<	PFID_CPUSHIFT)
 #define	PFID_MAXID	(~PFID_CPUMASK)
