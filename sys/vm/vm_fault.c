@@ -154,6 +154,9 @@ struct faultstate {
 
 	/* Vnode if locked. */
 	struct vnode	*vp;
+
+	/* Used to try to rlock instead of wlock */
+	vm_object_t	prev_object;
 };
 
 /*
@@ -1052,6 +1055,9 @@ vm_fault_next(struct faultstate *fs)
 {
 	vm_object_t next_object;
 
+	VM_OBJECT_ASSERT_WLOCKED(fs->object);
+	MPASS(fs->prev_object == NULL);
+
 	/*
 	 * The requested page does not exist at this object/
 	 * offset.  Remove the invalid page from the object,
@@ -1072,18 +1078,16 @@ vm_fault_next(struct faultstate *fs)
 	 * Move on to the next object.  Lock the next object before
 	 * unlocking the current one.
 	 */
-	VM_OBJECT_ASSERT_WLOCKED(fs->object);
 	next_object = fs->object->backing_object;
 	if (next_object == NULL)
 		return (false);
 	MPASS(fs->first_m != NULL);
 	KASSERT(fs->object != next_object, ("object loop %p", next_object));
-	VM_OBJECT_WLOCK(next_object);
 	vm_object_pip_add(next_object, 1);
 	if (fs->object != fs->first_object)
 		vm_object_pip_wakeup(fs->object);
 	fs->pindex += OFF_TO_IDX(fs->object->backing_object_offset);
-	VM_OBJECT_WUNLOCK(fs->object);
+	fs->prev_object = fs->object;
 	fs->object = next_object;
 
 	return (true);
@@ -1348,14 +1352,14 @@ vm_fault_getpages(struct faultstate *fs, int *behindp, int *aheadp)
  * page except, perhaps, to pmap it.
  */
 static void
-vm_fault_busy_sleep(struct faultstate *fs)
+vm_fault_busy_sleep_impl(struct faultstate *fs, bool objrlocked)
 {
 	/*
 	 * Reference the page before unlocking and
 	 * sleeping so that the page daemon is less
 	 * likely to reclaim it.
 	 */
-	vm_page_aflag_set(fs->m, PGA_REFERENCED);
+	vm_page_aflag_set_cond(fs->m, PGA_REFERENCED);
 	if (fs->object != fs->first_object) {
 		fault_page_release(&fs->first_m);
 		vm_object_pip_wakeup(fs->first_object);
@@ -1363,10 +1367,28 @@ vm_fault_busy_sleep(struct faultstate *fs)
 	vm_object_pip_wakeup(fs->object);
 	unlock_map(fs);
 	if (fs->m != vm_page_lookup(fs->object, fs->pindex) ||
-	    !vm_page_busy_sleep(fs->m, "vmpfw", 0))
-		VM_OBJECT_WUNLOCK(fs->object);
+	    !vm_page_busy_sleep(fs->m, "vmpfw", 0)) {
+		if (objrlocked)
+			VM_OBJECT_RUNLOCK(fs->object);
+		else
+			VM_OBJECT_WUNLOCK(fs->object);
+	}
 	VM_CNT_INC(v_intrans);
 	vm_object_deallocate(fs->first_object);
+}
+
+static void
+vm_fault_busy_sleep_wlocked(struct faultstate *fs)
+{
+
+	vm_fault_busy_sleep_impl(fs, false);
+}
+
+static void
+vm_fault_busy_sleep_rlocked(struct faultstate *fs)
+{
+
+	vm_fault_busy_sleep_impl(fs, true);
 }
 
 /*
@@ -1378,10 +1400,13 @@ vm_fault_busy_sleep(struct faultstate *fs)
  * Otherwise, the object will be unlocked upon return.
  */
 static enum fault_status
-vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
+vm_fault_object_wlocked(struct faultstate *fs, int *behindp, int *aheadp)
 {
 	enum fault_status res;
 	bool dead;
+
+	VM_OBJECT_ASSERT_WLOCKED(fs->object);
+	MPASS(fs->prev_object == NULL);
 
 	/*
 	 * If the object is marked for imminent termination, we retry
@@ -1403,7 +1428,7 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	fs->m = vm_page_lookup(fs->object, fs->pindex);
 	if (fs->m != NULL) {
 		if (!vm_page_tryxbusy(fs->m)) {
-			vm_fault_busy_sleep(fs);
+			vm_fault_busy_sleep_wlocked(fs);
 			return (FAULT_RESTART);
 		}
 
@@ -1417,7 +1442,6 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 			return (FAULT_SOFT);
 		}
 	}
-	VM_OBJECT_ASSERT_WLOCKED(fs->object);
 
 	/*
 	 * Page is not resident.  If the pager might contain the page
@@ -1458,6 +1482,66 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	return (res);
 }
 
+/*
+ * Like the above, but try to get away with a read-locked object.
+ */
+static enum fault_status
+vm_fault_object_try_rlocked(struct faultstate *fs)
+{
+
+	VM_OBJECT_ASSERT_UNLOCKED(fs->object);
+	MPASS(fs->prev_object != NULL);
+	VM_OBJECT_ASSERT_WLOCKED(fs->prev_object);
+
+	/*
+	 * rlocked attempt can only succeed if there is a valid page.
+	 */
+	fs->m = vm_page_lookup_unlocked(fs->object, fs->pindex);
+	if (fs->m == NULL || !vm_page_all_valid(fs->m)) {
+		VM_OBJECT_WLOCK(fs->object);
+		VM_OBJECT_WUNLOCK(fs->prev_object);
+		fs->prev_object = NULL;
+		fs->m = NULL;
+		return (FAULT_CONTINUE);
+	}
+
+	VM_OBJECT_RLOCK(fs->object);
+	VM_OBJECT_WUNLOCK(fs->prev_object);
+	fs->prev_object = NULL;
+
+	if ((fs->object->flags & OBJ_DEAD) != 0) {
+		goto out_upgrade;
+	}
+
+	/*
+	 * Note the state of the page could have changed before we got the
+	 * lock.  For simplicity perform full lookup again instead of trying to
+	 * validate the page we previously found.
+	 */
+	fs->m = vm_page_lookup(fs->object, fs->pindex);
+	if (fs->m != NULL && vm_page_all_valid(fs->m)) {
+		if (!vm_page_tryxbusy(fs->m)) {
+			vm_fault_busy_sleep_rlocked(fs);
+			return (FAULT_RESTART);
+		}
+
+		if (vm_page_all_valid(fs->m)) {
+			VM_OBJECT_RUNLOCK(fs->object);
+			return (FAULT_SOFT);
+		}
+
+		vm_page_xunbusy(fs->m);
+	}
+
+out_upgrade:
+	fs->m = NULL;
+	if (!VM_OBJECT_TRYUPGRADE(fs->object)) {
+		VM_OBJECT_RUNLOCK(fs->object);
+		VM_OBJECT_WLOCK(fs->object);
+	}
+	return (FAULT_CONTINUE);
+}
+
 int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
@@ -1472,6 +1556,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	if ((curthread->td_pflags & TDP_NOFAULTING) != 0)
 		return (KERN_PROTECTION_FAILURE);
 
+	fs.prev_object = NULL;
 	fs.vp = NULL;
 	fs.vaddr = vaddr;
 	fs.m_hold = m_hold;
@@ -1561,7 +1646,7 @@ RetryFault:
 		KASSERT(fs.m == NULL,
 		    ("page still set %p at loop start", fs.m));
 
-		res = vm_fault_object(&fs, &behind, &ahead);
+		res = vm_fault_object_wlocked(&fs, &behind, &ahead);
 		switch (res) {
 		case FAULT_SOFT:
 			goto found;
@@ -1582,27 +1667,43 @@ RetryFault:
 		case FAULT_CONTINUE:
 			break;
 		default:
-			panic("vm_fault: Unhandled status %d", res);
+			panic("vm_fault: Unhandled vm_fault_object_wlocked status %d", res);
 		}
 
 		/*
-		 * The page was not found in the current object.  Try to
-		 * traverse into a backing object or zero fill if none is
-		 * found.
+		 * The page was not found in the current object.
+		 * Traverse into a backing object if there is one.
 		 */
-		if (vm_fault_next(&fs))
-			continue;
-		if ((fs.fault_flags & VM_FAULT_NOFILL) != 0) {
-			if (fs.first_object == fs.object)
-				fault_page_free(&fs.first_m);
-			unlock_and_deallocate(&fs);
-			return (KERN_OUT_OF_BOUNDS);
+		if (!vm_fault_next(&fs)) {
+			/*
+			 * No backing object, zero fill if requested.
+			 */
+			if ((fs.fault_flags & VM_FAULT_NOFILL) != 0) {
+				if (fs.first_object == fs.object)
+					fault_page_free(&fs.first_m);
+				unlock_and_deallocate(&fs);
+				return (KERN_OUT_OF_BOUNDS);
+			}
+			VM_OBJECT_WUNLOCK(fs.object);
+			vm_fault_zerofill(&fs);
+			/*
+			 * Don't try to prefault neighboring pages.
+			 */
+			faultcount = 1;
+			break;
 		}
-		VM_OBJECT_WUNLOCK(fs.object);
-		vm_fault_zerofill(&fs);
-		/* Don't try to prefault neighboring pages. */
-		faultcount = 1;
-		break;
+
+		res = vm_fault_object_try_rlocked(&fs);
+		switch (res) {
+		case FAULT_SOFT:
+			goto found;
+		case FAULT_RESTART:
+			goto RetryFault;
+		case FAULT_CONTINUE:
+			break;
+		default:
+			panic("vm_fault: Unhandled vm_fault_object_try_rlocked status %d", res);
+		}
 	}
 
 found:

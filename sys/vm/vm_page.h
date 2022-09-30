@@ -872,6 +872,25 @@ vm_page_aflag_set(vm_page_t m, uint16_t bits)
 }
 
 /*
+ *	Conditionally set the given bits in the specified page.
+ *
+ *	Like vm_page_aflag_set, but avoid the operation if the bits
+ *	to set are already there.
+ */
+static inline void
+vm_page_aflag_set_cond(vm_page_t m, uint16_t bits)
+{
+	uint32_t *addr, val;
+
+	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits);
+
+	addr = (void *)&m->a;
+	val = bits << VM_PAGE_AFLAG_SHIFT;
+	if ((atomic_load_32(addr) & val) != val)
+		atomic_set_32(addr, val);
+}
+
+/*
  *	vm_page_dirty:
  *
  *	Set all bits in the page's dirty field.
