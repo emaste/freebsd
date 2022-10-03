@@ -145,8 +145,10 @@ volatile int aps_ready = 0;
 struct cpu_info *cpu_info;
 int *apic_cpuids;
 int cpu_apic_ids[MAXCPU];
+#ifdef __i386__
 _Static_assert(MAXCPU <= MAX_APIC_ID,
     "MAXCPU cannot be larger that MAX_APIC_ID");
+#endif
 _Static_assert(xAPIC_MAX_APIC_ID <= MAX_APIC_ID,
     "xAPIC_MAX_APIC_ID cannot be larger that MAX_APIC_ID");
 
