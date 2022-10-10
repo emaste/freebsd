@@ -255,6 +255,7 @@ initializecpu(void)
 {
 	uint64_t msr;
 	uint32_t cr4;
+	u_int r[4];
 
 	cr4 = rcr4();
 	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
@@ -317,6 +318,23 @@ initializecpu(void)
 	if ((amd_feature & AMDID_RDTSCP) != 0 ||
 	    (cpu_stdext_feature2 & CPUID_STDEXT2_RDPID) != 0)
 		wrmsr(MSR_TSC_AUX, cpu_auxmsr());
+
+	if (cpu_high >= 0x1a) {
+		cpuid_count(0x1a, 0, r);
+		if ((r[0] & 0xff000000) == 0x20000000)
+			PCPU_SET(small, 1);
+	}
+}
+
+void
+invlpgXX(vm_offset_t va)
+{
+	if (PCPU_GET(small)) {
+		struct invpcid_descr d = { 0 };
+		invpcid(&d, INVPCID_CTXGLOB);
+	} else {
+		invlpg(va);
+	}
 }
 
 void

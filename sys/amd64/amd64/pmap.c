@@ -2791,7 +2791,7 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 
 	if ((newpde & PG_PS) == 0)
 		/* Demotion: flush a specific 2MB page mapping. */
-		invlpg(va);
+		invlpgXX(va);
 	else if ((newpde & PG_G) == 0)
 		/*
 		 * Promotion: flush every 4KB page mapping from the TLB
@@ -3130,7 +3130,7 @@ pmap_invalidate_page_curcpu_cb(pmap_t pmap, vm_offset_t va,
     vm_offset_t addr2 __unused)
 {
 	if (pmap == kernel_pmap) {
-		invlpg(va);
+		invlpgXX(va);
 	} else if (pmap == PCPU_GET(curpmap)) {
 		invlpg(va);
 		pmap_invalidate_page_cb(pmap, va);
@@ -3222,7 +3222,7 @@ pmap_invalidate_range_curcpu_cb(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	if (pmap == kernel_pmap) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
-			invlpg(addr);
+			invlpgXX(addr);
 	} else if (pmap == PCPU_GET(curpmap)) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
@@ -7645,7 +7645,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 
 	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
 	pmap_kenter(va, pa);
-	invlpg(va);
+	invlpgXX(va);
 	return ((void *)crashdumpmap);
 }
 
@@ -10348,7 +10348,7 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 				    page[i]->md.pat_mode, 0);
 				pte_store(pte, paddr | X86_PG_RW | X86_PG_V |
 				    cache_bits);
-				invlpg(vaddr[i]);
+				invlpgXX(vaddr[i]);
 			}
 		}
 	}
@@ -10397,7 +10397,7 @@ pmap_quick_remove_page(vm_offset_t addr)
 	if (addr != qframe)
 		return;
 	pte_store(vtopte(qframe), 0);
-	invlpg(qframe);
+	invlpgXX(qframe);
 	mtx_unlock_spin(&qframe_mtx);
 }
 

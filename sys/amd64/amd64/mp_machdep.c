@@ -864,7 +864,10 @@ invlpg_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1)
 	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
-	invlpg(smp_tlb_addr1);
+	if (smp_tlb_pmap == kernel_pmap)
+		invlpgXX(smp_tlb_addr1);
+	else
+		invlpg(smp_tlb_addr1);
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
 	    smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3 &&
 	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
@@ -935,7 +938,10 @@ invlrng_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 
 	addr = smp_tlb_addr1;
 	do {
-		invlpg(addr);
+		if (smp_tlb_pmap == kernel_pmap)
+			invlpgXX(addr);
+		else
+			invlpg(addr);
 		addr += PAGE_SIZE;
 	} while (addr < smp_tlb_addr2);
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&

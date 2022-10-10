@@ -99,6 +99,7 @@ void	get_fpcontext(struct thread *td, struct __mcontext *mcp,
 int	set_fpcontext(struct thread *td, struct __mcontext *mcp,
 	    char *xfpustate, size_t xfpustate_len);
 
+void invlpgXX(vm_offset_t va);
 #endif /* !_MACHINE_MD_VAR_H_ */
 
 #endif /* __i386__ */
