@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-BLACKLIST_DIR=${SRCTOP}/contrib/blacklist
+BLACKLIST_DIR=${SRCTOP}/contrib/blocklist
 
 .PATH: ${BLACKLIST_DIR}/lib ${BLACKLIST_DIR}/include
 
