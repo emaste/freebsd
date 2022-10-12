@@ -56,6 +56,38 @@ gdb_command()
 	${GDB} -batch -ex "$@" $k
 }
 
+gdb_bt()
+{
+	# XXX: /bin/sh on 7.0+ is broken so we can't simply pipe the commands to
+	# kgdb via stdin and have to use a temporary file instead.
+	file=`mktemp /tmp/crashinfo.XXXXXX`
+	if [ $? -eq 0 ]; then
+		scriptdir=/usr/libexec/kgdb
+
+		echo "bt -full" >> $file
+		echo "source ${scriptdir}/acttrace.py" >> $file
+		echo "acttrace" >> $file
+		echo "quit" >> $file
+		${GDB%gdb}kgdb -q $KERNEL $VMCORE < $file
+		rm -f $file
+		echo
+	fi
+}
+
+lldb_command()
+{
+	local k
+
+	k=$1 ; shift
+
+	lldb -batch --one-line "$@" $k
+}
+
+lldb_get_string()
+{
+	lldb_command $1 "p/s $2" | sed -nE 's/^[^"]* = "(.*)"[^"]*$/\1/p'
+}
+
 find_kernel()
 {
 	local ivers k kvers
@@ -77,9 +109,14 @@ find_kernel()
 	# Look for a matching kernel version, handling possible truncation
 	# of the version string recovered from the dump.
 	for k in `sysctl -n kern.bootfile` $(ls -t /boot/*/kernel); do
-		kvers=$(gdb_command $k 'printf "  Version String: %s", version' | \
-		    awk "{line=line\$0\"\n\"} END{print substr(line,1,${#ivers})}" \
-		    2>/dev/null)
+		if [ -n "$LLDB" ]; then
+			# XXX implement
+			echo "trying $k"
+		else
+			kvers=$(gdb_command $k 'printf "  Version String: %s", version' | \
+			    awk "{line=line\$0\"\n\"} END{print substr(line,1,${#ivers})}" \
+			    2>/dev/null)
+		fi
 		if [ "$ivers" = "$kvers" ]; then
 			KERNEL=$k
 			break
@@ -148,7 +185,8 @@ fi
 
 VMCORE=$CRASHDIR/vmcore.$DUMPNR
 INFO=$CRASHDIR/info.$DUMPNR
-FILE=$CRASHDIR/core.txt.$DUMPNR
+#FILE=$CRASHDIR/core.txt.$DUMPNR
+FILE=core.txt
 HOSTNAME=`hostname`
 
 if $BATCH; then
@@ -156,11 +194,15 @@ if $BATCH; then
 	exec > $FILE 2>&1
 fi
 
-GDB=/usr/local/bin/gdb
-if [ ! -x "$GDB" ]; then
-	echo "Unable to find a kernel debugger."
-	echo "Please install the devel/gdb port or gdb package."
-	exit 1
+LLDB=/usr/bin/lldb
+if [ ! -x "$LLDB" ]; then
+	LLDB=
+	GDB=/usr/local/bin/gdb
+	if [ ! -x "$GDB" ]; then
+		echo "Unable to find a kernel debugger."
+		echo "Please install the devel/gdb port or gdb package."
+		exit 1
+	fi
 fi
 
 if [ ! -e $VMCORE ]; then
@@ -196,11 +238,17 @@ fi
 umask 077
 
 # Simulate uname
-ostype=$(gdb_command $KERNEL 'printf "%s", ostype')
-osrelease=$(gdb_command $KERNEL 'printf "%s", osrelease')
-version=$(gdb_command $KERNEL 'printf "%s", version' | tr '\t\n' '  ')
-machine=$(gdb_command $KERNEL 'printf "%s", machine')
-
+if [ -n "$LLDB" ]; then
+	ostype=$(lldb_get_string $KERNEL ostype)
+	osrelease=$(lldb_get_string $KERNEL osrelease)
+	version=$(lldb_get_string $KERNEL version)
+	machine=$(lldb_get_string $KERNEL machine)
+else
+	ostype=$(gdb_command $KERNEL 'printf "%s", ostype')
+	osrelease=$(gdb_command $KERNEL 'printf "%s", osrelease')
+	version=$(gdb_command $KERNEL 'printf "%s", version' | tr '\t\n' '  ')
+	machine=$(gdb_command $KERNEL 'printf "%s", machine')
+fi
 if ! $BATCH; then
 	echo "Writing crash summary to $FILE."
 	exec > $FILE 2>&1
@@ -215,18 +263,12 @@ echo
 sed -ne '/^  Panic String: /{s//panic: /;p;}' $INFO
 echo
 
-file=`mktemp /tmp/crashinfo.XXXXXX`
-if [ $? -eq 0 ]; then
-	scriptdir=/usr/libexec/kgdb
-
-	echo "bt -full" >> $file
-	echo "source ${scriptdir}/acttrace.py" >> $file
-	echo "acttrace" >> $file
-	echo "quit" >> $file
-	${GDB%gdb}kgdb -q $KERNEL $VMCORE < $file
-	rm -f $file
-	echo
+if [ -n "$LLDB" ]; then
+	lldb_command "$KERNEL -c $VMCORE" bt
+else
+	gdb_bt
 fi
+
 echo
 
 echo "------------------------------------------------------------------------"
