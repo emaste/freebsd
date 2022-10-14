@@ -79,10 +79,6 @@ static char	path_zonetab[MAXPATHLEN], path_iso3166[MAXPATHLEN],
 		path_zoneinfo[MAXPATHLEN], path_localtime[MAXPATHLEN],
 		path_db[MAXPATHLEN], path_wall_cmos_clock[MAXPATHLEN];
 
-enum {
-	mode_unset = 0, mode_copy, mode_symlink
-} copymode;
-
 static int reallydoit = 1;
 static int reinstall = 0;
 static char *chrootenv = NULL;
@@ -658,21 +654,18 @@ install_zoneinfo_file(const char *zoneinfo_file)
 	char		prompt[SILLY_BUFFER_SIZE];
 	struct stat	sb;
 	ssize_t		len;
-	int		fd1, fd2;
+	int		fd1, fd2, copymode;
 
-	if (copymode == mode_unset) {
-		if (lstat(path_localtime, &sb) < 0) {
-			/* Nothing there yet... */
-			copymode = mode_copy;
-		} else if (S_ISLNK(sb.st_mode)) {
-			copymode = mode_symlink;
-		} else {
-			copymode = mode_copy;
-		}
-	}
+	if (lstat(path_localtime, &sb) < 0) {
+		/* Nothing there yet... */
+		copymode = 1;
+	} else if (S_ISLNK(sb.st_mode))
+		copymode = 0;
+	else
+		copymode = 1;
 
 #ifdef VERBOSE
-	if (copymode == mode_copy)
+	if (copymode)
 		snprintf(prompt, sizeof(prompt),
 		    "Copying %s to %s", zoneinfo_file, path_localtime);
 	else
@@ -683,7 +676,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #endif
 
 	if (reallydoit) {
-		if (copymode == mode_copy) {
+		if (copymode) {
 			fd1 = open(zoneinfo_file, O_RDONLY, 0);
 			if (fd1 < 0) {
 				snprintf(prompt, sizeof(prompt),
@@ -752,7 +745,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 		}
 
 #ifdef VERBOSE
-		if (copymode == mode_copy)
+		if (copymode)
 			snprintf(prompt, sizeof(prompt),
 			    "Copied timezone file from %s to %s",
 			    zoneinfo_file, path_localtime);
@@ -821,16 +814,10 @@ main(int argc, char **argv)
 	    strcmp(vm_guest, "none") != 0)
 		skiputc = 1;
 
-	while ((c = getopt(argc, argv, "C:clnrs")) != -1) {
+	while ((c = getopt(argc, argv, "C:nrs")) != -1) {
 		switch(c) {
 		case 'C':
 			chrootenv = optarg;
-			break;
-		case 'c':
-			copymode = mode_copy;
-			break;
-		case 'l':
-			copymode = mode_symlink;
 			break;
 		case 'n':
 			reallydoit = 0;
