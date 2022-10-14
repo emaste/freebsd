@@ -61,7 +61,8 @@
 #define	_PATH_ISO3166		"/usr/share/misc/iso3166"
 #define	_PATH_ZONEINFO		"/usr/share/zoneinfo"
 #define	_PATH_LOCALTIME		"/etc/localtime"
-#define	_PATH_DB		"/var/db/zoneinfo"
+#define	_PATH_DB		"/etc/timezone"
+#define	_PATH_DB_COMPAT		"/var/db/zoneinfo"
 #define	_PATH_WALL_CMOS_CLOCK	"/etc/wall_cmos_clock"
 
 #ifdef PATH_MAX
@@ -80,7 +81,8 @@
 
 static char	path_zonetab[MAXPATHLEN], path_iso3166[MAXPATHLEN],
 		path_zoneinfo[MAXPATHLEN], path_localtime[MAXPATHLEN],
-		path_db[MAXPATHLEN], path_wall_cmos_clock[MAXPATHLEN];
+		path_db[MAXPATHLEN], path_db_compat[MAXPATHLEN],
+		path_wall_cmos_clock[MAXPATHLEN];
 
 static int reallydoit = 1;
 static int reinstall = 0;
@@ -879,12 +881,14 @@ main(int argc, char **argv)
 		strcpy(path_iso3166, _PATH_ISO3166);
 		strcpy(path_localtime, _PATH_LOCALTIME);
 		strcpy(path_db, _PATH_DB);
+		strcpy(path_db_compat, _PATH_DB_COMPAT);
 		strcpy(path_wall_cmos_clock, _PATH_WALL_CMOS_CLOCK);
 	} else {
 		sprintf(path_zonetab, "%s/%s", chrootenv, _PATH_ZONETAB);
 		sprintf(path_iso3166, "%s/%s", chrootenv, _PATH_ISO3166);
 		sprintf(path_localtime, "%s/%s", chrootenv, _PATH_LOCALTIME);
 		sprintf(path_db, "%s/%s", chrootenv, _PATH_DB);
+		sprintf(path_db_compat, "%s/%s", chrootenv, _PATH_DB_COMPAT);
 		sprintf(path_wall_cmos_clock, "%s/%s", chrootenv,
 		    _PATH_WALL_CMOS_CLOCK);
 	}
@@ -896,24 +900,27 @@ main(int argc, char **argv)
 
 	if (reinstall == 1) {
 		FILE *f;
+		char **p, *db_paths[] = {path_db, path_db_compat, NULL};
 		char zoneinfo[MAXPATHLEN];
 
-		if ((f = fopen(path_db, "r")) != NULL) {
-			if (fgets(zoneinfo, sizeof(zoneinfo), f) != NULL) {
-				zoneinfo[sizeof(zoneinfo) - 1] = 0;
-				if (strlen(zoneinfo) > 0) {
-					zoneinfo[strlen(zoneinfo) - 1] = 0;
-					rv = install_zoneinfo(zoneinfo);
-					exit(rv & ~DITEM_LEAVE_MENU);
+		for (p = db_paths; *p != NULL; p++) {
+			if ((f = fopen(*p, "r")) != NULL) {
+				if (fgets(zoneinfo, sizeof(zoneinfo), f) != NULL) {
+					zoneinfo[sizeof(zoneinfo) - 1] = 0;
+					if (strlen(zoneinfo) > 0) {
+						zoneinfo[strlen(zoneinfo) - 1] = 0;
+						rv = install_zoneinfo(zoneinfo);
+						exit(rv & ~DITEM_LEAVE_MENU);
+					}
+					errx(1, "Error reading %s.\n", *p);
 				}
-				errx(1, "Error reading %s.\n", path_db);
+				fclose(f);
+				errx(1, "Unable to determine earlier installed "
+				    "zoneinfo name. Check %s", *p);
 			}
-			fclose(f);
-			errx(1,
-			    "Unable to determine earlier installed zoneinfo "
-			    "name. Check %s", path_db);
 		}
-		errx(1, "Cannot open %s for reading. Does it exist?", path_db);
+		errx(1, "Cannot open %s or %s for reading.", path_db,
+		    path_db_compat);
 	}
 
 	/*
