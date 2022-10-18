@@ -67,7 +67,7 @@ void ofwfb_fillw(int pat, void *base, size_t cnt);
 u_int16_t ofwfb_readw(u_int16_t *addr);
 void ofwfb_writew(u_int16_t *addr, u_int16_t val);
 
-#elif defined(__mips__) || defined(__arm__)
+#elif defined(__arm__)
 
 /*
  * Use amd64/i386-like settings under the assumption that MIPS-based display

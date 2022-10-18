@@ -5225,11 +5225,7 @@ bdata2bio(struct buf *bp, struct bio *bip)
  * Once the MIPS pmap/cache code grows to support this function on
  * earlier chips, it should be flipped back off.
  */
-#ifdef	__mips__
-static int buf_pager_relbuf = 1;
-#else
 static int buf_pager_relbuf = 0;
-#endif
 SYSCTL_INT(_vfs, OID_AUTO, buf_pager_relbuf, CTLFLAG_RWTUN,
     &buf_pager_relbuf, 0,
     "Make buffer pager release buffers after reading");
