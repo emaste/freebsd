@@ -10,7 +10,7 @@ compute_engine_instance:
   disk: 40
 
 env:
-  PKG_FORMAT: tzst
+  PKG_FORMAT: tar
 
 task:
   matrix:
