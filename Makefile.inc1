@@ -3078,7 +3078,6 @@ NXBMAKEARGS+= \
 	MK_OFED=no \
 	MK_OPENSSH=no \
 	MK_RETPOLINE=no \
-	MK_SENDMAIL=no \
 	MK_SSP=no \
 	MK_TESTS=no \
 	MK_WERROR=no \

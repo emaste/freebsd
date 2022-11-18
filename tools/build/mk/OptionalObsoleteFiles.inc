@@ -7112,7 +7112,7 @@ OLD_FILES+=usr/share/man/man8/routed.8.gz
 OLD_FILES+=usr/share/man/man8/rtquery.8.gz
 .endif
 
-.if ${MK_SENDMAIL} == no
+# XXX SENDMAIL always no, move to ObsoleteFiles.inc
 OLD_FILES+=etc/mtree/BSD.sendmail.dist
 OLD_FILES+=etc/newsyslog.conf.d/sendmail.conf
 OLD_FILES+=etc/periodic/daily/150.clean-hoststat
@@ -7359,7 +7359,6 @@ OLD_DIRS+=usr/share/sendmail/cf/siteconfig
 OLD_DIRS+=usr/share/sendmail/cf
 OLD_DIRS+=usr/share/sendmail
 OLD_DIRS+=var/spool/clientmqueue
-.endif
 
 .if ${MK_SERVICESDB} == no
 OLD_FILES+=var/db/services.db
