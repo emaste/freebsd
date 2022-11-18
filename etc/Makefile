@@ -11,17 +11,10 @@ NLS_ALIASES=	POSIX C \
 UPDATE_DEPENDFILE=	no
 
 SUBDIR+=termcap
-.if ${MK_SENDMAIL} != "no"
-SUBDIR+=sendmail
-.endif
 
 # NB: keep these sorted by MK_* knobs
 
 ETCMAIL=aliases
-.if ${MK_SENDMAIL} != "no"
-ETCMAIL_SENDMAIL+=Makefile README access.sample virtusertable.sample \
-	mailertable.sample
-.endif
 
 # Special top level files for FreeBSD
 FREEBSD=COPYRIGHT
@@ -71,9 +64,6 @@ distribution:
 			${DESTDIR}/etc/unbound; \
 	fi
 .endif
-.if ${MK_SENDMAIL} != "no"
-	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution
-.endif
 .if ${MK_KERBEROS} != "no"
 	cd ${.CURDIR}/root; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
@@ -94,10 +84,6 @@ distribution:
 	fi
 .endif	# ${MK_MAIL} != "no"
 
-.if ${MK_SENDMAIL} != "no"
-	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		-T "package=sendmail" ${ETCMAIL_SENDMAIL} ${DESTDIR}/etc/mail
-.endif
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		-T "package=runtime" ${FREEBSD} ${DESTDIR}/
 .if ${MK_BOOT} != "no"
@@ -123,9 +109,6 @@ MTREES+=	mtree/BSD.lib${libcompat}.dist	/usr/lib/debug/usr
 .if ${MK_TESTS} != "no"
 MTREES+=	mtree/BSD.tests.dist		${TESTSBASE}
 MTREES+=	mtree/BSD.tests.dist		/usr/lib/debug${TESTSBASE}
-.endif
-.if ${MK_SENDMAIL} != "no"
-MTREES+=	mtree/BSD.sendmail.dist		/
 .endif
 .for mtree in ${LOCAL_MTREE}
 MTREES+=	../${mtree}			/
