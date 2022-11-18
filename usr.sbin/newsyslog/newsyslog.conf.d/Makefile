@@ -36,11 +36,4 @@ PPPPACKAGE=	ppp
 PPPDIR=		/etc/newsyslog.conf.d
 .endif
 
-.if ${MK_SENDMAIL} != "no"
-CONFGROUPS+=		SENDMAIL
-SENDMAIL+=		sendmail.conf
-SENDMAILPACKAGE=	sendmail
-SENDMAILDIR=		/etc/newsyslog.conf.d
-.endif
-
 .include <bsd.prog.mk>

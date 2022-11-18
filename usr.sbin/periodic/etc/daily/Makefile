@@ -48,15 +48,6 @@ CONFS+=	480.status-ntpd \
 	480.leapfile-ntpd
 .endif
 
-.if ${MK_SENDMAIL} != "no"
-CONFGROUPS+=		SENDMAIL
-SENDMAIL+=		150.clean-hoststat \
-			440.status-mailq \
-			460.status-mail-rejects \
-			500.queuerun
-SENDMAILPACKAGE=	sendmail
-.endif
-
 .if ${MK_ZFS} != "no"
 CONFS+=	223.backup-zfs \
 	404.status-zfs \
