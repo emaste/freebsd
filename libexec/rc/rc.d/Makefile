@@ -313,12 +313,6 @@ CONFS+=		ftp-proxy
 CONFS+=		routed
 .endif
 
-.if ${MK_SENDMAIL} != "no"
-CONFGROUPS+=	SMRCD
-SMRCD=		sendmail
-SMRCDPACKAGE=	sendmail
-.endif
-
 .if ${MK_NUAGEINIT} != "no"
 CONFGROUPS+=	NIUAGEINIT
 NIUAGEINIT=		nuageinit
