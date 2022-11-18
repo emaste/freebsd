@@ -56,15 +56,6 @@ NTPMODE=	${BINMODE}
 NTPPACKAGE=	ntp
 .endif
 
-.if ${MK_SENDMAIL} != "no"
-CONFGROUPS+=		SENDMAIL
-SENDMAIL+=		150.clean-hoststat \
-			440.status-mailq \
-			460.status-mail-rejects \
-			500.queuerun
-SENDMAILPACKAGE=	sendmail
-.endif
-
 .if ${MK_ZFS} != "no"
 CONFGROUPS+=	ZFS
 ZFS+=		223.backup-zfs \

@@ -94,11 +94,6 @@ SUBDIR.${MK_LIB${LIBCOMPAT}}+=	rtld-elf${libcompat}
 SUBDIR+=	rbootd
 .endif
 
-.if ${MK_SENDMAIL} != "no"
-_mail.local=	mail.local
-_smrsh=		smrsh
-.endif
-
 .if ${MK_MAN_UTILS} != "no"
 _makewhatis.local=	makewhatis.local
 .endif
