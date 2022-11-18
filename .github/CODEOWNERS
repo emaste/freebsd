@@ -49,7 +49,6 @@
 /crypto/openssh	@dag-erling
 /crypto/openssl/	@juikim
 /etc/mail	@gshapiro
-/etc/sendmail	@gshapiro
 /lib/libc/sys/kevent.c	@jmgurney
 /lib/libefivar/	@bsdimp
 /lib/libfetch	@dag-erling
