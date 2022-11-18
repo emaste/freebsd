@@ -70,10 +70,6 @@ _mk=		mk
 _man=		man
 .endif
 
-.if ${MK_SENDMAIL} != "no"
-_sendmail=	 sendmail
-.endif
-
 .if ${MK_SHAREDOCS} != "no"
 _doc=		doc
 .endif
