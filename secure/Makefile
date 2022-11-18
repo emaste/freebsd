@@ -12,9 +12,6 @@ SUBDIR.${MK_CAROOT}+= caroot
 SPROGS=	lib/libfetch lib/libpam lib/libradius lib/libtelnet	\
 	bin/ed libexec/telnetd usr.bin/fetch usr.bin/telnet	\
 	usr.sbin/ppp usr.sbin/tcpdump/tcpdump
-.if ${MK_SENDMAIL} != "no"
-SPROGS+=usr.sbin/sendmail
-.endif
 
 # This target is used to rebuild these programs with crypto.
 secure: .MAKE .PHONY
