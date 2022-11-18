@@ -20,9 +20,6 @@ FILES=	\
 _BSD.libcompats.dist+=	BSD.lib${libcompat}.dist
 .endif
 .endfor
-.if ${MK_SENDMAIL} != "no"
-_BSD.sendmail.dist=	BSD.sendmail.dist
-.endif
 .if ${MK_TESTS} != "no"
 _BSD.tests.dist=	BSD.tests.dist
 .endif
