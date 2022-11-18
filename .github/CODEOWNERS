@@ -53,7 +53,6 @@
 /crypto/openssh	@dag-erling @emaste
 /crypto/openssl/	@juikim
 /etc/mail	@gshapiro
-/etc/sendmail	@gshapiro
 /kerberos5	@cschuber
 /krb5		@cschuber
 /lib/libblocklist	@jlduran
