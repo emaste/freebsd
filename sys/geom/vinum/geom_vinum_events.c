@@ -179,6 +179,10 @@ gv_drive_tasted(struct gv_softc *sc, struct g_provider *pp)
 	gv_setup_objects(sc);
 	gv_set_drive_state(d, GV_DRIVE_UP, 0);
 
+	/* Emit deprecation notice. */
+	gone_in(15, "gvinum volume manager");
+	G_VINUM_DEBUG(0, "drive '%s' relies on deprecated gvinum", d->name);
+
 	return;
 
 failed:
