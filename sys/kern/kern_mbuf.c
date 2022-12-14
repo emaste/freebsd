@@ -1331,6 +1331,10 @@ m_clget(struct mbuf *m, int how)
 	return (m->m_flags & M_EXT);
 }
 
+// XXX this comment is insufficient: "In that case the return value is..."
+// The return value is always a pointer to the cluster, or would be NULL if
+// failed (see D1440 / if_bge.c for use).
+// Also should have a man page (link).
 /*
  * m_cljget() is different from m_clget() as it can allocate clusters without
  * attaching them to an mbuf.  In that case the return value is the pointer
