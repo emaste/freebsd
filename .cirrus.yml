@@ -140,6 +140,10 @@ task:
       TOOLCHAIN_PKG: ${TOOLCHAIN}
       EXTRA_MAKE_FLAGS: -s
   timeout_in: 120m
+  dmesg_script:
+  - dmesg
+  messages_script:
+  - cat /var/log/messages
   install_script:
   - sh .cirrus-ci/pkg-install.sh git-lite
   setup_script:
