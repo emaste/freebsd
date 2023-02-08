@@ -21,11 +21,13 @@ SRCS=	bpf_dump.c \
 	pcap-common.c \
 	pcap-netmap.c \
 	pcap.c \
+	pcap-usb-linux-common.c \
+	pcap-util.c \
+	pcap.c \
 	savefile.c \
 	scanner.l \
 	sf-pcap.c \
-	sf-pcapng.c \
-	tokdefs.h
+	sf-pcapng.c
 
 # Old compatibility headers
 INCS=	fmtutils.h \
