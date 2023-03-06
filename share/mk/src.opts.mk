@@ -307,8 +307,9 @@ __DEFAULT_YES_OPTIONS+=LIB32
 .else
 BROKEN_OPTIONS+=LIB32
 .endif
-# EFI doesn't exist on powerpc (well, officially) and doesn't work on i386
-.if ${__T:Mpowerpc*} || ${__T} == "i386"
+# EFI doesn't exist on powerpc (well, officially) or riscv, and doesn't work
+# on i386
+.if ${__T:Mpowerpc*} || ${__T:Mriscv64*} || ${__T} == "i386"
 BROKEN_OPTIONS+=EFI
 .endif
 # OFW is only for powerpc, exclude others
