@@ -237,8 +237,10 @@ choose_part_type(const char *def_scheme)
 	struct bsddialog_conf conf;
 
 	struct bsddialog_menuitem items[] = {
+#ifdef __powerpc__
 		{"", false, 0, "APM", "Apple Partition Map",
 		    "Bootable on PowerPC Apple Hardware" },
+#endif
 		{"", false, 0, "BSD", "BSD Labels",
 		    "Bootable on most x86 systems" },
 		{"", false, 0, "GPT", "GUID Partition Table",
