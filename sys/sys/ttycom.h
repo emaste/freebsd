@@ -114,7 +114,7 @@
 #define		TIOCPKT_DOSTOP		0x20	/* now do ^S ^Q */
 #define		TIOCPKT_IOCTL		0x40	/* state change of pty driver */
 #define	TIOCNOTTY	 _IO('t', 113)		/* void tty association */
-#define	TIOCSTI		_IOW('t', 114, char)	/* simulate terminal input */
+#define	_TIOCSTI	_IOW('t', 114, char)	/* simulate terminal input */
 #define	TIOCOUTQ	_IOR('t', 115, int)	/* output queue size */
 						/* 116-117 compat */
 #define	TIOCSPGRP	_IOW('t', 118, int)	/* set pgrp of tty */
