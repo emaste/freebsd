@@ -60,9 +60,9 @@
 
     $ git checkout -b openssh-X.YpZ-update
 
-    The update requires multiple steps, including changes made both before
-    and after the merge itself.  These will be committed to the local branch
-    during development, but will not appear in the final commit to main.
+    The update requires multiple steps including changes after the merge 
+    itself.  These will be committed to the working branch during development,
+    but will not appear in the final commit to main.
 
 10) Merge from the vendor branch:
 
