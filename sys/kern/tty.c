@@ -2003,7 +2003,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 	case TIOCSTAT:
 		tty_info(tp);
 		return (0);
-	case TIOCSTI:
+	case _TIOCSTI:
 		return (EIO);
 	}
 
