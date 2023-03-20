@@ -466,8 +466,13 @@ nvme_completion_poll(struct nvme_completion_poll_status *status)
 	sbintime_t delta_t = SBT_1US;
 
 	while (!atomic_load_acq_int(&status->done)) {
-		if (timeout - ticks < 0)
-			panic("NVME polled command failed to complete within 10s.");
+		if (timeout - ticks < 0) {
+			// XXX hack, printf of panic and fake completion
+			// error (see nvme_completion_is_error).
+			printf("NVME polled command failed to complete within 10s.");
+			status->cpl.status = NVME_SC_DATA_TRANSFER_ERROR << NVME_STATUS_SC_SHIFT;
+			break;
+		}
 		pause_sbt("nvme", delta_t, 0, C_PREL(1));
 		delta_t = min(SBT_1MS, delta_t * 3 / 2);
 	}
