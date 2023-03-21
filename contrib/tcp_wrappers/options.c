@@ -133,7 +133,8 @@ static struct option option_table[] = {
 
 /* process_options - process access control options */
 
-void    process_options(char *options, struct request_info *request)
+void
+process_options(char *options, struct request_info *request)
 {
     char   *key;
     char   *value;
@@ -213,7 +214,8 @@ static void deny_option(char *value, struct request_info *request)
 
 /* banners_option - expand %<char>, terminate each line with CRLF */
 
-static void banners_option(char *value, struct request_info *request)
+static void
+banners_option(char *value, struct request_info *request)
 {
     char    path[MAXPATHNAMELEN];
     char    ibuf[BUFSIZ];
@@ -243,7 +245,8 @@ static void banners_option(char *value, struct request_info *request)
 
 /* ARGSUSED */
 
-static void group_option(char *value, struct request_info *request)
+static void
+group_option(char *value, struct request_info *request)
 {
     struct group *grp;
 
@@ -259,7 +262,8 @@ static void group_option(char *value, struct request_info *request)
 
 /* ARGSUSED */
 
-static void user_option(char *value, struct request_info *request)
+static void
+user_option(char *value, struct request_info *request)
 {
     struct passwd *pwd;
     char   *group;
@@ -278,7 +282,8 @@ static void user_option(char *value, struct request_info *request)
 
 /* ARGSUSED */
 
-static void umask_option(char *value, struct request_info *request)
+static void
+umask_option(char *value, struct request_info *request)
 {
     unsigned mask;
     char    junk;
@@ -292,7 +297,8 @@ static void umask_option(char *value, struct request_info *request)
 
 /* ARGSUSED */
 
-static void spawn_option(char *value, struct request_info *request)
+static void
+spawn_option(char *value, struct request_info *request)
 {
     if (dry_run == 0)
 	shell_cmd(value);
@@ -302,7 +308,8 @@ static void spawn_option(char *value, struct request_info *request)
 
 /* ARGSUSED */
 
-static void linger_option(char *value, struct request_info *request)
+static void
+linger_option(char *value, struct request_info *request)
 {
     struct linger linger;
     char    junk;
@@ -322,7 +329,8 @@ static void linger_option(char *value, struct request_info *request)
 
 /* ARGSUSED */
 
-static void keepalive_option(char *value, struct request_info *request)
+static void
+keepalive_option(char *value, struct request_info *request)
 {
     static int on = 1;
 
@@ -335,7 +343,8 @@ static void keepalive_option(char *value, struct request_info *request)
 
 /* ARGSUSED */
 
-static void nice_option(char *value, struct request_info *request)
+static void
+nice_option(char *value, struct request_info *request)
 {
     int     niceval = 10;
     char    junk;
@@ -348,7 +357,8 @@ static void nice_option(char *value, struct request_info *request)
 
 /* twist_option - replace process by shell command */
 
-static void twist_option(char *value, struct request_info *request)
+static void
+twist_option(char *value, struct request_info *request)
 {
     char   *error;
 
@@ -384,7 +394,8 @@ static void twist_option(char *value, struct request_info *request)
 
 /* rfc931_option - look up remote user name */
 
-static void rfc931_option(char *value, struct request_info *request)
+static void
+rfc931_option(char *value, struct request_info *request)
 {
     int     timeout;
     char    junk;
@@ -401,7 +412,8 @@ static void rfc931_option(char *value, struct request_info *request)
 
 /* ARGSUSED */
 
-static void setenv_option(char *value, struct request_info *request)
+static void
+setenv_option(char *value, struct request_info *request)
 {
     char   *var_value;
 
@@ -413,7 +425,8 @@ static void setenv_option(char *value, struct request_info *request)
 
 /* severity_map - lookup facility or severity value */
 
-static int severity_map(const CODE *table, char *name)
+static int
+severity_map(const CODE *table, char *name)
 {
     const CODE *t;
     int ret = -1;
@@ -433,7 +446,8 @@ static int severity_map(const CODE *table, char *name)
 
 /* ARGSUSED */
 
-static void severity_option(char *value, struct request_info *request)
+static void
+severity_option(char *value, struct request_info *request)
 {
     char   *level = split_at(value, '.');
 
@@ -444,7 +458,8 @@ static void severity_option(char *value, struct request_info *request)
 
 /* get_field - return pointer to next field in string */
 
-static char *get_field(char *string)
+static char *
+get_field(char *string)
 {
     static char *last = "";
     char   *src;
@@ -486,7 +501,8 @@ static char *get_field(char *string)
 
 /* chop_string - strip leading and trailing blanks from string */
 
-static char *chop_string(register char *string)
+static char *
+chop_string(register char *string)
 {
     char   *start = 0;
     char   *end;
