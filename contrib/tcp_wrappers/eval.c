@@ -42,7 +42,8 @@ char    paranoid[] = STRING_PARANOID;
 
 /* eval_user - look up user name */
 
-char   *eval_user(struct request_info *request)
+char *
+eval_user(struct request_info *request)
 {
     if (request->user[0] == 0) {
 	strcpy(request->user, unknown);
@@ -54,7 +55,8 @@ char   *eval_user(struct request_info *request)
 
 /* eval_hostaddr - look up printable address */
 
-char   *eval_hostaddr(struct host_info *host)
+char *
+eval_hostaddr(struct host_info *host)
 {
     if (host->addr[0] == 0) {
 	strcpy(host->addr, unknown);
@@ -66,7 +68,8 @@ char   *eval_hostaddr(struct host_info *host)
 
 /* eval_hostname - look up host name */
 
-char   *eval_hostname(struct host_info *host)
+char *
+eval_hostname(struct host_info *host)
 {
     if (host->name[0] == 0) {
 	strcpy(host->name, unknown);
@@ -78,7 +81,8 @@ char   *eval_hostname(struct host_info *host)
 
 /* eval_hostinfo - return string with host name (preferred) or address */
 
-char   *eval_hostinfo(struct host_info *host)
+char *
+eval_hostinfo(struct host_info *host)
 {
     char   *hostname;
 
@@ -96,7 +100,8 @@ char   *eval_hostinfo(struct host_info *host)
 
 /* eval_client - return string with as much about the client as we know */
 
-char   *eval_client(struct request_info *request)
+char *
+eval_client(struct request_info *request)
 {
     static char both[2 * STRING_LENGTH];
     char   *hostinfo = eval_hostinfo(request->client);
@@ -115,7 +120,8 @@ char   *eval_client(struct request_info *request)
 
 /* eval_server - return string with as much about the server as we know */
 
-char   *eval_server(struct request_info *request)
+char *
+eval_server(struct request_info *request)
 {
     static char both[2 * STRING_LENGTH];
     char   *host = eval_hostinfo(request->server);

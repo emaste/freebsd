@@ -108,7 +108,8 @@ int     yp_get_default_domain(char  **);
 
 /* hosts_access - host access control facility */
 
-int     hosts_access(struct request_info *request)
+int
+hosts_access(struct request_info *request)
 {
     int     verdict;
 
@@ -141,7 +142,8 @@ int     hosts_access(struct request_info *request)
 
 /* table_match - match table entries with (daemon, client) pair */
 
-static int table_match(char *table, struct request_info *request)
+static int
+table_match(char *table, struct request_info *request)
 {
     FILE   *fp;
     char    sv_list[BUFLEN];		/* becomes list of daemons */
@@ -208,7 +210,8 @@ static int table_match(char *table, struct request_info *request)
 
 /* list_match - match a request against a list of patterns with exceptions */
 
-static int list_match(char *list, struct request_info *request,
+static int
+list_match(char *list, struct request_info *request,
     int (*match_fn)(char *, struct request_info *))
 {
     char   *tok;
@@ -234,7 +237,8 @@ static int list_match(char *list, struct request_info *request,
 
 /* server_match - match server information */
 
-static int server_match(char *tok, struct request_info *request)
+static int
+server_match(char *tok, struct request_info *request)
 {
     char   *host;
 
@@ -248,7 +252,8 @@ static int server_match(char *tok, struct request_info *request)
 
 /* client_match - match client information */
 
-static int client_match(char *tok, struct request_info *request)
+static int
+client_match(char *tok, struct request_info *request)
 {
     char   *host;
 
@@ -262,7 +267,8 @@ static int client_match(char *tok, struct request_info *request)
 
 /* hostfile_match - look up host patterns from file */
 
-static int hostfile_match(char *path, struct host_info *host)
+static int
+hostfile_match(char *path, struct host_info *host)
 {
     char    tok[BUFSIZ];
     int     match = NO;
@@ -280,7 +286,8 @@ static int hostfile_match(char *path, struct host_info *host)
 
 /* host_match - match host name and/or address against pattern */
 
-static int host_match(char *tok, struct host_info *host)
+static int
+host_match(char *tok, struct host_info *host)
 {
     char   *mask;
 
@@ -322,7 +329,8 @@ static int host_match(char *tok, struct host_info *host)
 
 /* string_match - match string against pattern */
 
-static int string_match(char *tok, char *string)
+static int
+string_match(char *tok, char *string)
 {
     int     n;
 
@@ -387,9 +395,11 @@ static int masked_match(char *net_tok, char *mask_tok, char *string)
 	    masked_match6(net_tok, mask_tok, string));
 }
 
-static int masked_match4(char *net_tok, char *mask_tok, char *string)
+static int
+masked_match4(char *net_tok, char *mask_tok, char *string)
 #else
-static int masked_match(char *net_tok, char *mask_tok, char *string)
+static int
+masked_match(char *net_tok, char *mask_tok, char *string)
 #endif
 {
 #ifdef INET6
@@ -421,7 +431,8 @@ static int masked_match(char *net_tok, char *mask_tok, char *string)
 }
 
 #ifdef INET6
-static int masked_match6(char *net_tok, char *mask_tok, char *string)
+static int
+masked_match6(char *net_tok, char *mask_tok, char *string)
 {
     struct addrinfo hints, *res;
     struct sockaddr_in6 net, addr;
