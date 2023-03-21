@@ -53,7 +53,8 @@ static void tcpdmatch(struct request_info *request);
 
 /* The main program */
 
-int     main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
 #ifdef INET6
     struct addrinfo hints, *hp, *res;
@@ -314,7 +315,8 @@ int     main(int argc, char **argv)
 
 /* Explain how to use this program */
 
-static void usage(char *myname)
+static void
+usage(char *myname)
 {
     fprintf(stderr, "usage: %s [-d] [-i inet_conf] daemon[@host] [user@]host\n",
 	    myname);
@@ -325,7 +327,8 @@ static void usage(char *myname)
 
 /* Print interesting expansions */
 
-static void expand(char *text, char *pattern, struct request_info *request)
+static void
+expand(char *text, char *pattern, struct request_info *request)
 {
     char    buf[BUFSIZ];
 
@@ -335,7 +338,8 @@ static void expand(char *text, char *pattern, struct request_info *request)
 
 /* Try out a (server,client) pair */
 
-static void tcpdmatch(struct request_info *request)
+static void
+tcpdmatch(struct request_info *request)
 {
     int     verdict;
 
