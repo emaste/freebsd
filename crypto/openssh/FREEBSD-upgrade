@@ -179,6 +179,9 @@
    upstream submission from
    https://github.com/openssh/openssh-portable/pull/262.
 
+   Proposed upstream at
+   https://lists.mindrot.org/pipermail/openssh-unix-dev/2022-November/040468.html
+
 8) Blocklist integration
 
    We include blocklist (https://github.com/zoulasc/blocklist) in FreeBSD,
