@@ -24,7 +24,8 @@ static char sccsid[] = "@(#) refuse.c 1.5 94/12/28 17:42:39";
 
 /* refuse - refuse request */
 
-void    refuse(struct request_info *request)
+void
+refuse(struct request_info *request)
 {
 #ifdef INET6
     syslog(deny_severity, "refused connect from %s (%s)",
