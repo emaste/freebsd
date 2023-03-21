@@ -43,7 +43,8 @@ int     deny_severity = LOG_WARNING;
 #ifndef INET6
 /* dup_hostent - create hostent in one memory block */
 
-static struct hostent *dup_hostent(struct hostent *hp)
+static struct hostent *
+dup_hostent(struct hostent *hp)
 {
     struct hostent_block {
 	struct hostent host;
@@ -79,7 +80,8 @@ static struct hostent *dup_hostent(struct hostent *hp)
 /* find_inet_addr - find all addresses for this host, result to free() */
 
 #ifdef INET6
-struct addrinfo *find_inet_addr(char *host)
+struct addrinfo *
+find_inet_addr(char *host)
 {
     struct addrinfo hints, *res;
 
@@ -113,7 +115,8 @@ struct addrinfo *find_inet_addr(char *host)
     return (res);
 }
 #else
-struct hostent *find_inet_addr(char *host)
+struct hostent *
+find_inet_addr(char *host)
 {
     struct in_addr addr;
     struct hostent *hp;
@@ -158,7 +161,8 @@ struct hostent *find_inet_addr(char *host)
 
 /* check_dns - give each address thorough workout, return address count */
 
-int     check_dns(char *host)
+int
+check_dns(char *host)
 {
     struct request_info request;
 #ifdef INET6
@@ -211,7 +215,8 @@ int     check_dns(char *host)
 
 /* ARGSUSED */
 
-void    shell_cmd(char *command)
+void
+shell_cmd(char *command)
 {
     if (hosts_access_verbose)
 	printf("command: %s", command);
@@ -221,14 +226,16 @@ void    shell_cmd(char *command)
 
 /* ARGSUSED */
 
-void    clean_exit(struct request_info *request)
+void
+clean_exit(struct request_info *request)
 {
     exit(0);
 }
 
 /* check_path - examine accessibility */
 
-int     check_path(char *path, struct stat *st)
+int
+check_path(char *path, struct stat *st)
 {
     struct stat stbuf;
     char    buf[BUFSIZ];
