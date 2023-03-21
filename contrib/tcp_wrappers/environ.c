@@ -37,7 +37,8 @@ static int allocated = 0;		/* environ is, or is not, allocated */
 
 /* namelength - determine length of name in "name=whatever" */
 
-static int namelength(char *name)
+static int
+namelength(char *name)
 {
     char   *equal;
 
@@ -47,7 +48,8 @@ static int namelength(char *name)
 
 /* findenv - given name, locate name=value */
 
-static char **findenv(char *name, int len)
+static char **
+findenv(char *name, int len)
 {
     char  **envp;
 
@@ -59,7 +61,8 @@ static char **findenv(char *name, int len)
 
 /* getenv - given name, locate value */
 
-char   *getenv(char *name)
+char *
+getenv(char *name)
 {
     int     len = namelength(name);
     char  **envp = findenv(name, len);
@@ -69,7 +72,8 @@ char   *getenv(char *name)
 
 /* putenv - update or append environment (name,value) pair */
 
-int     putenv(char *nameval)
+int
+putenv(char *nameval)
 {
     char   *equal = strchr(nameval, '=');
     char   *value = (equal ? equal : "");
@@ -79,7 +83,8 @@ int     putenv(char *nameval)
 
 /* unsetenv - remove variable from environment */
 
-void    unsetenv(char *name)
+void
+unsetenv(char *name)
 {
     char  **envp;
 
@@ -90,7 +95,8 @@ void    unsetenv(char *name)
 
 /* setenv - update or append environment (name,value) pair */
 
-int     setenv(char *name, char *value, int clobber)
+int
+setenv(char *name, char *value, int clobber)
 {
     char   *destination;
     char  **envp;
@@ -124,7 +130,8 @@ int     setenv(char *name, char *value, int clobber)
 
 /* cmalloc - malloc and copy block of memory */
 
-static char *cmalloc(int new_len, char *old, int old_len)
+static char
+*cmalloc(int new_len, char *old, int old_len)
 {
     char   *new = malloc(new_len);
 
@@ -135,7 +142,8 @@ static char *cmalloc(int new_len, char *old, int old_len)
 
 /* addenv - append environment entry */
 
-static int addenv(char *nameval)
+static int
+addenv(char *nameval)
 {
     char  **envp;
     int     n_used;			/* number of environment entries */
@@ -170,7 +178,8 @@ static int addenv(char *nameval)
 
 /* printenv - display environment */
 
-static void printenv()
+static void
+printenv()
 {
     char  **envp;
 
@@ -178,7 +187,8 @@ static void printenv()
 	printf("%s\n", *envp);
 }
 
-int     main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
     char   *cp;
     int     changed = 0;
