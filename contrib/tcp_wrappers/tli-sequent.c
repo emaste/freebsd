@@ -48,7 +48,8 @@ static void tli_sink();
 
 /* tli_host - determine endpoint info */
 
-int     tli_host(struct request_info *request)
+int
+tli_host(struct request_info *request)
 {
     static struct sockaddr_in client;
     static struct sockaddr_in server;
@@ -143,7 +144,8 @@ int     tli_host(struct request_info *request)
 
 /* tli_error - convert tli error number to text */
 
-static char *tli_error(void)
+static char *
+tli_error(void)
 {
     static char buf[40];
 
@@ -166,7 +168,8 @@ static char *tli_error(void)
 
 /* tli_sink - absorb unreceived datagram */
 
-static void tli_sink(int fd)
+static void
+tli_sink(int fd)
 {
     struct t_unitdata *unit;
     int     flags;
