@@ -17,14 +17,16 @@ static char sccsid[] = "@(#) fakelog.c 1.3 94/12/28 17:42:21";
 
 /* ARGSUSED */
 
-void openlog(char *name, int logopt, int facility)
+void
+openlog(char *name, int logopt, int facility)
 {
     /* void */
 }
 
 /* vsyslog - format one record */
 
-void vsyslog(int severity, char *fmt, va_list ap)
+void
+vsyslog(int severity, char *fmt, va_list ap)
 {
     char    buf[BUFSIZ];
 
@@ -50,7 +52,8 @@ void VARARGS(syslog, int, severity)
 
 /* closelog - dummy */
 
-void closelog()
+void
+closelog()
 {
     /* void */
 }

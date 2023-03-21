@@ -133,7 +133,8 @@ main(int argc, char **argv)
 
 /* perror_exit - report system error text and terminate */
 
-void    perror_exit(char *text)
+void
+perror_exit(char *text)
 {
     perror(text);
     exit(1);
@@ -141,7 +142,8 @@ void    perror_exit(char *text)
 
 /* pipe_stdin - pipe stdin through program (from my ANSI to OLD C converter) */
 
-int     pipe_stdin(char **argv)
+int
+pipe_stdin(char **argv)
 {
     int     pipefds[2];
     int     pid;
