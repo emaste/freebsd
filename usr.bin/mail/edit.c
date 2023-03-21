@@ -53,8 +53,9 @@ editor(void *msgvec)
  * Invoke the visual editor on a message list.
  */
 int
-visual(void *msgvec)
+visual(void *arg)
 {
+	int *msgvec = arg;
 
 	return (edit1(msgvec, 'v'));
 }
