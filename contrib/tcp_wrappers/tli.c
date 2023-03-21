@@ -63,7 +63,8 @@ static void tli_sink();
 
 /* tli_host - look up endpoint addresses and install conversion methods */
 
-void    tli_host(struct request_info *request)
+void
+tli_host(struct request_info *request)
 {
 #ifdef INET6
     static struct sockaddr_storage client;
@@ -117,7 +118,8 @@ void    tli_host(struct request_info *request)
 
 /* tli_cleanup - cleanup some dynamically-allocated data structures */
 
-static void tli_cleanup(struct request_info *request)
+static void
+tli_cleanup(struct request_info *request)
 {
     if (request->config != 0)
 	freenetconfigent(request->config);
@@ -129,7 +131,8 @@ static void tli_cleanup(struct request_info *request)
 
 /* tli_endpoints - determine TLI client and server endpoint information */
 
-static void tli_endpoints(struct request_info *request)
+static void
+tli_endpoints(struct request_info *request)
 {
     struct t_unitdata *server;
     struct t_unitdata *client;
@@ -182,7 +185,8 @@ static void tli_endpoints(struct request_info *request)
 
 /* tli_transport - find out TLI transport type */
 
-static struct netconfig *tli_transport(int fd)
+static struct netconfig *
+tli_transport(int fd)
 {
     struct stat from_client;
     struct stat from_config;
@@ -236,7 +240,8 @@ static struct netconfig *tli_transport(int fd)
 
 /* tli_hostaddr - map TLI transport address to printable address */
 
-static void tli_hostaddr(struct host_info *host)
+static void
+tli_hostaddr(struct host_info *host)
 {
     struct request_info *request = host->request;
     struct netconfig *config = request->config;
@@ -252,7 +257,8 @@ static void tli_hostaddr(struct host_info *host)
 
 /* tli_hostname - map TLI transport address to hostname */
 
-static void tli_hostname(struct host_info *host)
+static void
+tli_hostname(struct host_info *host)
 {
     struct request_info *request = host->request;
     struct netconfig *config = request->config;
@@ -317,7 +323,8 @@ static void tli_hostname(struct host_info *host)
 
 /* tli_error - convert tli error number to text */
 
-static char *tli_error()
+static char *
+tli_error()
 {
     static char buf[40];
 
@@ -340,7 +347,8 @@ static char *tli_error()
 
 /* tli_sink - absorb unreceived datagram */
 
-static void tli_sink(int fd)
+static void
+tli_sink(int fd)
 {
     struct t_unitdata *unit;
     int     flags;

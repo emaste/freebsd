@@ -32,11 +32,13 @@ extern void exit();
 
 /* Forward declarations. */
 
-static void do_child(char *command);
+static void
+do_child(char *command);
 
 /* shell_cmd - execute shell command */
 
-void    shell_cmd(char *command)
+void
+shell_cmd(char *command)
 {
     int     child_pid;
     int     wait_pid;
@@ -61,7 +63,8 @@ void    shell_cmd(char *command)
 
 /* do_child - exec command with { stdin, stdout, stderr } to /dev/null */
 
-static void do_child(char *command)
+static void
+do_child(char *command)
 {
     char   *error;
     int     tmp_fd;

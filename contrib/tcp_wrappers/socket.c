@@ -52,7 +52,8 @@ static void sock_sink(int);
   * that lack DNS-style trailing dot magic, such as local files or NIS maps.
   */
 
-static struct hostent *gethostbyname_dot(char *name)
+static struct hostent *
+gethostbyname_dot(char *name)
 {
     char    dot_name[MAXHOSTNAMELEN + 1];
 
@@ -74,7 +75,8 @@ static struct hostent *gethostbyname_dot(char *name)
 
 /* sock_host - look up endpoint addresses and install conversion methods */
 
-void    sock_host(struct request_info *request)
+void
+sock_host(struct request_info *request)
 {
 #ifdef INET6
     static struct sockaddr_storage client;
@@ -137,7 +139,8 @@ void    sock_host(struct request_info *request)
 
 /* sock_hostaddr - map endpoint address to printable form */
 
-void    sock_hostaddr(struct host_info *host)
+void
+sock_hostaddr(struct host_info *host)
 {
 #ifdef INET6
     struct sockaddr *sin = host->sin;
@@ -163,7 +166,8 @@ void    sock_hostaddr(struct host_info *host)
 
 /* sock_hostname - map endpoint address to host name */
 
-void    sock_hostname(struct host_info *host)
+void
+sock_hostname(struct host_info *host)
 {
 #ifdef INET6
     struct sockaddr *sin = host->sin;
@@ -402,7 +406,8 @@ void    sock_hostname(struct host_info *host)
 
 /* sock_sink - absorb unreceived IP datagram */
 
-static void sock_sink(int fd)
+static void
+sock_sink(int fd)
 {
     char    buf[BUFSIZ];
 #ifdef INET6
