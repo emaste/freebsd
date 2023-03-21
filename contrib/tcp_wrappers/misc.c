@@ -25,7 +25,8 @@ static char sccsic[] = "@(#) misc.c 1.2 96/02/11 17:01:29";
 
 /* xgets - fgets() with backslash-newline stripping */
 
-char   *xgets(char *ptr, int len, FILE *fp)
+char *
+xgets(char *ptr, int len, FILE *fp)
 {
     int     got;
     char   *start = ptr;
@@ -49,7 +50,8 @@ char   *xgets(char *ptr, int len, FILE *fp)
 
 /* split_at - break string at delimiter or return NULL */
 
-char   *split_at(char *string, int delimiter)
+char *
+split_at(char *string, int delimiter)
 {
     char   *cp;
 
@@ -82,7 +84,8 @@ char   *split_at(char *string, int delimiter)
 
 /* dot_quad_addr - convert dotted quad to internal form */
 
-unsigned long dot_quad_addr(char *str)
+unsigned long
+dot_quad_addr(char *str)
 {
     int     in_run = 0;
     int     runs = 0;
