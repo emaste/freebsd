@@ -89,7 +89,8 @@ static char *myname;
 static int allow_check;
 static char *inetcf;
 
-int     main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
     struct request_info request;
     struct stat st;
@@ -178,7 +179,8 @@ int     main(int argc, char **argv)
 
 /* usage - explain */
 
-static void usage(void)
+static void
+usage(void)
 {
     fprintf(stderr, "usage: %s [-a] [-d] [-i inet_conf] [-v]\n", myname);
     fprintf(stderr, "	-a: report rules with implicit \"ALLOW\" at end\n");
@@ -190,7 +192,8 @@ static void usage(void)
 
 /* parse_table - like table_match(), but examines _all_ entries */
 
-static void parse_table(char *table, struct request_info *request)
+static void
+parse_table(char *table, struct request_info *request)
 {
     FILE   *fp;
     int     real_verdict;
@@ -264,7 +267,8 @@ static void parse_table(char *table, struct request_info *request)
 
 /* print_list - pretty-print a list */
 
-static void print_list(char *title, char *list)
+static void
+print_list(char *title, char *list)
 {
     char    buf[BUFLEN];
     char   *cp;
@@ -284,7 +288,8 @@ static void print_list(char *title, char *list)
 
 /* check_daemon_list - criticize daemon list */
 
-static void check_daemon_list(char *list)
+static void
+check_daemon_list(char *list)
 {
     char    buf[BUFLEN];
     char   *cp;
@@ -311,7 +316,8 @@ static void check_daemon_list(char *list)
 
 /* check_client_list - criticize client list */
 
-static void check_client_list(char *list)
+static void
+check_client_list(char *list)
 {
     char    buf[BUFLEN];
     char   *cp;
@@ -339,7 +345,8 @@ static void check_client_list(char *list)
 
 /* check_daemon - criticize daemon pattern */
 
-static void check_daemon(char *pat)
+static void
+check_daemon(char *pat)
 {
     if (pat[0] == '@') {
 	tcpd_warn("%s: daemon name begins with \"@\"", pat);
@@ -372,7 +379,8 @@ static void check_daemon(char *pat)
 
 /* check_user - criticize user pattern */
 
-static void check_user(char *pat)
+static void
+check_user(char *pat)
 {
     if (pat[0] == '@') {			/* @netgroup */
 	tcpd_warn("%s: user name begins with \"@\"", pat);
@@ -394,7 +402,8 @@ static void check_user(char *pat)
 }
 
 #ifdef INET6
-static int is_inet6_addr(char *pat)
+static int
+is_inet6_addr(char *pat)
 {
     struct addrinfo hints, *res;
     int len, ret;
@@ -419,7 +428,8 @@ static int is_inet6_addr(char *pat)
 
 /* check_host - criticize host pattern */
 
-static int check_host(char *pat)
+static int
+check_host(char *pat)
 {
     char    buf[BUFSIZ];
     char   *mask;
@@ -503,7 +513,8 @@ static int check_host(char *pat)
 
 /* reserved_name - determine if name is reserved */
 
-static int reserved_name(char *pat)
+static int
+reserved_name(char *pat)
 {
     return (STR_EQ(pat, unknown)
 	    || STR_EQ(pat, "KNOWN")
