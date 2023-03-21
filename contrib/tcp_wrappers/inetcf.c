@@ -55,7 +55,8 @@ static char whitespace[] = " \t\r\n";
 
 /* inet_conf - read in and examine inetd.conf (or tlid.conf) entries */
 
-char   *inet_cfg(char *conf)
+char *
+inet_cfg(char *conf)
 {
     char    buf[BUFSIZ];
     FILE   *fp;
@@ -158,7 +159,8 @@ char   *inet_cfg(char *conf)
 
 /* inet_chk - examine one inetd.conf (tlid.conf?) entry */
 
-static void inet_chk(char *protocol, char *path, char *arg0, char *arg1)
+static void
+inet_chk(char *protocol, char *path, char *arg0, char *arg1)
 {
     char    daemon[BUFSIZ];
     struct stat st;
@@ -269,7 +271,8 @@ static void inet_chk(char *protocol, char *path, char *arg0, char *arg1)
 
 /* inet_set - remember service status */
 
-void    inet_set(char *name, int type)
+void
+inet_set(char *name, int type)
 {
     struct inet_ent *ip =
     (struct inet_ent *) malloc(sizeof(struct inet_ent) + strlen(name));
@@ -286,7 +289,8 @@ void    inet_set(char *name, int type)
 
 /* inet_get - look up service status */
 
-int     inet_get(char *name)
+int
+inet_get(char *name)
 {
     struct inet_ent *ip;
 
@@ -302,7 +306,8 @@ int     inet_get(char *name)
 
 /* base_name - compute last pathname component */
 
-static char *base_name(char *path)
+static char *
+base_name(char *path)
 {
     char   *cp;
 
