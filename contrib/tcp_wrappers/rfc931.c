@@ -44,7 +44,8 @@ static jmp_buf timebuf;
 
 /* fsocket - open stdio stream on top of socket */
 
-static FILE *fsocket(int domain, int type, int protocol)
+static FILE *
+fsocket(int domain, int type, int protocol)
 {
     int     s;
     FILE   *fp;
