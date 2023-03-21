@@ -43,11 +43,12 @@
  * and forking a sh -c
  */
 int
-shell(void *str)
+shell(void *arg)
 {
 	sig_t sigint = signal(SIGINT, SIG_IGN);
 	char *sh;
 	char cmd[BUFSIZ];
+	char *str = arg;
 
 	if (strlcpy(cmd, str, sizeof(cmd)) >= sizeof(cmd))
 		return (1);
@@ -66,7 +67,7 @@ shell(void *str)
  */
 /*ARGSUSED*/
 int
-dosh(void *str __unused)
+dosh(void *arg __unused)
 {
 	sig_t sigint = signal(SIGINT, SIG_IGN);
 	char *sh;
