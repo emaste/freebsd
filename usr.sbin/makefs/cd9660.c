@@ -689,7 +689,6 @@ cd9660_finalize_PVD(iso9660_disk *diskStructure)
 	cd9660_set_date(diskStructure->primaryDescriptor.expiration_date,
 	    tstamp);
 #endif
-
 	memset(diskStructure->primaryDescriptor.expiration_date, '0', 16);
 	diskStructure->primaryDescriptor.expiration_date[16] = 0;
 
