@@ -1602,8 +1602,8 @@ cd9660_level1_convert_filename(iso9660_disk *diskStructure, const char *oldname,
 
 			if (islower((unsigned char)*oldname))
 				*newname++ = toupper((unsigned char)*oldname);
-			else if (isupper((unsigned char)*oldname)
-			    || isdigit((unsigned char)*oldname))
+			else if (isupper((unsigned char)*oldname) ||
+			    isdigit((unsigned char)*oldname))
 				*newname++ = *oldname;
 			else
 				*newname++ = '_';
