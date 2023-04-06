@@ -93,7 +93,7 @@
 	howmany((__bytes), (__sector_size))
 
 #define CD9660_MEM_ALLOC_ERROR(_F)	\
-    err(EXIT_FAILURE, "%s, %s l. %d", _F, __FILE__, __LINE__)
+    err(1, "%s, %s l. %d", _F, __FILE__, __LINE__)
 
 #define CD9660_TYPE_FILE	0x01
 #define CD9660_TYPE_DIR		0x02
