@@ -1010,7 +1010,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	if (isfile) {
 		fbuf = emalloc(ffs_opts->bsize);
 		if ((ffd = open((char *)buf, O_RDONLY)) == -1) {
-			err(EXIT_FAILURE, "Can't open `%s' for reading", (char *)buf);
+			err(1, "Can't open `%s' for reading", (char *)buf);
 		}
 	} else {
 		p = buf;
@@ -1022,10 +1022,10 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 		if (!isfile)
 			;
 		else if ((nread = read(ffd, fbuf, chunk)) == -1)
-			err(EXIT_FAILURE, "Reading `%s', %lld bytes to go",
-			    (char *)buf, (long long)bufleft);
+			err(1, "Reading `%s', %lld bytes to go", (char *)buf,
+			    (long long)bufleft);
 		else if (nread != chunk)
-			errx(EXIT_FAILURE, "Reading `%s', %lld bytes to go, "
+			errx(1, "Reading `%s', %lld bytes to go, "
 			    "read %zd bytes, expected %ju bytes, does "
 			    "metalog size= attribute mismatch source size?",
 			    (char *)buf, (long long)bufleft, nread,
