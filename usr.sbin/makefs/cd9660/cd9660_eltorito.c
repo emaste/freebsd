@@ -128,8 +128,7 @@ cd9660_add_boot_disk(iso9660_disk *diskStructure, const char *boot_info)
 
 	/* Get information about the file */
 	if (lstat(new_image->filename, &stbuf) == -1)
-		err(EXIT_FAILURE, "%s: lstat(\"%s\")", __func__,
-		    new_image->filename);
+		err(1, "%s: lstat(\"%s\")", __func__, new_image->filename);
 
 	switch (stbuf.st_size) {
 	case 1440 * 1024:
@@ -207,7 +206,7 @@ cd9660_eltorito_add_boot_option(iso9660_disk *diskStructure,
 			break;
 	}
 	if (image == NULL)
-		errx(EXIT_FAILURE, "Attempted to add boot option, "
+		errx(1, "Attempted to add boot option, "
 		    "but no boot images have been specified");
 
 	if (strcmp(option_string, "no-emul-boot") == 0) {
