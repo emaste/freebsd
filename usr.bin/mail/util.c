@@ -262,7 +262,6 @@ source(void *arg)
 	char **arglist = arg;
 	FILE *fi;
 	char *cp;
-	char **arglist = arg;
 
 	if ((cp = expand(*arglist)) == NULL)
 		return (1);
