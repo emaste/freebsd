@@ -330,43 +330,6 @@ __int64_t
 __uint64_t
 	 strtouq(const char *, char **, int);
 
-/*
- * In FreeBSD 14, the prototype of qsort_r() was modified to comply with
- * POSIX.  The standardized qsort_r()'s order of last two parameters was
- * changed, and the comparator function is now taking thunk as its last
- * parameter, and both are different from the ones expected by the historical
- * FreeBSD qsort_r() interface.
- *
- * Apply a workaround where we explicitly link against the historical interface,
- * qsort_r@FBSD_1.0, in case when qsort_r() is called with the last parameter
- * with a function pointer that exactly matches the historical FreeBSD qsort_r()
- * comparator signature, so applications written for the historical interface
- * can continue to work without modification. Toolchains that don't support
- * symbol versioning don't define __sym_compat, so only provide this symbol in
- * supported environments.
- */
-#ifdef __sym_compat
-#if defined(__generic) || defined(__cplusplus)
-void __qsort_r_compat(void *, size_t, size_t, void *,
-	    int (*)(void *, const void *, const void *));
-__sym_compat(qsort_r, __qsort_r_compat, FBSD_1.0);
-#endif
-#endif
-#if defined(__generic) && !defined(__cplusplus)
-#define	qsort_r(base, nel, width, arg4, arg5)				\
-    __generic(arg5, int (*)(void *, const void *, const void *),	\
-        __qsort_r_compat, qsort_r)(base, nel, width, arg4, arg5)
-#elif defined(__cplusplus) && defined(__sym_compat)
-__END_DECLS
-extern "C++" {
-static inline void qsort_r(void *base, size_t nmemb, size_t size,
-    void *thunk, int (*compar)(void *, const void *, const void *)) {
-	__qsort_r_compat(base, nmemb, size, thunk, compar);
-}
-}
-__BEGIN_DECLS
-#endif
-
 extern char *suboptarg;			/* getsubopt(3) external variable */
 #endif /* __BSD_VISIBLE */
 
