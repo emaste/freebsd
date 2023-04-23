@@ -56,7 +56,7 @@ Do not create or symlink files.
 .It Fl r
 Reinstall the zoneinfo file installed last time.
 The name is obtained from
-.Pa /etc/timezone .
+.Pa /var/db/zoneinfo .
 .It Fl s
 Skip the initial question about adjusting the clock if not set to UTC.
 .Nm
@@ -105,8 +105,6 @@ current time zone file
 .It Pa /etc/wall_cmos_clock
 see
 .Xr adjkerntz 8
-.It Pa /etc/timezone
-saved name of the timezone file installed last
 .It Pa /usr/share/misc/iso3166
 mapping of ISO 3166 territory codes to names
 .It Pa /usr/share/zoneinfo
@@ -114,7 +112,7 @@ directory for zoneinfo files
 .It Pa /usr/share/zoneinfo/zone1970.tab
 mapping of timezone file to country and location
 .It Pa /var/db/zoneinfo
-legacy path for saved timezone name
+saved name of the timezone file installed last
 .El
 .Sh EXAMPLES
 Normal usage, to select the right zoneinfo file via the dialog-based
@@ -134,7 +132,7 @@ Install the zoneinfo file for Australia/Sydney, assumed to be located in
 .Pp
 After a reinstall of the zoneinfo files, you can reinstall the
 latest installed zoneinfo file (as specified in
-.Pa /etc/timezone ) :
+.Pa /var/db/zoneinfo ) :
 .Pp
 .Dl "# tzsetup -r"
 .Sh SEE ALSO
