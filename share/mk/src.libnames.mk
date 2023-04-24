@@ -31,6 +31,7 @@ _PRIVATELIBS=	\
 		ldns \
 		sqlite3 \
 		ssh \
+		ssl \
 		ucl \
 		unbound \
 		zstd
@@ -198,7 +199,6 @@ _LIBRARIES=	\
 		sm \
 		smb \
 		spl \
-		ssl \
 		ssp_nonshared \
 		stats \
 		stdthreads \

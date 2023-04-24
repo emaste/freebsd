@@ -3,6 +3,7 @@
 .include <src.opts.mk>
 
 LIB=		ssl
+PRIVATELIB=	true
 SHLIB_MAJOR=	111
 VERSION_MAP=	${.CURDIR}/Version.map
 PACKAGE=	openssl
