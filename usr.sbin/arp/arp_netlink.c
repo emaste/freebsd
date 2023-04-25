@@ -409,7 +409,7 @@ set_nl(uint32_t ifindex, struct sockaddr_in *dst, struct sockaddr_dl *sdl, char 
 	}
 	snl_add_msg_attr_ip(&nw, NDA_DST, (struct sockaddr *)dst);
 	snl_add_msg_attr(&nw, NDA_LLADDR, sdl->sdl_alen, LLADDR(sdl));
-	
+
 	if (opts.expire_time != 0) {
 		struct timeval now;
 
