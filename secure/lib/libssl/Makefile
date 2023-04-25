@@ -10,8 +10,6 @@ PACKAGE=	openssl
 
 NO_LINT=
 
-PCFILES=	libssl.pc openssl.pc
-
 .include "../libcrypto/Makefile.inc"
 
 SRCS=	bio_ssl.c d1_lib.c d1_msg.c d1_srtp.c methods.c packet.c pqueue.c

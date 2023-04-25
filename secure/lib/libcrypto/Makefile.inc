@@ -113,9 +113,3 @@ CFLAGS+=	-DENGINESDIR="\"${LIBDIR}/engines\""
 CFLAGS+=	-DNDEBUG
 
 MANDIR=		${SHAREDIR}/openssl/man/man
-
-.for pcfile in ${PCFILES}
-${pcfile}:	${pcfile}.in
-	sed -e 's,@openssl_ver@,${OPENSSL_VER},g' ${.ALLSRC} > ${.TARGET}
-.endfor
-CLEANFILES+=	${PCFILES}
