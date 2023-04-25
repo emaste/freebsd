@@ -19,6 +19,7 @@ _PRIVATELIBS=	\
 		bsddialog \
 		bsdstat \
 		cbor \
+		crypto \
 		devdctl \
 		event1 \
 		fido2 \
@@ -122,7 +123,6 @@ _LIBRARIES=	\
 		com_err \
 		compiler_rt \
 		crypt \
-		crypto \
 		ctf \
 		cuse \
 		cxxrt \

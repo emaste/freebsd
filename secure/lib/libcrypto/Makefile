@@ -8,6 +8,7 @@ SUBDIR=		engines
 
 PACKAGE=	openssl
 LIB=		crypto
+PRIVATELIB=	true
 SHLIB_MAJOR=	111
 VERSION_MAP=	${.CURDIR}/Version.map
 

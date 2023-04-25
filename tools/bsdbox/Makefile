@@ -102,7 +102,7 @@ CRUNCH_LIBS+= -lm
 .include "Makefile.kld"
 .include "Makefile.fs"
 
-CRUNCH_LIBS+= -lcrypto -lprivatessl -lz
+CRUNCH_LIBS+= -lprivatecrypto -lprivatessl -lz
 
 # the crunchgen build environment
 .include <bsd.crunchgen.mk>

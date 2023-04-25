@@ -28,4 +28,4 @@ CRUNCH_PROGS_usr.sbin+=	wlandebug
 
 # tcpdump
 CRUNCH_PROGS_usr.sbin+=	tcpdump
-# CRUNCH_LIBS+=	-lpcap -lcrypto
+# CRUNCH_LIBS+=	-lpcap -lprivatecrypto

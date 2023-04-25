@@ -225,7 +225,7 @@ CRUNCH_LIBS+=	-lfetch
 CRUNCH_PROGS_usr.bin+= tar
 CRUNCH_LIBS+= -larchive
 .if ${MK_OPENSSL} != "no"
-CRUNCH_LIBS+= -lprivatessl -lcrypto
+CRUNCH_LIBS+= -lprivatessl -lprivatecrypto
 .endif
 CRUNCH_LIBS+= -lmd
 
