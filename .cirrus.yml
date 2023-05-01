@@ -48,8 +48,9 @@ task:
   script:
   - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} buildworld buildkernel"
 
-  package_script:
-  - su user -c "make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} packages"
+  release_script:
+  - cd release
+  - su user -c "make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} release"
 
   package_check_script:
   - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage/METALOG"
