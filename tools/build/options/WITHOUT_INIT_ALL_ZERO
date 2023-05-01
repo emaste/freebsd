@@ -1,0 +1,2 @@
+Do not build the base system or kernel with stack variables initialized
+to zero on function entry.
