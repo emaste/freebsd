@@ -24,6 +24,7 @@
 #  NOPKG:    if set, do not distribute third-party packages
 #  NOPORTS:  if set, do not distribute ports tree
 #  NOSRC:    if set, do not distribute source tree
+#  WITH_PKGBASE: build pkgbase packages in addition to other artifacts
 #  WITH_DVD: if set, generate dvd1.iso
 #  WITH_COMPRESSED_IMAGES: if set, compress installation images with xz(1)
 #		(uncompressed images are not removed)
@@ -287,6 +288,13 @@ mini-memstick: mini-memstick.img
 mini-memstick.img: bootonly
 	cd bootonly && sh ${.CURDIR}/${TARGET}/make-memstick.sh .${NO_ROOT:D/METALOG} ../${.TARGET}
 
+packagebase:
+	make packages
+	touch ${.TARGET}
+
+.if defined(WITH_PKGBASE)
+packagesystem: packagebase
+.endif
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	sh ${.CURDIR}/scripts/make-manifest.sh *.txz > MANIFEST
 	touch ${.TARGET}
