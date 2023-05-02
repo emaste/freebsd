@@ -383,6 +383,8 @@ _REDUNDANT_LIB_DIRS+=    ${LOCAL_LIB_DIRS:M${_DIR}*}
 SUBDIR+=	${_DIR}
 .endif
 .endfor
+# XXX why NO_ROOT here -- is it because NO_ROOT implies we must not be
+# installing on top of an existing tree that may be in use?
 .if !defined(NO_ROOT) && (make(installworld) || make(install))
 # Ensure libraries are installed before progressing.
 SUBDIR+=.WAIT
