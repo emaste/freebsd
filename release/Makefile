@@ -292,7 +292,7 @@ mini-memstick.img: bootonly
 	cd bootonly && sh ${.CURDIR}/${TARGET}/make-memstick.sh .${NO_ROOT:D/METALOG} ../${.TARGET}
 
 packagebase:
-	make packages
+	cd ${WORLDDIR} && ${IMAKE} packages
 	touch ${.TARGET}
 
 .if defined(WITH_PKGBASE)
