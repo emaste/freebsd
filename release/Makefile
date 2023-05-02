@@ -51,7 +51,7 @@ TARGET_ARCH=	${MACHINE_ARCH}
 TARGET_ARCH=	${TARGET}
 .endif
 .endif
-IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
+IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET} ${NO_ROOT:D-NO_ROOT}
 DISTDIR=	dist
 
 # Define OSRELEASE by using newvers.sh
@@ -329,7 +329,7 @@ release-done:
 
 real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
-	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${NO_ROOT:D-DNO_ROOT} ${RELEASE_TARGETS}
 
 install:	release-install vm-install
 
