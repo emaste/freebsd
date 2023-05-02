@@ -50,7 +50,7 @@ task:
 
   release_script:
   - cd release
-  - su user -c "make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} release"
+  - make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} release
 
   package_check_script:
   - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage/METALOG"
