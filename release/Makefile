@@ -35,6 +35,9 @@
 #  TARGET/TARGET_ARCH: architecture of built release
 #
 
+# Force non-root build
+NO_ROOT=	true
+
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 
