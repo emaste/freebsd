@@ -53,7 +53,7 @@ task:
   - make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} release
 
   package_check_script:
-  - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage/METALOG"
+  - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/release/dist/METALOG"
 
   test_script:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11
