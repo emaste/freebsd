@@ -52,6 +52,9 @@ task:
   - cd release
   - make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} release
 
+  find_repo:
+  - find /usr/obj -name 'meta.*' -o -name 'packagesite.*'
+
   package_check_script:
   - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/release/dist/METALOG"
 
