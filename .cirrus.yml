@@ -50,7 +50,7 @@ task:
 
   release_script:
   - cd release
-  - make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITH_PKGBASE=yes release
+  - make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITH_PKGBASE=yes ftp
 
   find_repo:
   - find /usr/obj -name 'meta.*' -o -name 'packagesite.*'
