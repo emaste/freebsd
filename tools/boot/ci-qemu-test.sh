@@ -56,7 +56,7 @@ EOF
 #!/bin/sh
 
 echo "Hello world."
-/sbin/sysctl vm.stats.vm.v_wire_count
+/sbin/sysctl vm
 /sbin/shutdown -p now
 EOF
 
