@@ -10234,11 +10234,6 @@ Date:   Wed Oct 19 11:04:49 2011 +0000
     Current state of art is to not virtualize these kinds of locks -
     inp_group/hash/info/.. are all not virtualized either.
     
-    MFC after:      3 days
-
-Notes:
-    svn path=/head/; revision=226536
-
 commit 232ec0c97d4916ece1e1eb1280de1f03f0850002
 Author: Bjoern A. Zeeb <bz@FreeBSD.org>
 Date:   Wed Oct 19 10:16:42 2011 +0000
@@ -10257,11 +10252,6 @@ Date:   Wed Oct 19 10:08:58 2011 +0000
 
     In the non-FreeBSD case we do not expect PF_LOCK and friends to do anything.
     
-    MFC after:      3 days
-
-Notes:
-    svn path=/head/; revision=226533
-
 commit 5b63183446a76b08d5a371e278dfdf3505cd253a
 Author: Bjoern A. Zeeb <bz@FreeBSD.org>
 Date:   Wed Oct 19 10:04:24 2011 +0000
@@ -10316,11 +10306,6 @@ Date:   Wed Oct 19 08:37:48 2011 +0000
     Fix indentation in a loop and a tiny maze of #ifdefs for just the
     __FreeBSD__ parts that had it wrong.
     
-    MFC after:      3 days
-
-Notes:
-    svn path=/head/; revision=226527
-
 commit c5378361a316ce0e3054c3a7d0c39cb0556e7767
 Author: Bjoern A. Zeeb <bz@FreeBSD.org>
 Date:   Thu Aug 25 09:38:33 2011 +0000
@@ -10328,24 +10313,12 @@ Date:   Thu Aug 25 09:38:33 2011 +0000
     Use the correct byte order for the ip_divert(4) mbuf tag port meta
     information in pf(4).
     
-    Submitted by:   Yaocl (chunlinyao gmail.com), forum post 145106
-    Approved by:    re (kib)
-
-Notes:
-    svn path=/head/; revision=225171
-
 commit a6bab2362ea6963901884bf0929c54a001e79d8b
 Author: Sergey Kandaurov <pluknet@FreeBSD.org>
 Date:   Wed Aug 17 13:02:50 2011 +0000
 
     Fix build failure without BPF.
     
-    Reported by:    deeptech71 at gmail dot com
-    Approved by:    re (kib)
-
-Notes:
-    svn path=/head/; revision=224936
-
 commit e0bfbfce7922dd3c28eb072b599c6bb8f65f039e
 Merge: e6df989fe417 739de636d7c9
 Author: Bjoern A. Zeeb <bz@FreeBSD.org>
@@ -10355,12 +10328,20 @@ Date:   Tue Jun 28 11:57:25 2011 +0000
     
     You need to update userland (world and ports) tools
     to be in sync with the kernel.
-    
-    Submitted by:   mlaier
-    Submitted by:   eri
 
-Notes:
-    svn path=/head/; revision=223637
+> OpenBSD 4.5 released 2009-05-01
+> Appears to match:
+> commit 88e5d32272316fb378df27722dede00c87240a0a
+> Author: gollo <gollo@openbsd.org>
+> Date:   Fri Feb 27 11:09:36 2009 +0000
+> 
+>     fix mbuf problems and simplify code, well spotted and input by
+>     Alexander Sabourenkov. mbuf logic is based on claudio's recommendation
+>     
+>     Tested by Alexander Sabourenkov
+>     
+>     OK: henning@, claudio@
+>     Theo: "In please..."
 
 commit d3c1f00350b5323c94b4d5a525cfc9d2be7b3547
 Author: Robert Watson <rwatson@FreeBSD.org>
@@ -13223,9 +13204,6 @@ Date:   Sun Apr 11 17:28:22 2004 +0000
     
      Fixes PR 3724
 
-Notes:
-    svn path=/vendor-sys/pf/dist/; revision=128127
-
 commit eaa7035b13ba257afcefcc200e6071581b3ddb92
 Author: Max Laier <mlaier@FreeBSD.org>
 Date:   Tue Mar 30 18:28:30 2004 +0000
@@ -13235,11 +13213,6 @@ Date:   Tue Mar 30 18:28:30 2004 +0000
     a some implicit asserts involved which might be better spelled out
     explicitly (af == AF_INET ...)
     
-    Approved by:    bms(mentor)
-
-Notes:
-    svn path=/head/; revision=127629
-
 commit cf5011b74ac676652ce6f93f903a8f74ed32b701
 Author: Max Laier <mlaier@FreeBSD.org>
 Date:   Sun Mar 28 20:04:12 2004 +0000
@@ -13252,11 +13225,6 @@ Date:   Sun Mar 28 20:04:12 2004 +0000
     - Fix a problem related to empty anchor rulesets, which could cause a kernel
       panic.
     
-    Approved by:    bms(mentor)
-
-Notes:
-    svn path=/head/; revision=127531
-
 commit b855d39384634ebd5d730f9576428ff8914294b7
 Author: Max Laier <mlaier@FreeBSD.org>
 Date:   Sun Mar 28 19:31:37 2004 +0000
@@ -13268,12 +13236,6 @@ Date:   Sun Mar 28 19:31:37 2004 +0000
     
     - Fix a problem related to empty anchor rulesets, which could cause a kernel
       panic.
-    
-    Approved by:    bms(mentor)
-
-Notes:
-    svn path=/vendor-sys/pf/dist/; revision=127528
-    svn path=/vendor-sys/pf/3.4.001/; revision=127529; tag=vendor/pf-sys/3.4.001
 
 commit cc7e9022768010fa3c03c5b84cc387ff88c66240
 Author: Max Laier <mlaier@FreeBSD.org>
@@ -13284,24 +13246,12 @@ Date:   Wed Mar 17 21:11:02 2004 +0000
     Also set HOOK_HACK to true (remove the related #ifdef's) as we have the
     hooks in the kernel this was missed during the merge from the port.
     
-    Noticed by:     Amir S. (for the HOOK_HACK part)
-    Approved by:    bms(mentor)
-
-Notes:
-    svn path=/head/; revision=127145
-
 commit 7b3832e8d6584565e2023b34533d1a12c2681232
 Author: Max Laier <mlaier@FreeBSD.org>
 Date:   Wed Mar 10 15:08:21 2004 +0000
 
     Remove `$Name$' leftovers from the port version reporting.
     
-    Noticed by:     Craig Rodrigues
-    Approved by:    bms(mentor)
-
-Notes:
-    svn path=/head/; revision=126812
-
 commit 01315efca3f597ef662769d7af23b0787c44587d
 Author: Max Laier <mlaier@FreeBSD.org>
 Date:   Sun Feb 29 16:34:43 2004 +0000
@@ -13310,11 +13260,6 @@ Date:   Sun Feb 29 16:34:43 2004 +0000
     LINT. This fixes LINT compliation for now, but needs to be revised.
     Changes do not affect the objects.
     
-    Approved by:    bms(mentor)
-
-Notes:
-    svn path=/head/; revision=126409
-
 commit cc5934f5afcc7d243b43ff83f093676556c2488d
 Author: Max Laier <mlaier@FreeBSD.org>
 Date:   Thu Feb 26 03:53:54 2004 +0000
@@ -13323,11 +13268,6 @@ Date:   Thu Feb 26 03:53:54 2004 +0000
     pf/pflog/pfsync as modules. Do not list them in NOTES or modules/Makefile
     (i.e. do not connect it to any (automatic) builds - yet).
     
-    Approved by: bms(mentor)
-
-Notes:
-    svn path=/head/; revision=126263
-
 commit 2bbe8ffc9d0ed0a0795c6e4af4b11f4c7be49421
 Author: Max Laier <mlaier@FreeBSD.org>
 Date:   Thu Feb 26 02:34:12 2004 +0000
@@ -13342,19 +13282,10 @@ Date:   Thu Feb 26 02:34:12 2004 +0000
      - conversion from pool(9) to zone(9)
      - api differences etc.
     
-    Approved by: bms(mentor) (in general)
-
-Notes:
-    svn path=/head/; revision=126261
-
 commit 5c45a928b95416a77855a8da21bad4df8f60e7a0
 Author: Max Laier <mlaier@FreeBSD.org>
 Date:   Thu Feb 26 02:04:28 2004 +0000
 
     Vendor import of OpenBSD's packet filter (pf) as of OpenBSD 3.4
-    
-    Approved by: bms(mentor), core (in general)
 
-Notes:
-    svn path=/vendor-sys/pf/dist/; revision=126258
-    svn path=/vendor-sys/pf/3.4/; revision=126260; tag=vendor/pf-sys/3.4
+> OpenBSD 3.4 released 2003-11-01
