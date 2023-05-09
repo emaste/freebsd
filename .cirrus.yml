@@ -172,6 +172,9 @@ task:
   package_check_script:
   - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/stage/METALOG"
 
+  cat_metalog_script:
+  - cat /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/stage/METALOG
+
   test_script:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11
   - sh tools/boot/ci-qemu-test.sh
