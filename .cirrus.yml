@@ -169,6 +169,9 @@ task:
   package_script:
   - su user -c "make -j$(nproc) WITHOUT_TOOLCHAIN=yes packages"
 
+  cat_metalog_script:
+  - cat /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/stage/METALOG
+
   test_script:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11
   - sh tools/boot/ci-qemu-test.sh
