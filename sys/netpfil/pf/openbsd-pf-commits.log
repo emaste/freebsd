@@ -4628,6 +4628,8 @@ Date:   Wed Jul 12 14:07:55 2017 +0000
  sys/net/pf_lb.c | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
 
+> 7f3ad01804c439cedb33d3da7539060c2dd1bb97
+
 commit 86fe1d66a50e2baa40972cae1abf0b1cfcd7a0da
 Author: bluhm <bluhm@openbsd.org>
 Date:   Wed Jul 5 11:40:17 2017 +0000
@@ -5219,6 +5221,8 @@ Date:   Thu Mar 9 05:47:28 2017 +0000
 
  sys/net/pf.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+> 5b551954ab0c94bd17a4405183a5a3dfd4370751
 
 commit 74313de8d2a52ac56876326221d64472de587b53
 Author: mikeb <mikeb@openbsd.org>
@@ -10477,6 +10481,8 @@ Date:   Fri Nov 25 12:52:10 2011 +0000
  sys/net/pf_norm.c   | 4 ++--
  4 files changed, 10 insertions(+), 10 deletions(-)
 
+> 2662e31fc3e2add106ed0e8fae9993fcc8ce66a9
+
 commit ccdf19f34912ba5ba7e1164e4842e32c4e8f5dde
 Author: mikeb <mikeb@openbsd.org>
 Date:   Wed Nov 16 11:59:28 2011 +0000
@@ -10515,6 +10521,8 @@ Date:   Wed Nov 9 12:36:03 2011 +0000
  sys/net/if_pfsync.c | 23 +++++++++++------------
  1 file changed, 11 insertions(+), 12 deletions(-)
 
+> 07b6b55dce035842b2b25d60e4424046d52bb811
+
 commit 143f2191c593bce7b1c27357f84b44e74d6076dd
 Author: mikeb <mikeb@openbsd.org>
 Date:   Fri Nov 4 22:11:11 2011 +0000
@@ -10535,6 +10543,8 @@ Date:   Mon Oct 31 22:02:52 2011 +0000
  sys/net/if_pfsync.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
 
+> e3b670692add9964eacc62e6d3d88e6315bb2a1e
+
 commit 8ded9df8bfda2690ec52ca594adc147bdf4a5e08
 Author: mikeb <mikeb@openbsd.org>
 Date:   Sun Oct 30 23:04:38 2011 +0000
@@ -10545,6 +10555,8 @@ Date:   Sun Oct 30 23:04:38 2011 +0000
 
  sys/net/if_pfsync.c | 13 ++++++-------
  1 file changed, 6 insertions(+), 7 deletions(-)
+
+> dabfce9a5a40b4733c79f8421c42856b98d0409b
 
 commit ed06a821bcd3dce713e2b7279b03d966ec0cbc62
 Author: mikeb <mikeb@openbsd.org>
@@ -11700,6 +11712,8 @@ Date:   Mon Feb 14 11:01:36 2011 +0000
  sys/net/pf.c | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
 
+> 0df377cbb8747aee4e6460e16fa41ce84ad34e00
+
 commit 49528bd570d1579cf001fd60ffff9e91d3d719ce
 Author: bluhm <bluhm@openbsd.org>
 Date:   Sun Feb 6 23:12:12 2011 +0000
@@ -11895,6 +11909,8 @@ Date:   Fri Dec 24 20:12:56 2010 +0000
 
  sys/net/pf.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+> 40874f18de0027b8ae8bf303f98a278ef6c69bb7
 
 commit 04523091a16553628956e63cc3d1b31f792bdfe6
 Author: claudio <claudio@openbsd.org>
@@ -12594,6 +12610,8 @@ Date:   Wed May 12 08:11:11 2010 +0000
  sys/net/if_pfsync.c | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
 
+> 0e2fe5f990c2ae034a5175cfc3048af7294eaad5
+
 commit 8e084c5af5dafc76eaa2d2f07be860e6c6a856f4
 Author: claudio <claudio@openbsd.org>
 Date:   Fri May 7 13:33:16 2010 +0000
@@ -12699,6 +12717,8 @@ Date:   Thu Feb 4 14:10:12 2010 +0000
  sys/net/pf.c    | 18 +++++++++++++-----
  sys/net/pf_lb.c | 43 ++++++++++++++++++++++++-------------------
  2 files changed, 37 insertions(+), 24 deletions(-)
+
+> 8fc6e19c2cb11354b05d5d53798f487e79724012
 
 commit 0d704094c639d14cdadf716f65878a8a39db8b8f
 Author: mcbride <mcbride@openbsd.org>
@@ -13439,6 +13459,8 @@ Date:   Sun Aug 16 13:01:57 2009 +0000
  sys/net/if_pfsync.c | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
 
+> 3488c2786e8a22e9d05b244437698c4b1a5b820e
+
 commit aa32edff6b6a5dccff2b3f9ab476439ee2c4bf26
 Author: henning <henning@openbsd.org>
 Date:   Tue Jul 28 11:22:33 2009 +0000
@@ -13557,6 +13579,8 @@ Date:   Wed Jun 17 04:24:02 2009 +0000
  sys/net/if_pfsync.c | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
 
+> fed7635002480fe6102f47bb4254dbaf567ec7a5
+
 commit f994b649a0ffa51355f3ea007471b931a65a15b5
 Author: dlg <dlg@openbsd.org>
 Date:   Sun Jun 14 00:16:50 2009 +0000
@@ -13597,6 +13621,8 @@ Date:   Fri Jun 12 02:03:51 2009 +0000
 
  sys/net/if_pfsync.c | 128 ++++++++++++++++++++++++----------------------------
  1 file changed, 59 insertions(+), 69 deletions(-)
+
+> f18ab0ffa3fe5d96634ecc33949cac3cc26e3338
 
 commit 255628800681005c910738d323e92a14e793beab
 Author: dlg <dlg@openbsd.org>
@@ -13745,6 +13771,8 @@ Date:   Wed May 13 01:01:34 2009 +0000
 
  sys/net/if_pfsync.c | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+> 6bc752e028075471b3e4a0d89b930309b9865a48
 
 commit 03fb22ceee163ca75fd9f3d108d896f38f77b6f4
 Author: henning <henning@openbsd.org>
@@ -13937,6 +13965,8 @@ Date:   Sat Apr 4 13:09:29 2009 +0000
  sys/net/if_pfsync.c | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
 
+> 2662e31fc3e2add106ed0e8fae9993fcc8ce66a9
+
 commit 4d0211cf9f8bb1913573f0d72391352510e25670
 Author: dlg <dlg@openbsd.org>
 Date:   Tue Mar 31 01:21:29 2009 +0000
@@ -13952,6 +13982,8 @@ Date:   Tue Mar 31 01:21:29 2009 +0000
  sys/net/if_pfsync.h |  4 +---
  2 files changed, 10 insertions(+), 19 deletions(-)
 
+> 9ff7e6e922dd36293d1c794b63535b3a1cd053b8
+
 commit 00141b59bd4045ec976ba93154354bd3cf89a28b
 Author: dlg <dlg@openbsd.org>
 Date:   Mon Mar 23 06:19:59 2009 +0000
@@ -13964,6 +13996,8 @@ Date:   Mon Mar 23 06:19:59 2009 +0000
 
  sys/net/if_pfsync.c | 14 ++++++++------
  1 file changed, 8 insertions(+), 6 deletions(-)
+
+> e3b670692add9964eacc62e6d3d88e6315bb2a1e
 
 commit d3213cbfb5dfac30265fd3fda82cc9a604a24e92
 Author: dlg <dlg@openbsd.org>
@@ -13998,6 +14032,8 @@ Date:   Sat Mar 14 23:44:09 2009 +0000
  sys/net/pf.c | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
 
+> 0664b03c16e4f27927180a05794327ba1786f21c
+
 commit 26b46f765f4625ccd2dddc5773828829ada61c48
 Author: mcbride <mcbride@openbsd.org>
 Date:   Mon Mar 9 13:53:09 2009 +0000
@@ -14025,6 +14061,8 @@ Date:   Sat Mar 7 01:15:41 2009 +0000
 
  sys/net/pf.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+> 5fff3f1010134e6bd213132ea4de3681425a9214
 
 commit 70bf7555ef4c33faa35582dadab7c01bcf61b3ac
 Author: mcbride <mcbride@openbsd.org>
