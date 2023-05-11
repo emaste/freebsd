@@ -4240,6 +4240,8 @@ Date:   Tue Dec 11 21:44:39 2018 +0000
     Reported by: Andreas Longwitz <longwitz AT incore.de>
     Obtained from:  OpenBSD
 
+> 54941f8c23af5f3054ab65b0af68b4bda4e509e4
+
 commit 4fc65bcbe3fb720a298c795628126bbae9457e5a
 Author: Kristof Provost <kp@FreeBSD.org>
 Date:   Thu Dec 6 19:27:15 2018 +0000
