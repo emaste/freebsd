@@ -5042,6 +5042,8 @@ Date:   Tue Aug 8 21:09:26 2017 +0000
     Submitted by:   Fabian Keil <fk@fabiankeil.de>
     Obtained from:  OpenBSD via ElectroBSD
 
+> 425f1cf27b3247d066477dc1da3914abe13420c0
+
 commit b7ae43552b99b610416918bc00a264b6ae8da35a
 Author: Kristof Provost <kp@FreeBSD.org>
 Date:   Sun Jul 9 17:56:39 2017 +0000
@@ -5392,6 +5394,8 @@ Date:   Mon Aug 15 12:13:14 2016 +0000
     
     PR:             211796
     Obtained from:  OpenBSD (sthen)
+
+> b328f2324c1fd85c10114f3ec9d05d568abf0c3b
 
 commit aa7cac58c6278ff30d887f7496718bd29a139691
 Author: Kristof Provost <kp@FreeBSD.org>
@@ -6894,6 +6898,8 @@ Date:   Sun Oct 27 20:56:23 2013 +0000
     
     Obtained from:  OpenBSD
 
+> 8c0632cd274b40630a5b61155b5258bd8e0829d9
+
 commit 5fff3f1010134e6bd213132ea4de3681425a9214
 Author: Baptiste Daroussin <bapt@FreeBSD.org>
 Date:   Sun Oct 27 20:52:09 2013 +0000
@@ -6905,6 +6911,8 @@ Date:   Sun Oct 27 20:52:09 2013 +0000
     panic seen with some some icmp types in icmp error message payloads.
     
     Obtained from:  OpenBSD
+
+> 016929412c6906368950e38a478feca1fa1c9351
 
 commit 44df0d9356ee0b423ff0d5e8da49525e26bdac90
 Author: Baptiste Daroussin <bapt@FreeBSD.org>
@@ -7000,6 +7008,8 @@ Date:   Mon Sep 2 10:14:25 2013 +0000
     
     PR:             kern/181690
     Submitted by:   Olivier Cochard-Labbé <olivier cochard.me>
+
+> 0c449d8997416a3237f58655ac29a655a936c8d5
 
 commit 86bd0491442e667469d72d133cf07945362f7dad
 Author: Andre Oppermann <andre@FreeBSD.org>
@@ -7211,6 +7221,8 @@ Date:   Thu Dec 13 12:51:22 2012 +0000
     This actually fixes reading beyond mbuf data area in pfsync_input(), that
     may happen at certain pfsync datagrams.
 
+> 4d0211cf9f8bb1913573f0d72391352510e25670
+
 commit feaa4dd2d0d87a83a669c0d9e26a80c7d08ac096
 Author: Gleb Smirnoff <glebius@FreeBSD.org>
 Date:   Thu Dec 13 12:48:57 2012 +0000
@@ -7231,6 +7243,8 @@ Date:   Tue Dec 11 08:37:08 2012 +0000
       this resolves the last of the pfsync traffic storm issues ive been able to
       produce, and therefore makes it possible to do usable active-active
       statuful firewalls with pf.
+
+> 0c82a00626b1448ae73e168721fe336d83a4a648
 
 commit 59cc9fde4f858e2636d1398c97ab6e7cd71ee88a
 Author: Gleb Smirnoff <glebius@FreeBSD.org>
@@ -7285,6 +7299,8 @@ Date:   Wed Nov 7 07:35:05 2012 +0000
       compared separately. any side that is further along than the local state
       tree is merged. if any side is further along in the local state table, an
       update is sent out telling the peers about it.
+
+> f448e3942d51b9f0e67d6b912da66371aafd218d
 
 commit d75efebeab7ec2a2b3b0424c1901cc9d5b23dd8f
 Author: Gleb Smirnoff <glebius@FreeBSD.org>
@@ -7708,6 +7724,8 @@ Date:   Wed Jun 6 09:36:52 2012 +0000
     
     Obtained from:  OpenBSD
 
+> ea7d1040bbc43ec3952ff5bb7c3336e341e159e4
+
 commit 0ad5ef9c8f689ed76e05a3c532c206c9423f3551
 Author: Ermal Luçi <eri@FreeBSD.org>
 Date:   Thu May 31 20:10:05 2012 +0000
@@ -7762,6 +7780,8 @@ Date:   Wed Apr 4 14:47:59 2012 +0000
       could be double the expected value and cause a lot more states
       to linger.
 
+> 3d99ce6dbe52f552bf8c1a218fc0e12ae056cf73
+
 commit 64484cf6308b2121ad486d45b43090425d19aaa8
 Author: Gleb Smirnoff <glebius@FreeBSD.org>
 Date:   Tue Apr 3 18:09:20 2012 +0000
@@ -7801,6 +7821,8 @@ Date:   Thu Mar 8 09:20:00 2012 +0000
     I didn't see any storms, but this definitely fixes a useless memory
     allocation on the receiving side, due to non zero scrub_flags field
     in a pfsync_state_peer structure.
+
+> 5bcaec1df012b974442ad7eba88624da0516a655
 
 commit 0e2181f57880a0791854190c1f0f8f243259ab08
 Author: Bjoern A. Zeeb <bz@FreeBSD.org>
@@ -7870,6 +7892,8 @@ Date:   Wed Jan 11 14:11:10 2012 +0000
       date: 2009/08/16 13:01:57;  author: jsg;  state: Exp;  lines: +1 -5
       remove prototypes of a bunch of functions that had their implementations
       removed in pfsync v5.
+
+> 077313f094bec60e34f8f3e6f44642816ea6a464
 
 commit 686cb9366703677531033540515b1eead96becce
 Author: Gleb Smirnoff <glebius@FreeBSD.org>
@@ -7964,6 +7988,8 @@ Date:   Sat Jan 7 14:39:45 2012 +0000
     Consistently use sc_ifp->if_mtu in the MTU check throughout the
     module. This backs out r228813.
 
+> 8ded9df8bfda2690ec52ca594adc147bdf4a5e08
+
 commit e883df1d1b5e43fc0210f917c2c7c6172ddaf948
 Author: Gleb Smirnoff <glebius@FreeBSD.org>
 Date:   Sat Jan 7 12:40:45 2012 +0000
@@ -7991,6 +8017,8 @@ Date:   Thu Dec 22 19:09:55 2011 +0000
       keep track of updates on tcp still though, their windows need constant
       attention.
 
+> b78a2737acaaa91e07a6020a5db27597a7158145
+
 commit 2662e31fc3e2add106ed0e8fae9993fcc8ce66a9
 Author: Gleb Smirnoff <glebius@FreeBSD.org>
 Date:   Thu Dec 22 19:05:58 2011 +0000
@@ -8006,6 +8034,9 @@ Date:   Thu Dec 22 19:05:58 2011 +0000
       use time_uptime to set state creation values as time_second can be
       skewed at runtime by things like date(1) and ntpd. time_uptime is
       monotonic and therefore more useful to compare against.
+
+> da9c45cd0fb82e1dee3a6c924e92c41ca16f6f07
+> 59f6b0159d3ee9f0014ffd7e131e245a96073247
 
 commit e3b670692add9964eacc62e6d3d88e6315bb2a1e
 Author: Gleb Smirnoff <glebius@FreeBSD.org>
@@ -8026,6 +8057,9 @@ Date:   Thu Dec 22 18:56:27 2011 +0000
       interface.  Problem report and fix from Erik Lax, thanks!
     
     Start a brief note of revisions merged from OpenBSD.
+
+> 00141b59bd4045ec976ba93154354bd3cf89a28b
+> f71f45bb02dc1faeca35a4b89dbf5791bcbae7d2
 
 commit c5360c2998ea6c8fc560c363851bbfc24bc5ef30
 Author: Gleb Smirnoff <glebius@FreeBSD.org>
