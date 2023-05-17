@@ -42,6 +42,7 @@ task:
       TOOLCHAIN_PKG: amd64-gcc12
   timeout_in: 120m
   install_script:
+  - sed -i.bak -e 's?pkg+http://pkg.FreeBSD.org/\${ABI}/quarterly?pkg+http://pkg.FreeBSD.org/\${ABI}/latest?' /etc/pkg/FreeBSD.conf
   - sh .cirrus-ci/pkg-install.sh ${TOOLCHAIN_PKG} git-lite
 
   setup_script:
