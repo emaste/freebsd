@@ -8,7 +8,8 @@ LDNSDIR= ${SRCTOP}/contrib/ldns
 PROG=	drill
 SRCS=	drill.c drill_util.c error.c root.c work.c \
 	chasetrace.c dnssec.c securetrace.c
-CFLAGS+= -I${LDNSDIR}
+CFLAGS+= -I${LDNSDIR} -I${LDNSDIR}/ldns
+CFLAGS+= -DLDNS_TRUST_ANCHOR_FILE='"/var/unbound/root.key"'
 MK_WERROR=	no
 MAN=	drill.1
 
