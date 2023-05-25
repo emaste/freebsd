@@ -19,7 +19,7 @@ task:
     env:
       TARGET: amd64
       TARGET_ARCH: amd64
-      TOOLCHAIN: llvm15
+      TOOLCHAIN: llvm16
       TOOLCHAIN_PKG: ${TOOLCHAIN}-lite
   - name: World and kernel arm64 build and boot smoke test
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
@@ -27,7 +27,7 @@ task:
     env:
       TARGET: arm64
       TARGET_ARCH: aarch64
-      TOOLCHAIN: llvm15
+      TOOLCHAIN: llvm16
       TOOLCHAIN_PKG: ${TOOLCHAIN}
   - name: World and kernel gcc12 amd64 build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
