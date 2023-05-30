@@ -1131,7 +1131,7 @@ archive_write_pax_header(struct archive_write *a,
 	 */
 	if (!need_extension &&
 	    ((archive_entry_mtime(entry_main) < 0)
-		|| (archive_entry_mtime(entry_main) >= USTAR_MAX_MTIME)))
+		|| ((int64_t)archive_entry_mtime(entry_main) >= USTAR_MAX_MTIME)))
 		need_extension = 1;
 
 	/* I use a star-compatible file flag attribute. */
@@ -1196,7 +1196,7 @@ archive_write_pax_header(struct archive_write *a,
 	if (a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_RESTRICTED ||
 	    need_extension) {
 		if (archive_entry_mtime(entry_main) < 0  ||
-		    archive_entry_mtime(entry_main) >= USTAR_MAX_MTIME  ||
+		    (int64_t)archive_entry_mtime(entry_main) >= USTAR_MAX_MTIME  ||
 		    archive_entry_mtime_nsec(entry_main) != 0)
 			add_pax_attr_time(&(pax->pax_header), "mtime",
 			    archive_entry_mtime(entry_main),
@@ -1434,7 +1434,7 @@ archive_write_pax_header(struct archive_write *a,
 		/* Copy mtime, but clip to ustar limits. */
 		s = archive_entry_mtime(entry_main);
 		if (s < 0) { s = 0; }
-		if (s > USTAR_MAX_MTIME) { s = USTAR_MAX_MTIME; }
+		if ((int64_t)s > USTAR_MAX_MTIME) { s = (time_t)USTAR_MAX_MTIME; }
 		archive_entry_set_mtime(pax_attr_entry, s, 0);
 
 		/* Standard ustar doesn't support atime. */
