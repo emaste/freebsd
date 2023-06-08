@@ -81,7 +81,7 @@ void	msgbuf_reinit(struct msgbuf *mbp, void *ptr, int size);
 void	msgbuf_duplicate(struct msgbuf *src, struct msgbuf *dst, char *msgptr);
 
 #ifndef MSGBUF_SIZE
-#define	MSGBUF_SIZE	(32768 * 3)
+#define	MSGBUF_SIZE	(1048576)
 #endif
 #endif /* KERNEL */
 
