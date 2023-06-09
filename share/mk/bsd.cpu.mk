@@ -366,6 +366,12 @@ CFLAGS_NO_SIMD= -mno-mmx -mno-sse
 .endif
 CFLAGS_NO_SIMD += ${CFLAGS_NO_SIMD.${COMPILER_TYPE}}
 
+# Avoid calls to out-of-line atomic helpers on AArch64 as we do not yet
+# implement the support routines.
+.if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS.gcc+= -mno-outline-atomics
+.endif
+
 # Add in any architecture-specific CFLAGS.
 # These come from make.conf or the command line or the environment.
 CFLAGS += ${CFLAGS.${MACHINE_ARCH}}
