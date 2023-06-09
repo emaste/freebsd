@@ -145,6 +145,8 @@ CFLAGS += -ffixed-x18
 CFLAGS += -mbranch-protection=standard
 # TODO: support outline atomics
 CFLAGS += -mno-outline-atomics
+# Build failed with GCC12
+CFLAGS.gcc += -mno-outline-atomics
 INLINE_LIMIT?=	8000
 .endif
 
