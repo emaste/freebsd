@@ -385,7 +385,7 @@ static bool check_set_wtext_attr(WINDOW *win, wchar_t *wtext)
 	if (is_wtext_attr(wtext) == false)
 		return (false);
 
-	if ((wtext[2] - L'0') >= 0 && (wtext[2] - L'0') < 8) {
+	if ((wtext[2] >= L'0') && (wtext[2] <= L'7')) {
 		bsddialog_color_attrs(t.dialog.color, NULL, &bg, NULL);
 		wattron(win, bsddialog_color(wtext[2] - L'0', bg, 0));
 		return (true);
