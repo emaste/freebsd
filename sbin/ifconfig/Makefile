@@ -7,7 +7,7 @@ PACKAGE=runtime
 PROG=	ifconfig
 
 SRCS=	ifconfig.c		# base support
-WARNS?=2
+WARNS?=0
 #
 # NB: The order here defines the order in which the constructors
 #     are called.  This in turn defines the default order in which
