@@ -55,7 +55,7 @@ __objdir:= ${__objdir}
 	(${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "")
 # This will actually make it... 
 __objdir_made != echo ${__objdir}/; umask ${OBJDIR_UMASK:U002}; \
-        ${ECHO_TRACE} "[Creating objdir ${__objdir}...]" >&2; \
+        ${ECHO_TRACE} "[Creating objdir ${__objdir}]" >&2; \
         ${Mkdirs}; Mkdirs ${__objdir}
 .endif
 # This causes make to use the specified directory as .OBJDIR
