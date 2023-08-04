@@ -261,19 +261,27 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	 * Only allow CPUs to be assigned to the first message for an
 	 * MSI group.
 	 */
-	if (msi->msi_first != msi)
+	if (msi->msi_first != msi) {
+		printf("%s: msi->msi_first != msi\n", __func__);
 		return (EINVAL);
+	}
 
 #ifdef SMP
-	if (msix_disable_migration && msi->msi_msix)
+	if (msix_disable_migration && msi->msi_msix) {
+		printf("%s: msix_disable_migration && msi->msi_msix\n",
+		    __func__);
 		return (EINVAL);
+	}
 #endif
 
 	/* Store information to free existing irq. */
 	old_vector = msi->msi_vector;
 	old_id = msi->msi_cpu;
-	if (old_id == apic_id)
+	if (old_id == apic_id) {
+		printf("%s: old_id %u == apic_id %u\n", __func__, old_id,
+		    apic_id);
 		return (0);
+	}
 
 	/* Allocate IDT vectors on this cpu. */
 	if (msi->msi_count > 1) {
@@ -282,8 +290,10 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 		    msi->msi_count, msi->msi_maxcount);
 	} else
 		vector = apic_alloc_vector(apic_id, msi->msi_irq);
-	if (vector == 0)
+	if (vector == 0) {
+		printf("%s: vector == 0\n", __func__);
 		return (ENOSPC);
+	}
 
 	/* Must be set before BUS_REMAP_INTR as it may call back into MSI. */
 	msi->msi_cpu = apic_id;
