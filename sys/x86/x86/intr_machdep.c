@@ -631,8 +631,8 @@ intr_add_cpu(u_int cpu)
 	if (cpu >= MAXCPU)
 		panic("%s: Invalid CPU ID %u", __func__, cpu);
 	if (bootverbose)
-		printf("INTR: Adding local APIC %d as a target\n",
-		    cpu_apic_ids[cpu]);
+		printf("INTR: Adding CPU %u local APIC %d as a target\n",
+		    cpu, cpu_apic_ids[cpu]);
 
 	CPU_SET(cpu, &intr_cpus);
 }
