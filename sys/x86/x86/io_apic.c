@@ -346,6 +346,8 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	    intpin->io_activehi, intpin->io_irq, &intpin->io_remap_cookie,
 	    &high, &low);
 	mtx_lock_spin(&icu_lock);
+	printf("%s: iommu_map_ioapic_intr io_apic_id=%u io_cpu=%u io_irq=%d error=%d\n",
+	    __func__, io->io_apic_id, intpin->io_cpu, intpin->io_irq, error);
 	if (error == 0) {
 		ioapic_write(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin),
 		    high);
