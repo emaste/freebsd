@@ -516,6 +516,7 @@ nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
 	struct intsrc *isrc;
 
 	isrc = intr_lookup_source(rman_get_start(irq));
+	printf("%s irq=%p isrc=%p cpu=%d\n", __func__, irq, isrc, cpu);
 	if (isrc == NULL)
 		return (EINVAL);
 	return (intr_event_bind(isrc->is_event, cpu));
