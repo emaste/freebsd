@@ -158,11 +158,7 @@ static struct intr_irqsrc **irq_sources;
 static u_int irq_next_free;
 
 #ifdef SMP
-#ifdef EARLY_AP_STARTUP
 static bool irq_assign_cpu = true;
-#else
-static bool irq_assign_cpu = false;
-#endif
 
 static struct intr_ipi ipi_sources[INTR_IPI_COUNT];
 #endif
@@ -1272,49 +1268,6 @@ intr_irq_next_cpu(u_int last_cpu, cpuset_t *cpumask)
 	} while (!CPU_ISSET(last_cpu, cpumask));
 	return (last_cpu);
 }
-
-#ifndef EARLY_AP_STARTUP
-/*
- *  Distribute all the interrupt sources among the available
- *  CPUs once the AP's have been launched.
- */
-static void
-intr_irq_shuffle(void *arg __unused)
-{
-	struct intr_irqsrc *isrc;
-	u_int i;
-
-	if (mp_ncpus == 1)
-		return;
-
-	mtx_lock(&isrc_table_lock);
-	irq_assign_cpu = true;
-	for (i = 0; i < intr_nirq; i++) {
-		isrc = irq_sources[i];
-		if (isrc == NULL || isrc->isrc_handlers == 0 ||
-		    isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI))
-			continue;
-
-		if (isrc->isrc_event != NULL &&
-		    isrc->isrc_flags & INTR_ISRCF_BOUND &&
-		    isrc->isrc_event->ie_cpu != CPU_FFS(&isrc->isrc_cpu) - 1)
-			panic("%s: CPU inconsistency", __func__);
-
-		if ((isrc->isrc_flags & INTR_ISRCF_BOUND) == 0)
-			CPU_ZERO(&isrc->isrc_cpu); /* start again */
-
-		/*
-		 * We are in wicked position here if the following call fails
-		 * for bound ISRC. The best thing we can do is to clear
-		 * isrc_cpu so inconsistency with ie_cpu will be detectable.
-		 */
-		if (PIC_BIND_INTR(isrc->isrc_dev, isrc) != 0)
-			CPU_ZERO(&isrc->isrc_cpu);
-	}
-	mtx_unlock(&isrc_table_lock);
-}
-SYSINIT(intr_irq_shuffle, SI_SUB_SMP, SI_ORDER_SECOND, intr_irq_shuffle, NULL);
-#endif /* !EARLY_AP_STARTUP */
 
 #else
 u_int
