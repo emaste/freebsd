@@ -3617,18 +3617,10 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
     suspend_all_fs();
     EVENTHANDLER_INVOKE(power_suspend, stype);
 
-#ifdef EARLY_AP_STARTUP
     MPASS(mp_ncpus == 1 || smp_started);
     thread_lock(curthread);
     sched_bind(curthread, 0);
     thread_unlock(curthread);
-#else
-    if (smp_started) {
-	thread_lock(curthread);
-	sched_bind(curthread, 0);
-	thread_unlock(curthread);
-    }
-#endif
 
     /*
      * Be sure to hold bus topology lock across DEVICE_SUSPEND/RESUME.
@@ -3728,17 +3720,9 @@ backout:
 
     bus_topo_unlock();
 
-#ifdef EARLY_AP_STARTUP
     thread_lock(curthread);
     sched_unbind(curthread);
     thread_unlock(curthread);
-#else
-    if (smp_started) {
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
-    }
-#endif
 
     resume_all_fs();
     resume_all_proc();

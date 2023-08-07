@@ -132,9 +132,7 @@ enum sysinit_sub_id {
 	SI_SUB_INTR		= 0x2800000,	/* interrupt threads */
 	SI_SUB_TASKQ		= 0x2880000,	/* task queues */
 	SI_SUB_EPOCH		= 0x2888000,	/* epoch subsystem */
-#ifdef EARLY_AP_STARTUP
 	SI_SUB_SMP		= 0x2900000,	/* start the APs */
-#endif
 	SI_SUB_SOFTINTR		= 0x2A00000,	/* start soft interrupt thread */
 	SI_SUB_DEVFS		= 0x2F00000,	/* devfs ready for devices */
 	SI_SUB_INIT_IF		= 0x3000000,	/* prep for net interfaces */
@@ -174,9 +172,6 @@ enum sysinit_sub_id {
 	SI_SUB_KTHREAD_BUF	= 0xea00000,	/* buffer daemon */
 	SI_SUB_KTHREAD_UPDATE	= 0xec00000,	/* update daemon */
 	SI_SUB_KTHREAD_IDLE	= 0xee00000,	/* idle procs */
-#ifndef EARLY_AP_STARTUP
-	SI_SUB_SMP		= 0xf000000,	/* start the APs */
-#endif
 	SI_SUB_RACCTD		= 0xf100000,	/* start racctd */
 	SI_SUB_LAST		= 0xfffffff	/* final initialization */
 };
