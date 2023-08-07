@@ -327,15 +327,6 @@ epoch_init(void *arg __unused)
 }
 SYSINIT(epoch, SI_SUB_EPOCH, SI_ORDER_FIRST, epoch_init, NULL);
 
-#if !defined(EARLY_AP_STARTUP)
-static void
-epoch_init_smp(void *dummy __unused)
-{
-	inited = 2;
-}
-SYSINIT(epoch_smp, SI_SUB_SMP + 1, SI_ORDER_FIRST, epoch_init_smp, NULL);
-#endif
-
 static void
 epoch_ctor(epoch_t epoch)
 {
@@ -785,10 +776,6 @@ epoch_call(epoch_t epoch, epoch_callback_t callback, epoch_context_t ctx)
 	/* too early in boot to have epoch set up */
 	if (__predict_false(epoch == NULL))
 		goto boottime;
-#if !defined(EARLY_AP_STARTUP)
-	if (__predict_false(inited < 2))
-		goto boottime;
-#endif
 
 	critical_enter();
 	*DPCPU_PTR(epoch_cb_count) += 1;
@@ -969,10 +956,6 @@ epoch_drain_callbacks(epoch_t epoch)
 	/* too early in boot to have epoch set up */
 	if (__predict_false(epoch == NULL))
 		return;
-#if !defined(EARLY_AP_STARTUP)
-	if (__predict_false(inited < 2))
-		return;
-#endif
 	DROP_GIANT();
 
 	sx_xlock(&epoch->e_drain_sx);
