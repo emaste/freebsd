@@ -88,11 +88,6 @@ static struct mtx intrpic_lock;
 static struct mtx intrcnt_lock;
 static TAILQ_HEAD(pics_head, pic) pics;
 u_int num_io_irqs;
-
-#if defined(SMP) && !defined(EARLY_AP_STARTUP)
-#error EARLY_AP_STARTUP required on x86
-#endif
-
 #define	INTRNAME_LEN	(MAXCOMLEN + 1)
 u_long *intrcnt;
 char *intrnames;

@@ -180,11 +180,6 @@ init_secondary(uint64_t hart)
 	/* Setup and enable interrupts */
 	intr_pic_init_secondary();
 
-#ifndef EARLY_AP_STARTUP
-	/* Start per-CPU event timers. */
-	cpu_initclocks_ap();
-#endif
-
 	/* Activate this hart in the kernel pmap. */
 	CPU_SET_ATOMIC(hart, &kernel_pmap->pm_active);
 

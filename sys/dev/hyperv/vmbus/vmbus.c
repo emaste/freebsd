@@ -112,9 +112,7 @@ static uint32_t			vmbus_get_vcpu_id_method(device_t bus,
 				    device_t dev, int cpu);
 static struct taskqueue		*vmbus_get_eventtq_method(device_t, device_t,
 				    int);
-#if defined(EARLY_AP_STARTUP)
 static void			vmbus_intrhook(void *);
-#endif
 
 static int			vmbus_init(struct vmbus_softc *);
 static int			vmbus_connect(struct vmbus_softc *, uint32_t);
@@ -1589,8 +1587,6 @@ vmbus_event_proc_dummy(struct vmbus_softc *sc __unused, int cpu __unused)
 {
 }
 
-#if defined(EARLY_AP_STARTUP)
-
 static void
 vmbus_intrhook(void *xsc)
 {
@@ -1601,8 +1597,6 @@ vmbus_intrhook(void *xsc)
 	vmbus_doattach(sc);
 	config_intrhook_disestablish(&sc->vmbus_intrhook);
 }
-
-#endif /* EARLY_AP_STARTUP */
 
 static int
 vmbus_attach(device_t dev)
@@ -1618,14 +1612,12 @@ vmbus_attach(device_t dev)
 	 */
 	vmbus_sc->vmbus_event_proc = vmbus_event_proc_dummy;
 
-#if defined(EARLY_AP_STARTUP)
 	/*
 	 * Defer the real attach until the pause(9) works as expected.
 	 */
 	vmbus_sc->vmbus_intrhook.ich_func = vmbus_intrhook;
 	vmbus_sc->vmbus_intrhook.ich_arg = vmbus_sc;
 	config_intrhook_establish(&vmbus_sc->vmbus_intrhook);
-#endif /* EARLY_AP_STARTUP  and aarch64 */
 
 	return (0);
 }
@@ -1677,23 +1669,3 @@ vmbus_detach(device_t dev)
 #endif
 	return (0);
 }
-
-#if !defined(EARLY_AP_STARTUP)
-
-static void
-vmbus_sysinit(void *arg __unused)
-{
-	struct vmbus_softc *sc = vmbus_get_softc();
-
-	if (vm_guest != VM_GUEST_HV || sc == NULL)
-		return;
-
-	vmbus_doattach(sc);
-}
-/*
- * NOTE:
- * We have to start as the last step of SI_SUB_SMP, i.e. after SMP is
- * initialized.
- */
-SYSINIT(vmbus_initialize, SI_SUB_SMP, SI_ORDER_ANY, vmbus_sysinit, NULL);
-#endif	/* !EARLY_AP_STARTUP */

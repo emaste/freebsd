@@ -1330,40 +1330,13 @@ netisr_init(void *arg)
 	}
 #endif
 
-#ifdef EARLY_AP_STARTUP
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (nws_count >= netisr_maxthreads)
 			break;
-		netisr_start_swi(pc->pc_cpuid, pc);
-	}
-#else
-	pc = get_pcpu();
-	netisr_start_swi(pc->pc_cpuid, pc);
-#endif
-}
-SYSINIT(netisr_init, SI_SUB_SOFTINTR, SI_ORDER_FIRST, netisr_init, NULL);
-
-#ifndef EARLY_AP_STARTUP
-/*
- * Start worker threads for additional CPUs.  No attempt to gracefully handle
- * work reassignment, we don't yet support dynamic reconfiguration.
- */
-static void
-netisr_start(void *arg)
-{
-	struct pcpu *pc;
-
-	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
-		if (nws_count >= netisr_maxthreads)
-			break;
-		/* Worker will already be present for boot CPU. */
-		if (pc->pc_netisr != NULL)
-			continue;
 		netisr_start_swi(pc->pc_cpuid, pc);
 	}
 }
-SYSINIT(netisr_start, SI_SUB_SMP, SI_ORDER_MIDDLE, netisr_start, NULL);
-#endif
+SYSINIT(netisr_init, SI_SUB_SOFTINTR, SI_ORDER_FIRST, netisr_init, NULL);
 
 /*
  * Sysctl monitoring for netisr: query a list of registered protocols.
