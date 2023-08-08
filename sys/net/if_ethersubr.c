@@ -385,14 +385,6 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	    ((t = pf_find_mtag(m)) == NULL || !t->routed)) {
 		struct mbuf *n;
 
-		/*
-		 * Because if_simloop() modifies the packet, we need a
-		 * writable copy through m_dup() instead of a readonly
-		 * one as m_copy[m] would give us. The alternative would
-		 * be to modify if_simloop() to handle the readonly mbuf,
-		 * but performancewise it is mostly equivalent (trading
-		 * extra data copying vs. extra locking).
-		 */
 		if ((n = m_dup(m, M_NOWAIT)) != NULL) {
 			update_mbuf_csumflags(m, n);
 			(void)if_simloop(ifp, n, RO_GET_FAMILY(ro, dst), hlen);
