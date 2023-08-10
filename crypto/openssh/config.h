@@ -466,7 +466,7 @@
 #define HAVE_ENDGRENT 1
 
 /* Define to 1 if you have the <endian.h> header file. */
-/* #undef HAVE_ENDIAN_H */
+#define HAVE_ENDIAN_H 1
 
 /* Define to 1 if you have the `endutent' function. */
 /* #undef HAVE_ENDUTENT */
@@ -493,7 +493,7 @@
 /* #undef HAVE_EVP_CIPHER_CTX_GET_IV */
 
 /* Define to 1 if you have the `EVP_CIPHER_CTX_get_updated_iv' function. */
-/* #undef HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV */
+#define HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV 1
 
 /* Define to 1 if you have the `EVP_CIPHER_CTX_iv' function. */
 #define HAVE_EVP_CIPHER_CTX_IV 1
@@ -1851,11 +1851,7 @@
 #define SIZEOF_SHORT_INT 2
 
 /* The size of `time_t', as computed by sizeof. */
-#ifdef __i386__
-#define SIZEOF_TIME_T 4
-#else
 #define SIZEOF_TIME_T 8
-#endif
 
 /* Define as const if snprintf() can declare const char *fmt */
 #define SNPRINTF_CONST const
@@ -2003,7 +1999,7 @@
 #endif
 
 /* Define if xauth is found in your path */
-#define XAUTH_PATH "/usr/local/bin/xauth"
+/* #undef XAUTH_PATH */
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */
