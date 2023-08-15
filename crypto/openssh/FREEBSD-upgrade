@@ -182,16 +182,12 @@
    A number of paths are changed to match FreeBSD's configuration (e.g.,
    using /usr/local/ instead of /uxr/X11R6/).
 
-9) Retired patches
-
-   We added support for client-side VersionAddendum in 2002 (commit
+9) PrintLastLog bugfix
    9e2cbe04ff4f) and provided a default value (e.g. FreeBSD-20220415).
    Support was removed in commit bffe60ead024 ("ssh: retire client
    VersionAddendum") to reduce the size of our patch set.  Upstream later
    added the same functionality in the 10.0p2 release.  We have not restored
    setting a default value on FreeBSD.
-
-10) PrintLastLog bugfix
 
    Upstream's autoconf sets DISABLE_LASTLOG if the system does not have
    lastlog.ll_line, but uses it to disable the PrintLastLog configuration
