@@ -152,6 +152,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	uint16_t		mqes;
 	int			c, error, i, n;
 	int			num_entries, num_trackers, max_entries;
+	bool			bind_intr;
 
 	/*
 	 * NVMe spec sets a hard limit of 64K max entries, but devices may
@@ -194,6 +195,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	ctrlr->ioq = malloc(ctrlr->num_io_queues * sizeof(struct nvme_qpair),
 	    M_NVME, M_ZERO | M_WAITOK);
 
+	bind_intr = ctrlr->num_io_queues > 1;
 	for (i = c = n = 0; i < ctrlr->num_io_queues; i++, c += n) {
 		qpair = &ctrlr->ioq[i];
 
@@ -227,8 +229,17 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 		 * Do not bother binding interrupts if we only have one I/O
 		 *  interrupt thread for this controller.
 		 */
-		if (ctrlr->num_io_queues > 1)
-			bus_bind_intr(ctrlr->dev, qpair->res, qpair->cpu);
+		if (bind_intr) {
+			error = bus_bind_intr(ctrlr->dev, qpair->res,
+			    qpair->cpu);
+			if (error) {
+				nvme_printf(ctrlr,
+				    "bus_bind_intr to CPU %u failed (%d)\n",
+				    qpair->cpu, error);
+				/* Give up on the remainder. */
+				bind_intr = false;
+			}
+		}
 	}
 
 	return (0);
