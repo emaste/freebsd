@@ -192,12 +192,7 @@
    A number of paths are changed to match FreeBSD's configuration (e.g.,
    using /usr/local/ instead of /uxr/X11R6/).
 
-10) Retired patches
-
-   We no longer have client-side VersionAddendum, but we recognize and ignore
-   the configuration options to avoid breaking existing configurations.
-
-11) PrintLastLog bugfix
+10) PrintLastLog bugfix
 
    Upstream's autoconf sets DISABLE_LASTLOG if the system does not have
    lastlog.ll_line, but uses it to disable the PrintLastLog configuration
