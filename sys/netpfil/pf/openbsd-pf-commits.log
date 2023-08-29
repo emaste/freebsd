@@ -7807,6 +7807,8 @@ Date:   Fri Dec 19 12:31:03 2014 +0000
  sys/net/pf_lb.c | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
 
+> in wipbsd
+
 commit 69b437bc9469fefbee58a9fe3a5f9a3c41ad21cb
 Author: tedu <tedu@openbsd.org>
 Date:   Fri Dec 19 05:36:28 2014 +0000
@@ -7825,6 +7827,8 @@ Date:   Thu Dec 18 19:02:56 2014 +0000
 
  sys/net/pf_lb.c | 58 ++++++++++++++++++++-------------------------------------
  1 file changed, 20 insertions(+), 38 deletions(-)
+
+> in wipbsd
 
 commit 3c687758563c3eb3a71def9e3188f5b981949a32
 Author: mpi <mpi@openbsd.org>
