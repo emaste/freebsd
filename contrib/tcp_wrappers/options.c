@@ -81,8 +81,6 @@ static void group_option(char *, struct request_info *);	/* group name */
 static void umask_option(char *, struct request_info *);	/* umask mask */
 static void linger_option(char *, struct request_info *);	/* linger time */
 static void keepalive_option(char *, struct request_info *);	/* keepalive */
-static void spawn_option(char *, struct request_info *);	/* spawn command */
-static void twist_option(char *, struct request_info *);	/* twist command */
 static void rfc931_option(char *, struct request_info *);	/* rfc931 */
 static void setenv_option(char *, struct request_info *);	/* setenv name value */
 static void nice_option(char *, struct request_info *);		/* nice */
@@ -119,8 +117,6 @@ static struct option option_table[] = {
     "umask", umask_option, NEED_ARG,
     "linger", linger_option, NEED_ARG,
     "keepalive", keepalive_option, 0,
-    "spawn", spawn_option, NEED_ARG | EXPAND_ARG,
-    "twist", twist_option, NEED_ARG | EXPAND_ARG | USE_LAST,
     "rfc931", rfc931_option, OPT_ARG,
     "setenv", setenv_option, NEED_ARG | EXPAND_ARG,
     "nice", nice_option, OPT_ARG,
@@ -293,17 +289,6 @@ umask_option(char *value, struct request_info *request)
     (void) umask(mask);
 }
 
-/* spawn_option - spawn a shell command and wait */
-
-/* ARGSUSED */
-
-static void
-spawn_option(char *value, struct request_info *request)
-{
-    if (dry_run == 0)
-	shell_cmd(value);
-}
-
 /* linger_option - set the socket linger time (Marc Boucher <marc@cam.org>) */
 
 /* ARGSUSED */
@@ -353,43 +338,6 @@ nice_option(char *value, struct request_info *request)
 	tcpd_jump("bad nice value: \"%s\"", value);
     if (dry_run == 0 && nice(niceval) < 0)
 	tcpd_warn("nice(%d): %m", niceval);
-}
-
-/* twist_option - replace process by shell command */
-
-static void
-twist_option(char *value, struct request_info *request)
-{
-    char   *error;
-
-    if (dry_run != 0) {
-	dry_run = 0;
-    } else {
-	if (resident > 0)
-	    tcpd_jump("twist option in resident process");
-
-	syslog(deny_severity, "twist %s to %s", eval_client(request), value);
-
-	/* Before switching to the shell, set up stdin, stdout and stderr. */
-
-#define maybe_dup2(from, to) ((from == to) ? to : (close(to), dup(from)))
-
-	if (maybe_dup2(request->fd, 0) != 0 ||
-	    maybe_dup2(request->fd, 1) != 1 ||
-	    maybe_dup2(request->fd, 2) != 2) {
-	    error = "twist_option: dup: %m";
-	} else {
-	    if (request->fd > 2)
-		close(request->fd);
-	    (void) execl("/bin/sh", "sh", "-c", value, (char *) 0);
-	    error = "twist_option: /bin/sh: %m";
-	}
-
-	/* Something went wrong: we MUST terminate the process. */
-
-	tcpd_warn(error);
-	clean_exit(request);
-    }
 }
 
 /* rfc931_option - look up remote user name */
