@@ -53,56 +53,6 @@ ALL: .bad.domain: DENY
 ALL: ALL: ALLOW
 .sp
 Notice the leading dot on the domain name patterns.
-.SH RUNNING OTHER COMMANDS
-.IP "spawn shell_command"
-Execute, in a child process, the specified shell command, after
-performing the %<letter> expansions described in the hosts_access(5)
-manual page.  The command is executed with stdin, stdout and stderr
-connected to the null device, so that it won\'t mess up the
-conversation with the client host. Example:
-.sp
-.nf
-.ti +3
-spawn (/some/where/safe_finger -l @%h | /usr/ucb/mail root) &
-.fi
-.sp
-executes, in a background child process, the shell command "safe_finger
--l @%h | mail root" after replacing %h by the name or address of the
-remote host.
-.sp
-The example uses the "safe_finger" command instead of the regular
-"finger" command, to limit possible damage from data sent by the finger
-server. The "safe_finger" command is part of the daemon wrapper
-package; it is a wrapper around the regular finger command that filters
-the data sent by the remote host.
-.IP "twist shell_command"
-Replace the current process by an instance of the specified shell
-command, after performing the %<letter> expansions described in the
-hosts_access(5) manual page.  Stdin, stdout and stderr are connected to
-the client process. This option must appear at the end of a rule.
-.sp
-To send a customized bounce message to the client instead of
-running the real ftp daemon:
-.sp
-.nf
-.ti +3
-in.ftpd : ... : twist /bin/echo 421 Some bounce message
-.fi
-.sp
-For an alternative way to talk to client processes, see the
-\fIbanners\fR option below.
-.sp
-To run /some/other/in.telnetd without polluting its command-line
-array or its process environment:
-.sp
-.nf
-.ti +3
-in.telnetd : ... : twist PATH=/some/other; exec in.telnetd
-.fi
-.sp
-Warning:  in case of UDP services, do not twist to commands that use
-the standard I/O or the read(2)/write(2) routines to communicate with
-the client process; UDP requires other I/O primitives.
 .SH NETWORK OPTIONS
 .IP "keepalive"
 Causes the server to periodically send a message to the client.  The
