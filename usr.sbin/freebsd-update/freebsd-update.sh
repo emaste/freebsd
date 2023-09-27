@@ -632,6 +632,7 @@ fetch_setup_verboselevel () {
 		QUIETREDIR="/dev/stderr"
 		QUIETFLAG=" "
 		STATSREDIR="/dev/stderr"
+		DDSTATS=".."
 		XARGST="-t"
 		NDEBUG=" "
 		;;
@@ -639,6 +640,7 @@ fetch_setup_verboselevel () {
 		QUIETREDIR=""
 		QUIETFLAG=""
 		STATSREDIR="/dev/null"
+		DDSTATS=".."
 		XARGST=""
 		NDEBUG=""
 		;;
@@ -646,6 +648,7 @@ fetch_setup_verboselevel () {
 		QUIETREDIR="/dev/null"
 		QUIETFLAG="-q"
 		STATSREDIR="/dev/stdout"
+		DDSTATS=""
 		XARGST=""
 		NDEBUG="-n"
 		;;
@@ -1251,21 +1254,16 @@ fetch_make_patchlist () {
 
 # Print user-friendly progress statistics
 fetch_progress () {
-	# Prompt
-	local FPMPT="$1"
-	# Total count
-	local FCNT=$2
 	LNC=0
-	printf "%s... " "${FPMPT}"
 	while read x; do
-		if [ "${VERBOSELEVEL}" != "nostats" ]; then
-			LNC=$(($LNC + 1))
-			if [ $(($LNC % 2)) = 0 ]; then
-				printf "\r%s... %d/%d" "${FPMPT}" ${LNC} ${FCNT}
-			fi
+		LNC=$(($LNC + 1))
+		if [ $(($LNC % 10)) = 0 ]; then
+			echo -n $LNC
+		elif [ $(($LNC % 2)) = 0 ]; then
+			echo -n .
 		fi
 	done
-	printf "\r%s... done.\n" "${FPMPT}"
+	echo -n " "
 }
 
 # Function for asking the user if everything is ok
@@ -1508,12 +1506,13 @@ fetch_metadata () {
 
 	if [ -s patchlist ]; then
 		# Attempt to fetch metadata patches
-		local _totalf=`wc -l < patchlist | tr -d ' '`
-		local _pmpt="Fetching ${_totalf} metadata patches"
+		echo -n "Fetching `wc -l < patchlist | tr -d ' '` "
+		echo ${NDEBUG} "metadata patches.${DDSTATS}"
 		tr '|' '-' < patchlist |
 		    lam -s "${FETCHDIR}/tp/" - -s ".gz" |
 		    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
-		      2>${STATSREDIR} | fetch_progress "${_pmpt}" ${_totalf}
+			2>${STATSREDIR} | fetch_progress
+		echo "done."
 
 		# Attempt to apply metadata patches
 		echo -n "Applying metadata patches... "
@@ -2048,12 +2047,13 @@ fetch_files_prepare () {
 fetch_files () {
 	# Attempt to fetch patches
 	if [ -s patchlist ]; then
-		local _totalf=`wc -l < patchlist | tr -d ' '`
-		local _pmpt="Fetching ${_totalf} patches"
+		echo -n "Fetching `wc -l < patchlist | tr -d ' '` "
+		echo ${NDEBUG} "patches.${DDSTATS}"
 		tr '|' '-' < patchlist |
 		    lam -s "${PATCHDIR}/" - |
 		    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
-			2>${STATSREDIR} | fetch_progress "${_pmpt}" ${_totalf}
+			2>${STATSREDIR} | fetch_progress
+		echo "done."
 
 		# Attempt to apply patches
 		echo -n "Applying patches... "
@@ -2081,13 +2081,12 @@ fetch_files () {
 	done < files.wanted > filelist
 
 	if [ -s filelist ]; then
-		local _totalf=`wc -l < filelist | tr -d ' '`
-		local _pmpt="Fetching ${_totalf} files"
+		echo -n "Fetching `wc -l < filelist | tr -d ' '` "
+		echo ${NDEBUG} "files... "
 		lam -s "${FETCHDIR}/f/" - -s ".gz" < filelist |
 		    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
-			2>${STATSREDIR} | fetch_progress "${_pmpt}" ${_totalf}
+			2>${STATSREDIR} | fetch_progress
 
-		echo -n "Extracting patches and verifying checksums... "
 		while read Y; do
 			if ! [ -f ${Y}.gz ]; then
 				echo "failed."
