@@ -2376,27 +2376,30 @@ upgrade_guess_components () {
 		# We're done making noise.
 		echo "done."
 
-		# Sometimes the kernel isn't installed where INDEX-ALL
-		# thinks that it should be: In particular, it is often in
-		# /boot/kernel instead of /boot/GENERIC or /boot/SMP.  To
-		# deal with this, if "kernel|X" is listed in comp.total
-		# (i.e., is a component which would be upgraded if it is
-		# found to be present) we will add it to comp.present.
-		# If "kernel|<anything>" is in comp.total but "kernel|X" is
-		# not, we print a warning -- the user is running a kernel
-		# which isn't part of the release.
-		KCOMP=`echo ${KERNCONF} | tr 'A-Z' 'a-z'`
-		grep -E "^kernel\|${KCOMP}\$" comp.total >> comp.present
+		if [ "${BASEDIR}" = / ]; then
+			# Sometimes the kernel isn't installed where INDEX-ALL
+			# thinks that it should be: In particular, it is often
+			# in /boot/kernel instead of /boot/GENERIC or /boot/SMP.
+			# To deal with this, if "kernel|X" is listed in
+			# comp.total (i.e., is a component which would be
+			# upgraded if it is found to be present) we will add it
+			# to comp.present.  If "kernel|<anything>" is in
+			# comp.total but "kernel|X" is not, we print a 
+			# warning -- the user is running a kernel which isn't
+			# part of the release.
+			KCOMP=`echo ${KERNCONF} | tr 'A-Z' 'a-z'`
+			grep -E "^kernel\|${KCOMP}\$" comp.total >> comp.present
 
-		if grep -qE "^kernel\|" comp.total &&
-		    ! grep -qE "^kernel\|${KCOMP}\$" comp.total; then
-			cat <<-EOF
+			if grep -qE "^kernel\|" comp.total &&
+			    ! grep -qE "^kernel\|${KCOMP}\$" comp.total; then
+				cat <<-EOF
 
 WARNING: This system is running a "${KCOMP}" kernel, which is not a
 kernel configuration distributed as part of FreeBSD ${RELNUM}.
 This kernel will not be updated: you MUST update the kernel manually
 before running '`basename $0` [options] install'.
-			EOF
+				EOF
+			fi
 		fi
 
 		# Re-sort the list of installed components and generate
@@ -2441,7 +2444,7 @@ before running '`basename $0` [options] install'.
 # does not exist in the new release, add "kernel/generic" to the
 # list of components.
 upgrade_guess_new_kernel () {
-	if [ "${STRICTCOMPONENTS}" = "no" ]; then
+	if [ "${STRICTCOMPONENTS}" = "no" ] && [ "${BASEDIR}" = / ]; then
 		# Grab the unfiltered metadata file.
 		METAHASH=`look "$1|" tINDEX.present | cut -f 2 -d '|'`
 		gunzip -c < files/${METAHASH}.gz > $1.all
