@@ -608,7 +608,13 @@ default_params () {
 	nullconfig
 
 	# Default configurations
-	config_WorkDir /var/db/freebsd-update
+	if ! config_WorkDir /var/db/freebsd-update; then
+		# Recreate default directory if it's missing (PR263290).
+		if ! [ -d /var/db/freebsd-update ]; then
+			install -u root -g wheel -m 700 -d \
+			    /var/db/freebsd-update
+		fi
+	fi
 	config_MailTo root
 	config_AllowAdd yes
 	config_AllowDelete yes
