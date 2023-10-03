@@ -38,9 +38,6 @@
 
 #include <machine/_bus.h>
 
-/* Only use the reduced hardware model */
-#define	ACPI_REDUCED_HARDWARE	1
-
 /* Section 5.2.10.1: global lock acquire/release functions */
 int	acpi_acquire_global_lock(volatile uint32_t *);
 int	acpi_release_global_lock(volatile uint32_t *);
