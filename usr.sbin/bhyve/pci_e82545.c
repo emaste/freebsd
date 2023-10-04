@@ -30,9 +30,7 @@
  */
 
 #include <sys/types.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#endif
 #include <sys/limits.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
@@ -40,9 +38,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-#ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
-#endif
 
 #include <err.h>
 #include <errno.h>
