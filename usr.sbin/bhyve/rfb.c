@@ -28,9 +28,7 @@
  */
 
 #include <sys/param.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#endif
 #include <sys/endian.h>
 #include <sys/socket.h>
 #include <sys/select.h>
@@ -44,9 +42,7 @@
 #include <netdb.h>
 
 #include <assert.h>
-#ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
-#endif
 #include <err.h>
 #include <errno.h>
 #include <pthread.h>
@@ -1349,9 +1345,7 @@ rfb_init(sa_family_t family, const char *hostname, int port, int wait,
 	struct sockaddr_un sun;
 	int on = 1;
 	int cnt;
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
-#endif
 
 	rc = calloc(1, sizeof(struct rfb_softc));
 
@@ -1432,11 +1426,9 @@ rfb_init(sa_family_t family, const char *hostname, int port, int wait,
 		goto error;
 	}
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_ACCEPT, CAP_EVENT, CAP_READ, CAP_WRITE);
 	if (caph_rights_limit(rc->sfd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
 
 	rc->hw_crc = sse42_supported();
 
