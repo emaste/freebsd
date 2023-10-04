@@ -27,9 +27,7 @@
  */
 
 #include <sys/param.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#endif
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/pciio.h>
@@ -45,9 +43,7 @@
 #include <machine/iodev.h>
 #include <machine/vm.h>
 
-#ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
-#endif
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -151,7 +147,6 @@ pcifd_init(void)
 	if (pcifd < 0)
 		return (1);
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_t pcifd_rights;
 	cap_rights_init(&pcifd_rights, CAP_IOCTL, CAP_READ, CAP_WRITE);
 	if (caph_rights_limit(pcifd, &pcifd_rights) == -1)
@@ -161,7 +156,6 @@ pcifd_init(void)
 		PCIOCBARIO, PCIOCBARMMAP, PCIOCGETCONF };
 	if (caph_ioctls_limit(pcifd, pcifd_ioctls, nitems(pcifd_ioctls)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
 
 	return (0);
 }
