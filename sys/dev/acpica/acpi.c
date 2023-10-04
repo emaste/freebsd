@@ -52,7 +52,7 @@
 #include <sys/timetc.h>
 #include <sys/uuid.h>
 
-#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
+#if defined(__i386__) || defined(__amd64__)
 #include <machine/clock.h>
 #include <machine/pci_cfgreg.h>
 #endif
@@ -1449,7 +1449,7 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
     if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 	if (ACPI_SUCCESS(AcpiGetObjectInfo(ad->ad_handle, &devinfo))) {
 	    if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
-#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
+#if defined(__i386__) || defined(__amd64__)
 		allow = (type == SYS_RES_IOPORT && start == CONF1_ADDR_PORT);
 #else
 		allow = 0;
@@ -2178,7 +2178,7 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
 static void
 acpi_enable_pcie(void)
 {
-#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
+#if defined(__i386__) || defined(__amd64__)
 	ACPI_TABLE_HEADER *hdr;
 	ACPI_MCFG_ALLOCATION *alloc, *end;
 	ACPI_STATUS status;
@@ -3099,7 +3099,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     return (acpi_EnterSleepState(sc, state));
 }
 
-#if defined(__amd64__) || defined(__i386__) || defined(__aarch64__)
+#if defined(__amd64__) || defined(__i386__)
 static void
 acpi_sleep_force_task(void *context)
 {
@@ -3136,7 +3136,7 @@ acpi_sleep_force(void *arg)
 int
 acpi_ReqSleepState(struct acpi_softc *sc, int state)
 {
-#if defined(__amd64__) || defined(__i386__) || defined(__aarch64__)
+#if defined(__amd64__) || defined(__i386__)
     struct apm_clone_data *clone;
     ACPI_STATUS status;
 
@@ -3215,7 +3215,7 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 int
 acpi_AckSleepState(struct apm_clone_data *clone, int error)
 {
-#if defined(__amd64__) || defined(__i386__) || defined(__aarch64__)
+#if defined(__amd64__) || defined(__i386__)
     struct acpi_softc *sc;
     int ret, sleeping;
 
@@ -3481,7 +3481,7 @@ backout:
     if (slp_state >= ACPI_SS_SLP_PREP)
 	AcpiLeaveSleepState(state);
     if (slp_state >= ACPI_SS_SLEPT) {
-#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
+#if defined(__i386__) || defined(__amd64__)
 	/* NB: we are still using ACPI timecounter at this point. */
 	resume_TSC();
 #endif
