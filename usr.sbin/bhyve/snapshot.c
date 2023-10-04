@@ -34,18 +34,14 @@
  */
 
 #include <sys/types.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#endif
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/un.h>
 
-#ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,9 +60,7 @@
 #include <sys/ioctl.h>
 
 #include <machine/vmm.h>
-#ifndef WITHOUT_CAPSICUM
 #include <machine/vmm_dev.h>
-#endif
 #include <machine/vmm_snapshot.h>
 #include <vmmapi.h>
 
@@ -1406,9 +1400,7 @@ init_checkpoint_thread(struct vmctx *ctx)
 	int socket_fd;
 	pthread_t checkpoint_pthread;
 	int err;
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
-#endif
 
 	memset(&addr, 0, sizeof(addr));
 
@@ -1439,13 +1431,11 @@ init_checkpoint_thread(struct vmctx *ctx)
 		goto fail;
 	}
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_ACCEPT, CAP_READ, CAP_RECV, CAP_WRITE,
 	    CAP_SEND, CAP_GETSOCKOPT);
 
 	if (caph_rights_limit(socket_fd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
 	checkpoint_info = calloc(1, sizeof(*checkpoint_info));
 	checkpoint_info->ctx = ctx;
 	checkpoint_info->socket_fd = socket_fd;

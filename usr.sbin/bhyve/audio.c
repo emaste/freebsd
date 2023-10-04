@@ -28,10 +28,8 @@
  */
 
 #include <sys/cdefs.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
 #include <capsicum_helpers.h>
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,7 +68,6 @@ struct audio *
 audio_init(const char *dev_name, uint8_t dir)
 {
 	struct audio *aud = NULL;
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
 	cap_ioctl_t cmds[] = {
 	    SNDCTL_DSP_RESET, SNDCTL_DSP_SETFMT, SNDCTL_DSP_CHANNELS,
@@ -79,7 +76,6 @@ audio_init(const char *dev_name, uint8_t dir)
 	    SNDCTL_DSP_GETOSPACE, SNDCTL_DSP_GETISPACE,
 #endif
 	};
-#endif
 	size_t nlen;
 
 	assert(dev_name);
@@ -107,13 +103,11 @@ audio_init(const char *dev_name, uint8_t dir)
 		return (NULL);
 	}
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_IOCTL, CAP_READ, CAP_WRITE);
 	if (caph_rights_limit(aud->fd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 	if (caph_ioctls_limit(aud->fd, cmds, nitems(cmds)) == -1)
 		errx(EX_OSERR, "Unable to limit ioctl rights for sandbox");
-#endif
 
 	return aud;
 }

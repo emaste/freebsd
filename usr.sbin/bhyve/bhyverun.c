@@ -27,9 +27,7 @@
  */
 
 #include <sys/types.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#endif
 #include <sys/mman.h>
 #ifdef BHYVE_SNAPSHOT
 #include <sys/socket.h>
@@ -42,9 +40,7 @@
 
 #include <machine/atomic.h>
 
-#ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -600,10 +596,8 @@ do_open(const char *vmname)
 		exit(4);
 	}
 
-#ifndef WITHOUT_CAPSICUM
 	if (vm_limit_rights(ctx) != 0)
 		err(EX_OSERR, "vm_limit_rights");
-#endif
 
 	if (reinit) {
 		error = vm_reinit(ctx);
@@ -1027,7 +1021,6 @@ main(int argc, char *argv[])
 		errx(EX_OSERR, "Failed to start checkpoint thread");
 #endif
 
-#ifndef WITHOUT_CAPSICUM
 	caph_cache_catpages();
 
 	if (caph_limit_stdout() == -1 || caph_limit_stderr() == -1)
@@ -1035,7 +1028,6 @@ main(int argc, char *argv[])
 
 	if (caph_enter() == -1)
 		errx(EX_OSERR, "cap_enter() failed");
-#endif
 
 #ifdef BHYVE_SNAPSHOT
 	if (restore_file != NULL) {

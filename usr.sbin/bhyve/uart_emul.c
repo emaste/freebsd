@@ -29,10 +29,8 @@
 
 #include <sys/types.h>
 #include <dev/ic/ns16550.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
 #include <capsicum_helpers.h>
-#endif
 
 #include <machine/vmm_snapshot.h>
 
@@ -643,10 +641,8 @@ uart_init(uart_intr_func_t intr_assert, uart_intr_func_t intr_deassert,
 static int
 uart_stdio_backend(struct uart_softc *sc)
 {
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
 	cap_ioctl_t cmds[] = { TIOCGETA, TIOCSETA, TIOCGWINSZ };
-#endif
 
 	if (uart_stdio)
 		return (-1);
@@ -660,13 +656,11 @@ uart_stdio_backend(struct uart_softc *sc)
 	if (fcntl(sc->tty.wfd, F_SETFL, O_NONBLOCK) != 0)
 		return (-1);
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ);
 	if (caph_rights_limit(sc->tty.rfd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 	if (caph_ioctls_limit(sc->tty.rfd, cmds, nitems(cmds)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
 
 	uart_stdio = true;
 
@@ -676,10 +670,8 @@ uart_stdio_backend(struct uart_softc *sc)
 static int
 uart_tty_backend(struct uart_softc *sc, const char *path)
 {
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
 	cap_ioctl_t cmds[] = { TIOCGETA, TIOCSETA, TIOCGWINSZ };
-#endif
 	int fd;
 
 	fd = open(path, O_RDWR | O_NONBLOCK);
@@ -694,13 +686,11 @@ uart_tty_backend(struct uart_softc *sc, const char *path)
 	sc->tty.rfd = sc->tty.wfd = fd;
 	sc->tty.opened = true;
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ, CAP_WRITE);
 	if (caph_rights_limit(fd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 	if (caph_ioctls_limit(fd, cmds, nitems(cmds)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
 
 	return (0);
 }
