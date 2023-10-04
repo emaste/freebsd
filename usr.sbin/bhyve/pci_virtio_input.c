@@ -32,11 +32,9 @@
  */
 
 #include <sys/param.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
 
 #include <capsicum_helpers.h>
-#endif
 #include <sys/ioctl.h>
 #include <sys/linker_set.h>
 #include <sys/uio.h>
@@ -707,13 +705,11 @@ pci_vtinput_init(struct pci_devinst *pi, nvlist_t *nvl)
 		goto failed;
 	}
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
 	cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ, CAP_WRITE);
 	if (caph_rights_limit(sc->vsc_fd, &rights) == -1) {
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 	}
-#endif
 
 	/* link virtio to softc */
 	vi_softc_linkup(
