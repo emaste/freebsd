@@ -33,9 +33,7 @@
  */
 
 #include <sys/types.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#endif
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/uio.h>
@@ -44,9 +42,7 @@
 #include <net/if_tap.h>
 
 #include <assert.h>
-#ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
-#endif
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -92,9 +88,7 @@ tap_init(struct net_backend *be, const char *devname,
 	char tbuf[80];
 	int opt = 1, up = IFF_UP;
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
-#endif
 
 	if (cb == NULL) {
 		EPRINTLN("TAP backend requires non-NULL callback");
@@ -124,11 +118,9 @@ tap_init(struct net_backend *be, const char *devname,
 		goto error;
 	}
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
 	if (caph_rights_limit(be->fd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
 
 	memset(priv->bbuf, 0, sizeof(priv->bbuf));
 	priv->bbuflen = 0;
