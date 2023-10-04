@@ -25,15 +25,11 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#endif
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
-#ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
-#endif
 #include <err.h>
 #include <netgraph.h>
 #include <string.h>
@@ -59,9 +55,7 @@ ng_init(struct net_backend *be, const char *devname __unused,
 	int flags;
 	unsigned long maxsbsz;
 	size_t msbsz;
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
-#endif
 
 	if (cb == NULL) {
 		EPRINTLN("Netgraph backend requires non-NULL callback");
@@ -152,11 +146,9 @@ ng_init(struct net_backend *be, const char *devname __unused,
 		goto error;
 	}
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
 	if (caph_rights_limit(be->fd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
 
 	memset(p->bbuf, 0, sizeof(p->bbuf));
 	p->bbuflen = 0;

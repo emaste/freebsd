@@ -34,18 +34,14 @@
  */
 
 #include <sys/types.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#endif
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/un.h>
 
-#ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,9 +60,7 @@
 #include <sys/ioctl.h>
 
 #include <machine/vmm.h>
-#ifndef WITHOUT_CAPSICUM
 #include <machine/vmm_dev.h>
-#endif
 #include <machine/vmm_snapshot.h>
 #include <vmmapi.h>
 
