@@ -26,9 +26,7 @@
  */
 
 #include <sys/param.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#endif
 #include <sys/endian.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -48,9 +46,7 @@
 #include <netinet/in.h>
 
 #include <assert.h>
-#ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
-#endif
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -264,13 +260,11 @@ debug(const char *fmt, ...)
 		logfile = fopen("/tmp/bhyve_gdb.log", "w");
 		if (logfile == NULL)
 			return;
-#ifndef WITHOUT_CAPSICUM
 		if (caph_limit_stream(fileno(logfile), CAPH_WRITE) == -1) {
 			fclose(logfile);
 			logfile = NULL;
 			return;
 		}
-#endif
 		setlinebuf(logfile);
 	}
 	va_start(ap, fmt);
@@ -2158,7 +2152,6 @@ new_connection(int fd, enum ev_type event __unused, void *arg)
 	pthread_mutex_unlock(&gdb_lock);
 }
 
-#ifndef WITHOUT_CAPSICUM
 static void
 limit_gdb_socket(int s)
 {
@@ -2172,7 +2165,6 @@ limit_gdb_socket(int s)
 	if (caph_ioctls_limit(s, ioctls, nitems(ioctls)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 }
-#endif
 
 void
 init_gdb(struct vmctx *_ctx)
@@ -2253,9 +2245,7 @@ init_gdb(struct vmctx *_ctx)
 	if (fcntl(s, F_SETFL, flags | O_NONBLOCK) == -1)
 		err(1, "Failed to mark gdb socket non-blocking");
 
-#ifndef WITHOUT_CAPSICUM
 	limit_gdb_socket(s);
-#endif
 	mevent_add(s, EVF_READ, new_connection, NULL);
 	gdb_active = true;
 	freeaddrinfo(gdbaddr);
