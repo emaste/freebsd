@@ -28,10 +28,8 @@
 /* Define to 1 if you have the <byteswap.h> header file. */
 /* #undef HAVE_BYTESWAP_H */
 
-#ifndef WITHOUT_CAPSICUM
 /* Define to 1 if you have the 'cap_rights_limit' function. */
 #define HAVE_CAP_RIGHTS_LIMIT 1
-#endif
 
 /* Define to 1 if the system has the type 'CC_SHA256_CTX'. */
 /* #undef HAVE_CC_SHA256_CTX */
