@@ -27,9 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#endif
 
 #include <bzlib.h>
 #include <err.h>
@@ -112,9 +110,7 @@ int main(int argc, char *argv[])
 	off_t oldpos, newpos;
 	off_t ctrl[3];
 	off_t i, lenread, offset;
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights_dir, rights_ro, rights_wr;
-#endif
 
 	if (argc != 4)
 		usage();
@@ -148,7 +144,6 @@ int main(int argc, char *argv[])
 		err(1, "open(%s)", argv[2]);
 	atexit(exit_cleanup);
 
-#ifndef WITHOUT_CAPSICUM
 	if (cap_enter() < 0)
 		err(1, "failed to enter security sandbox");
 
@@ -165,7 +160,6 @@ int main(int argc, char *argv[])
 	    cap_rights_limit(dirfd, &rights_dir) < 0)
 		err(1, "cap_rights_limit() failed, could not restrict"
 		    " capabilities");
-#endif
 
 	/*
 	File format:
