@@ -28,9 +28,7 @@
  */
 
 #include <sys/param.h>
-#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#endif
 #include <sys/queue.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
@@ -38,9 +36,7 @@
 #include <sys/disk.h>
 
 #include <assert.h>
-#ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
-#endif
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -488,10 +484,8 @@ blockif_open(nvlist_t *nvl, const char *ident)
 	int nodelete;
 	int bootindex;
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
 	cap_ioctl_t cmds[] = { DIOCGFLUSH, DIOCGDELETE, DIOCGMEDIASIZE };
-#endif
 
 	pthread_once(&blockif_once, blockif_init);
 
@@ -561,7 +555,6 @@ blockif_open(nvlist_t *nvl, const char *ident)
 		goto err;
         }
 
-#ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_FSYNC, CAP_IOCTL, CAP_READ, CAP_SEEK,
 	    CAP_WRITE, CAP_FSTAT, CAP_EVENT, CAP_FPATHCONF);
 	if (ro)
@@ -569,7 +562,6 @@ blockif_open(nvlist_t *nvl, const char *ident)
 
 	if (caph_rights_limit(fd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
 
         /*
 	 * Deal with raw devices
@@ -600,10 +592,8 @@ blockif_open(nvlist_t *nvl, const char *ident)
 		candelete = fpathconf(fd, _PC_DEALLOC_PRESENT) == 1;
 	}
 
-#ifndef WITHOUT_CAPSICUM
 	if (caph_ioctls_limit(fd, cmds, nitems(cmds)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
 
 	if (ssopt != 0) {
 		if (!powerof2(ssopt) || !powerof2(pssopt) || ssopt < 512 ||
