@@ -159,6 +159,16 @@ sysctl_nflag_tflag_dflag_body()
 	atf_check -o "inline:${sysctl_type}: ${sysctl_description}\n" sysctl -n -t -d ${sysctl_name}
 }
 
+atf_test_case sysctl_dflag_NULL
+sysctl_dflag_NULL_head()
+{
+	atf_set "descr" "Verify newline after NULL description"
+}
+sysctl_dflag_NULL_head()
+{
+	atf_check -s exit:1 sysctl -d dev | head -n 1 | grep ":"
+}
+
 
 atf_init_test_cases()
 {
@@ -171,4 +181,5 @@ atf_init_test_cases()
 	atf_add_test_case sysctl_dflag
 	atf_add_test_case sysctl_tflag_dflag
 	atf_add_test_case sysctl_nflag_tflag_dflag
+	atf_add_test_case sysctl_dflag_NULL
 }
