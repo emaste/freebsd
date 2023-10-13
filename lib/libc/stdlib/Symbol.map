@@ -115,7 +115,6 @@ FBSD_1.5 {
 };
 
 FBSD_1.6 {
-	ptsname_r;
 	qsort_s;
 	rand;
 	srand;
@@ -134,6 +133,7 @@ FBSD_1.8 {
 FBSD_1.9 {
 	bsearch_s;
 	memalignment;
+	ptsname_r;
 	recallocarray;
 	strfromd;
 	strfromf;
