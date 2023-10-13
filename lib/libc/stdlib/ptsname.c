@@ -76,12 +76,12 @@ __ptsname_r(int fildes, char *buffer, size_t buflen)
 
 	if (buflen <= sizeof(_PATH_DEV)) {
 		errno = ERANGE;
-		return (-1);
+		return (errno);
 	}
 
 	/* Make sure fildes points to a master device. */
 	if (__isptmaster(fildes) != 0)
-		return (-1);
+		return (errno);
 
 	memcpy(buffer, _PATH_DEV, sizeof(_PATH_DEV));
 	buffer += sizeof(_PATH_DEV) - 1;
@@ -90,7 +90,7 @@ __ptsname_r(int fildes, char *buffer, size_t buflen)
 	if (fdevname_r(fildes, buffer, buflen) == NULL) {
 		if (errno == EINVAL)
 			errno = ERANGE;
-		return (-1);
+		return (errno);
 	}
 
 	return (0);
@@ -112,3 +112,16 @@ ptsname(int fildes)
 
 	return (NULL);
 }
+
+/*
+ * Prior to FreeBSD 15 we returned -1 on error, not an error number as is now
+ * specified by POSIX.
+ */
+int
+__ptsname_r_fbsd14(int fildes, char *buffer, size_t buflen)
+{
+	if (__ptsname_r(fildes, buffer, buflen) != 0)
+		return (-1);
+	return (0);
+}
+__sym_compat(ptsname_r, ____ptsname_r_fbsd14, FBSD_1.6);
