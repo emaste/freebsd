@@ -115,7 +115,6 @@ FBSD_1.5 {
 };
 
 FBSD_1.6 {
-	ptsname_r;
 	qsort_s;
 	rand;
 	srand;
@@ -125,6 +124,10 @@ FBSD_1.7 {
 	clearenv;
 	qsort_r;
 	secure_getenv;
+};
+
+FBSD_1.8 {
+	ptsname_r;
 };
 
 FBSD_1.8 {
