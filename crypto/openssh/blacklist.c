@@ -47,7 +47,7 @@
 #include "misc.h"
 #include "servconf.h"
 #include <blacklist.h>
-#include "blacklist_client.h"
+#include "blocklist_client.h"
 
 static struct blacklist *blstate = NULL;
 
@@ -80,15 +80,15 @@ im_log(int priority, const char *message, va_list args)
 }
 
 void
-blacklist_init(void)
+blocklist_init(void)
 {
 
-	if (options.use_blacklist)
+	if (options.use_blocklist)
 		blstate = bl_create(false, NULL, im_log);
 }
 
 void
-blacklist_notify(struct ssh *ssh, int action, const char *msg)
+blocklist_notify(struct ssh *ssh, int action, const char *msg)
 {
 
 	if (blstate != NULL && ssh_packet_connection_is_on_socket(ssh))
