@@ -31,31 +31,31 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef BLACKLIST_CLIENT_H
-#define BLACKLIST_CLIENT_H
+#ifndef BLOCKLIST_CLIENT_H
+#define BLOCKLIST_CLIENT_H
 
-#ifndef BLACKLIST_API_ENUM
+#ifndef BLOCKLIST_API_ENUM
 enum {
-	BLACKLIST_AUTH_OK = 0,
-	BLACKLIST_AUTH_FAIL,
-	BLACKLIST_ABUSIVE_BEHAVIOR,
-	BLACKLIST_BAD_USER
+	BLOCKLIST_AUTH_OK = 0,
+	BLOCKLIST_AUTH_FAIL,
+	BLOCKLIST_ABUSIVE_BEHAVIOR,
+	BLOCKLIST_BAD_USER
 };
 #endif
 
 #ifdef USE_BLACKLIST
-void blacklist_init(void);
-void blacklist_notify(struct ssh *, int, const char *);
+void blocklist_init(void);
+void blocklist_notify(struct ssh *, int, const char *);
 
-#define BLACKLIST_INIT() blacklist_init()
-#define BLACKLIST_NOTIFY(ssh,x,msg) blacklist_notify(ssh,x,msg)
+#define BLOCKLIST_INIT() blocklist_init()
+#define BLOCKLIST_NOTIFY(ssh,x,msg) blocklist_notify(ssh,x,msg)
 
 #else
 
-#define BLACKLIST_INIT()
-#define BLACKLIST_NOTIFY(ssh,x,msg)
+#define BLOCKLIST_INIT()
+#define BLOCKLIST_NOTIFY(ssh,x,msg)
 
 #endif
 
 
-#endif /* BLACKLIST_CLIENT_H */
+#endif /* BLOCKLIST_CLIENT_H */
