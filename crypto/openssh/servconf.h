@@ -234,7 +234,7 @@ typedef struct {
 
 	int	unused_connection_timeout;
 
-	int	use_blacklist;
+	int	use_blocklist;
 }       ServerOptions;
 
 /* Information about the incoming connection as used by Match */
