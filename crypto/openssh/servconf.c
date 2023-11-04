@@ -216,7 +216,7 @@ initialize_server_options(ServerOptions *options)
 	options->unused_connection_timeout = -1;
 	options->sshd_session_path = NULL;
 	options->refuse_connection = -1;
-	options->use_blacklist = -1;
+	options->use_blocklist = -1;
 }
 
 /* Returns 1 if a string option is unset or set to "none" or 0 otherwise. */
@@ -503,8 +503,8 @@ fill_default_server_options(ServerOptions *options)
 		options->sshd_session_path = xstrdup(_PATH_SSHD_SESSION);
 	if (options->refuse_connection == -1)
 		options->refuse_connection = 0;
-	if (options->use_blacklist == -1)
-		options->use_blacklist = 0;
+	if (options->use_blocklist == -1)
+		options->use_blocklist = 0;
 
 	assemble_algorithms(options);
 
@@ -588,7 +588,7 @@ typedef enum {
 	sExposeAuthInfo, sRDomain, sPubkeyAuthOptions, sSecurityKeyProvider,
 	sRequiredRSASize, sChannelTimeout, sUnusedConnectionTimeout,
 	sSshdSessionPath, sRefuseConnection,
-	sUseBlacklist,
+	sUseBlocklist,
 	sDeprecated, sIgnore, sUnsupported
 } ServerOpCodes;
 
@@ -757,8 +757,8 @@ static struct {
 	{ "unusedconnectiontimeout", sUnusedConnectionTimeout, SSHCFG_ALL },
 	{ "sshdsessionpath", sSshdSessionPath, SSHCFG_GLOBAL },
 	{ "refuseconnection", sRefuseConnection, SSHCFG_ALL },
-	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL },
-	{ "useblocklist", sUseBlacklist, SSHCFG_GLOBAL }, /* alias */
+	{ "useblacklist", sUseBlocklist, SSHCFG_GLOBAL }, /* alias */
+	{ "useblocklist", sUseBlocklist, SSHCFG_GLOBAL },
 
 	{ NULL, sBadOption, 0 }
 };
@@ -2724,8 +2724,8 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		multistate_ptr = multistate_flag;
 		goto parse_multistate;
 
-	case sUseBlacklist:
-		intptr = &options->use_blacklist;
+	case sUseBlocklist:
+		intptr = &options->use_blocklist;
 		goto parse_flag;
 
 	case sDeprecated:
@@ -3277,7 +3277,7 @@ dump_config(ServerOptions *o)
 	dump_cfg_fmtint(sFingerprintHash, o->fingerprint_hash);
 	dump_cfg_fmtint(sExposeAuthInfo, o->expose_userauth_info);
 	dump_cfg_fmtint(sRefuseConnection, o->refuse_connection);
-	dump_cfg_fmtint(sUseBlacklist, o->use_blacklist);
+	dump_cfg_fmtint(sUseBlocklist, o->use_blocklist);
 
 	/* string arguments */
 	dump_cfg_string(sPidFile, o->pid_file);
