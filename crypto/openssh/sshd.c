@@ -137,7 +137,7 @@
 #include "sk-api.h"
 #include "srclimit.h"
 #include "dh.h"
-#include "blacklist_client.h"
+#include "blocklist_client.h"
 
 #ifdef LIBWRAP
 #include <tcpd.h>
@@ -377,6 +377,7 @@ grace_alarm_handler(int sig)
 		kill(0, SIGTERM);
 	}
 
+	//BLOCKLIST_NOTIFY(the_active_state, BLOCKLIST_AUTH_FAIL, "ssh");
 	/* Log error and exit. */
 	sigdie("Timeout before authentication for %s port %d",
 	    ssh_remote_ipaddr(the_active_state),
@@ -2343,7 +2344,7 @@ main(int ac, char **av)
 		fatal_f("sshbuf_new failed");
 	auth_debug_reset();
 
-	BLACKLIST_INIT();
+	BLOCKLIST_INIT();
 
 	if (use_privsep) {
 		if (privsep_preauth(ssh) == 1)
