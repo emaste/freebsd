@@ -198,7 +198,7 @@ initialize_server_options(ServerOptions *options)
 	options->channel_timeouts = NULL;
 	options->num_channel_timeouts = 0;
 	options->unused_connection_timeout = -1;
-	options->use_blacklist = -1;
+	options->use_blocklist = -1;
 }
 
 /* Returns 1 if a string option is unset or set to "none" or 0 otherwise. */
@@ -455,8 +455,8 @@ fill_default_server_options(ServerOptions *options)
 		options->required_rsa_size = SSH_RSA_MINIMUM_MODULUS_SIZE;
 	if (options->unused_connection_timeout == -1)
 		options->unused_connection_timeout = 0;
-	if (options->use_blacklist == -1)
-		options->use_blacklist = 0;
+	if (options->use_blocklist == -1)
+		options->use_blocklist = 0;
 
 	assemble_algorithms(options);
 
@@ -704,8 +704,8 @@ static struct {
 	{ "requiredrsasize", sRequiredRSASize, SSHCFG_ALL },
 	{ "channeltimeout", sChannelTimeout, SSHCFG_ALL },
 	{ "unusedconnectiontimeout", sUnusedConnectionTimeout, SSHCFG_ALL },
-	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL },
-	{ "useblocklist", sUseBlacklist, SSHCFG_GLOBAL }, /* alias */
+	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL }, /* alias */
+	{ "useblocklist", sUseBlocklist, SSHCFG_GLOBAL },
 
 	{ NULL, sBadOption, 0 }
 };
@@ -2555,7 +2555,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		goto parse_time;
 
 	case sUseBlacklist:
-		intptr = &options->use_blacklist;
+		intptr = &options->use_blocklist;
 		goto parse_flag;
 
 	case sDeprecated:
@@ -3101,7 +3101,7 @@ dump_config(ServerOptions *o)
 	dump_cfg_fmtint(sStreamLocalBindUnlink, o->fwd_opts.streamlocal_bind_unlink);
 	dump_cfg_fmtint(sFingerprintHash, o->fingerprint_hash);
 	dump_cfg_fmtint(sExposeAuthInfo, o->expose_userauth_info);
-	dump_cfg_fmtint(sUseBlacklist, o->use_blacklist);
+	dump_cfg_fmtint(sUseBlacklist, o->use_blocklist);
 
 	/* string arguments */
 	dump_cfg_string(sPidFile, o->pid_file);
