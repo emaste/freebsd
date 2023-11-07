@@ -541,7 +541,7 @@ typedef enum {
 	sAllowStreamLocalForwarding, sFingerprintHash, sDisableForwarding,
 	sExposeAuthInfo, sRDomain, sPubkeyAuthOptions, sSecurityKeyProvider,
 	sRequiredRSASize, sChannelTimeout, sUnusedConnectionTimeout,
-	sUseBlacklist,
+	sUseBlocklist,
 	sDeprecated, sIgnore, sUnsupported
 } ServerOpCodes;
 
@@ -704,7 +704,7 @@ static struct {
 	{ "requiredrsasize", sRequiredRSASize, SSHCFG_ALL },
 	{ "channeltimeout", sChannelTimeout, SSHCFG_ALL },
 	{ "unusedconnectiontimeout", sUnusedConnectionTimeout, SSHCFG_ALL },
-	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL }, /* alias */
+	{ "useblacklist", sUseBlocklist, SSHCFG_GLOBAL }, /* alias */
 	{ "useblocklist", sUseBlocklist, SSHCFG_GLOBAL },
 
 	{ NULL, sBadOption, 0 }
@@ -2554,7 +2554,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		}
 		goto parse_time;
 
-	case sUseBlacklist:
+	case sUseBlocklist:
 		intptr = &options->use_blocklist;
 		goto parse_flag;
 
@@ -3101,7 +3101,7 @@ dump_config(ServerOptions *o)
 	dump_cfg_fmtint(sStreamLocalBindUnlink, o->fwd_opts.streamlocal_bind_unlink);
 	dump_cfg_fmtint(sFingerprintHash, o->fingerprint_hash);
 	dump_cfg_fmtint(sExposeAuthInfo, o->expose_userauth_info);
-	dump_cfg_fmtint(sUseBlacklist, o->use_blocklist);
+	dump_cfg_fmtint(sUseBlocklist, o->use_blocklist);
 
 	/* string arguments */
 	dump_cfg_string(sPidFile, o->pid_file);
