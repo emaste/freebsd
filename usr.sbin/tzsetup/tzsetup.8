@@ -30,7 +30,7 @@
 .Nd set local timezone
 .Sh SYNOPSIS
 .Nm
-.Op Fl nrs
+.Op Fl clnrs
 .Op Fl C Ar chroot_directory
 .Op Ar zoneinfo_file | zoneinfo_name
 .Sh DESCRIPTION
@@ -51,8 +51,12 @@ The following options are available:
 .It Fl C Ar chroot_directory
 Open all files and directories relative to
 .Ar chroot_directory .
+.It Fl c
+Install selected zoneinfo file by copying.
+.It Fl l
+Install selected zoneinfo file as a symbolic link.
 .It Fl n
-Do not create or symlink files.
+Do not create or copy files.
 .It Fl r
 Reinstall the zoneinfo file installed last time.
 The name is obtained from
