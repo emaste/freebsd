@@ -246,7 +246,8 @@ linux_name_to_handle_at(struct thread *td,
 		fd = AT_FDCWD;
 
 	bsd_flags = 0;
-	if (!(args->flags & LINUX_AT_SYMLINK_FOLLOW))
+	if (!(args->flags & LINUX_AT_SYMLINK_FOLLOW) ||
+	    (args->flags & LINUX_AT_SYMLINK_NOFOLLOW))
 		bsd_flags |= AT_SYMLINK_NOFOLLOW;
 	if ((args->flags & LINUX_AT_EMPTY_PATH) != 0)
 		bsd_flags |= AT_EMPTY_PATH;
