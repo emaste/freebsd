@@ -84,6 +84,10 @@ static char	path_zonetab[MAXPATHLEN], path_iso3166[MAXPATHLEN],
 		path_db[MAXPATHLEN], path_db_compat[MAXPATHLEN],
 		path_wall_cmos_clock[MAXPATHLEN];
 
+enum {
+	mode_unset = 0, mode_copy, mode_symlink
+} copymode;
+
 static int reallydoit = 1;
 static int reinstall = 0;
 static char *chrootenv = NULL;
@@ -746,42 +750,112 @@ static void message_zoneinfo_file(const char *title, char *prompt)
 static int
 install_zoneinfo_file(const char *zoneinfo_file)
 {
+	char		buf[1024];
 	char		prompt[SILLY_BUFFER_SIZE];
+	struct stat	sb;
+	ssize_t		len;
+	int		fd1, fd2;
+
+	if (copymode == mode_unset) {
+		if (lstat(path_localtime, &sb) < 0) {
+			/* Nothing there yet... */
+			copymode = mode_copy;
+		} else if (S_ISLNK(sb.st_mode)) {
+			copymode = mode_symlink;
+		} else {
+			copymode = mode_copy;
+		}
+	}
 
 #ifdef VERBOSE
-	snprintf(prompt, sizeof(prompt), "Creating symbolic link %s to %s",
-	    path_localtime, zoneinfo_file);
+	if (copymode == mode_copy)
+		snprintf(prompt, sizeof(prompt),
+		    "Copying %s to %s", zoneinfo_file, path_localtime);
+	else
+		snprintf(prompt, sizeof(prompt),
+		    "Creating symbolic link %s to %s",
+		    path_localtime, zoneinfo_file);
 	message_zoneinfo_file("Info", prompt);
 #endif
 
 	if (reallydoit) {
-		if (access(zoneinfo_file, R_OK) != 0) {
-			snprintf(prompt, sizeof(prompt),
-			    "Cannot access %s: %s", zoneinfo_file,
-			    strerror(errno));
-			message_zoneinfo_file("Error", prompt);
-			return (DITEM_FAILURE | DITEM_RECREATE);
-		}
-		if (unlink(path_localtime) < 0 && errno != ENOENT) {
-			snprintf(prompt, sizeof(prompt),
-			    "Could not delete %s: %s",
-			    path_localtime, strerror(errno));
-			message_zoneinfo_file("Error", prompt);
-			return (DITEM_FAILURE | DITEM_RECREATE);
-		}
-		if (symlink(zoneinfo_file, path_localtime) < 0) {
-			snprintf(prompt, sizeof(prompt),
-			    "Cannot create symbolic link %s to %s: %s",
-			    path_localtime, zoneinfo_file,
-			    strerror(errno));
-			message_zoneinfo_file("Error", prompt);
-			return (DITEM_FAILURE | DITEM_RECREATE);
+		if (copymode == mode_copy) {
+			fd1 = open(zoneinfo_file, O_RDONLY, 0);
+			if (fd1 < 0) {
+				snprintf(prompt, sizeof(prompt),
+				    "Could not open %s: %s", zoneinfo_file,
+				    strerror(errno));
+				message_zoneinfo_file("Error", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+
+			if (unlink(path_localtime) < 0 && errno != ENOENT) {
+				snprintf(prompt, sizeof(prompt),
+				    "Could not delete %s: %s",
+				    path_localtime, strerror(errno));
+				message_zoneinfo_file("Error", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+
+			fd2 = open(path_localtime, O_CREAT | O_EXCL | O_WRONLY,
+			    S_IRUSR | S_IRGRP | S_IROTH);
+			if (fd2 < 0) {
+				snprintf(prompt, sizeof(prompt),
+				    "Could not open %s: %s",
+				    path_localtime, strerror(errno));
+				message_zoneinfo_file("Error", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+
+			while ((len = read(fd1, buf, sizeof(buf))) > 0)
+				if ((len = write(fd2, buf, len)) < 0)
+					break;
+
+			if (len == -1) {
+				snprintf(prompt, sizeof(prompt),
+				    "Error copying %s to %s %s", zoneinfo_file,
+				    path_localtime, strerror(errno));
+				message_zoneinfo_file("Error", prompt);
+				/* Better to leave none than a corrupt one. */
+				unlink(path_localtime);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+			close(fd1);
+			close(fd2);
+		} else {
+			if (access(zoneinfo_file, R_OK) != 0) {
+				snprintf(prompt, sizeof(prompt),
+				    "Cannot access %s: %s", zoneinfo_file,
+				    strerror(errno));
+				message_zoneinfo_file("Error", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+			if (unlink(path_localtime) < 0 && errno != ENOENT) {
+				snprintf(prompt, sizeof(prompt),
+				    "Could not delete %s: %s",
+				    path_localtime, strerror(errno));
+				message_zoneinfo_file("Error", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+			if (symlink(zoneinfo_file, path_localtime) < 0) {
+				snprintf(prompt, sizeof(prompt),
+				    "Cannot create symbolic link %s to %s: %s",
+				    path_localtime, zoneinfo_file,
+				    strerror(errno));
+				message_zoneinfo_file("Error", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
 		}
 
 #ifdef VERBOSE
-		snprintf(prompt, sizeof(prompt),
-		    "Created symbolic link from %s to %s", zoneinfo_file,
-		    path_localtime);
+		if (copymode == mode_copy)
+			snprintf(prompt, sizeof(prompt),
+			    "Copied timezone file from %s to %s",
+			    zoneinfo_file, path_localtime);
+		else
+			snprintf(prompt, sizeof(prompt),
+			    "Created symbolic link from %s to %s",
+			    zoneinfo_file, path_localtime);
 		message_zoneinfo_file("Done", prompt);
 #endif
 	} /* reallydoit */
@@ -840,15 +914,16 @@ main(int argc, char **argv)
 	setlocale(LC_ALL, "");
 #endif
 
-	/* Default skiputc to 1 for VM guests */
-	if (sysctlbyname("kern.vm_guest", vm_guest, &len, NULL, 0) == 0 &&
-	    strcmp(vm_guest, "none") != 0)
-		skiputc = 1;
-
-	while ((c = getopt(argc, argv, "C:d:nrs")) != -1) {
+	while ((c = getopt(argc, argv, "C:cd:lnrs")) != -1) {
 		switch (c) {
 		case 'C':
 			chrootenv = optarg;
+			break;
+		case 'c':
+			copymode = mode_copy;
+			break;
+		case 'l':
+			copymode = mode_symlink;
 			break;
 		case 'd':
 			dztpath = optarg;
