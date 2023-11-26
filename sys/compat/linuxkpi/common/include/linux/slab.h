@@ -219,6 +219,24 @@ ksize(const void *ptr)
 }
 
 extern void *lkpi_kmalloc(size_t size, gfp_t flags);
+static inline size_t
+kmalloc_size_roundup(size_t size)
+{
+	if (unlikely(size == 0))
+		return (size);
+	if (unlikely(size == SIZE_MAX))
+		return (size);
+#if defined(DEBUG_REDZONE) || defined(DEBUG_MEMGUARD)
+	return (size);
+#else
+	size_t rv = malloc_size(size);
+	/* For malloc_large, size is a multiple of page size. */
+	if (rv == 0)
+		rv = roundup(size, PAGE_SIZE);
+	return (rv);
+#endif
+}
+
 extern struct linux_kmem_cache *linux_kmem_cache_create(const char *name,
     size_t size, size_t align, unsigned flags, linux_kmem_ctor_t *ctor);
 extern void *lkpi_kmem_cache_alloc(struct linux_kmem_cache *, gfp_t);
