@@ -1224,7 +1224,7 @@ envy24ht_checkintr(struct sc_info *sc, int dir)
 		if ((rtn = intr & ENVY24HT_MT_INT_PSTAT) != 0) {
 			mask = ~ENVY24HT_MT_INT_RSTAT;
 			envy24ht_wrmt(sc, 0x1a, 0x01, 1);
-			envy24ht_wrmt(sc, ENVY24HT_MT_INT_STAT, (intr & mask) | ENVY24HT_MT_INT_PSTAT | 0x08, 1);	
+			envy24ht_wrmt(sc, ENVY24HT_MT_INT_STAT, (intr & mask) | ENVY24HT_MT_INT_PSTAT | 0x08, 1);
 			stat = envy24ht_rdmt(sc, ENVY24HT_MT_INT_MASK, 1);
 			envy24ht_wrmt(sc, ENVY24HT_MT_INT_MASK, stat | ENVY24HT_MT_INT_PMASK, 1);
 		}
