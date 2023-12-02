@@ -50,7 +50,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	NetBSD: snapper.c,v 1.28 2008/05/16 03:49:54 macallan Exp
- *	Id: snapper.c,v 1.11 2002/10/31 17:42:13 tsubai Exp 
+ *	Id: snapper.c,v 1.11 2002/10/31 17:42:13 tsubai Exp
  */
 
 /*
@@ -217,7 +217,7 @@ struct snapper_reg {
 };
 
 static const struct snapper_reg snapper_initdata = {
-	{ SNAPPER_MCR1_SC_64 | SNAPPER_MCR1_SM_I2S | 
+	{ SNAPPER_MCR1_SC_64 | SNAPPER_MCR1_SM_I2S |
 	  SNAPPER_MCR1_W_16 },					/* MCR1 */
 	{ 1, 0, 0, 0, 0, 0 },					/* DRC */
 	{ 0, 0, 0, 0, 0, 0 },					/* VOLUME */
