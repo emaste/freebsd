@@ -34,7 +34,7 @@
 #define PCID_ENVY24HT 0x1724
 
 #define PCIR_CCS		0x10 /* Controller I/O Base Address */
-#define ENVY24HT_PCIR_MT   	0x14 /* Multi-Track I/O Base Address */
+#define ENVY24HT_PCIR_MT	0x14 /* Multi-Track I/O Base Address */
 
 /* Controller Registers */
 
@@ -59,9 +59,9 @@
 
 #define ENVY24HT_CCS_SCFG  0x04 /* System Configuration Register */
 #define ENVY24HT_CCSM_SCFG_XIN2      0xc0 /* XIN2 Clock Source Configuration */
-                                 	  /* 00: 24.576MHz(96kHz*256) */
-                                 	  /* 01: 49.152MHz(192kHz*256) */
-                                 	  /* 1x: Reserved */
+					  /* 00: 24.576MHz(96kHz*256) */
+					  /* 01: 49.152MHz(192kHz*256) */
+					  /* 1x: Reserved */
 #define ENVY24HT_CCSM_SCFG_MPU       0x20 /* 0(not implemented)/1(1) MPU-401 UART */
 #define ENVY24HT_CCSM_SCFG_ADC       0x0c /* 1-2 stereo ADC connected, S/PDIF receiver connected */
 #define ENVY24HT_CCSM_SCFG_DAC       0x03 /* 1-4 stereo DAC connected */
