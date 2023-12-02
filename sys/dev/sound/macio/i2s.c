@@ -49,7 +49,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * 	NetBSD: snapper.c,v 1.28 2008/05/16 03:49:54 macallan Exp
+ *	NetBSD: snapper.c,v 1.28 2008/05/16 03:49:54 macallan Exp
  *	Id: snapper.c,v 1.11 2002/10/31 17:42:13 tsubai Exp 
  */
 
@@ -83,24 +83,24 @@
 #include <powerpc/powermac/macgpiovar.h>
 
 struct i2s_softc {
-	struct aoa_softc 	 aoa;
-	phandle_t 		 node;
+	struct aoa_softc	 aoa;
+	phandle_t		 node;
 	phandle_t		 soundnode;
-	struct resource 	*reg;
-	u_int 			 output_mask;
-	struct mtx 		 port_mtx;
+	struct resource		*reg;
+	u_int			 output_mask;
+	struct mtx		 port_mtx;
 };
 
-static int 	i2s_probe(device_t);
-static int 	i2s_attach(device_t);
-static void 	i2s_postattach(void *);
-static int 	i2s_setup(struct i2s_softc *, u_int, u_int, u_int);
+static int	i2s_probe(device_t);
+static int	i2s_attach(device_t);
+static void	i2s_postattach(void *);
+static int	i2s_setup(struct i2s_softc *, u_int, u_int, u_int);
 static void     i2s_mute_headphone (struct i2s_softc *, int);
 static void     i2s_mute_lineout   (struct i2s_softc *, int);
 static void     i2s_mute_speaker   (struct i2s_softc *, int);
-static void 	i2s_set_outputs(void *, u_int);
+static void	i2s_set_outputs(void *, u_int);
 
-static struct intr_config_hook 	*i2s_delayed_attach = NULL;
+static struct intr_config_hook	*i2s_delayed_attach = NULL;
 
 kobj_class_t	i2s_mixer_class = NULL;
 device_t	i2s_mixer = NULL;
@@ -108,7 +108,7 @@ device_t	i2s_mixer = NULL;
 static device_method_t pcm_i2s_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		i2s_probe),
-	DEVMETHOD(device_attach, 	i2s_attach),
+	DEVMETHOD(device_attach,	i2s_attach),
 	{ 0, 0 }
 };
 
@@ -122,7 +122,7 @@ DRIVER_MODULE(pcm_i2s, macio, pcm_i2s_driver, 0, 0);
 MODULE_DEPEND(pcm_i2s, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 
 static int	aoagpio_probe(device_t);
-static int 	aoagpio_attach(device_t);
+static int	aoagpio_attach(device_t);
 
 static device_method_t aoagpio_methods[] = {
 	/* Device interface. */
@@ -132,8 +132,8 @@ static device_method_t aoagpio_methods[] = {
 };
 
 struct aoagpio_softc {
-	device_t 		 dev;
-	int 			 ctrl;
+	device_t		 dev;
+	int			 ctrl;
 	int			 detect_active; /* for extint-gpio */
 	int			 level;		/* for extint-gpio */
 	struct i2s_softc	*i2s;		/* for extint-gpio */
@@ -153,7 +153,7 @@ DRIVER_MODULE(aoagpio, macgpio, aoagpio_driver, 0, 0);
 static int
 i2s_probe(device_t self)
 {
-	const char 		*name;
+	const char		*name;
 	phandle_t		subchild;
 	char			subchildname[255];
 
@@ -184,11 +184,11 @@ static phandle_t of_find_firstchild_byname(phandle_t, const char *);
 static int
 i2s_attach(device_t self)
 {
-	struct i2s_softc 	*sc;
-	struct resource 	*dbdma_irq;
+	struct i2s_softc	*sc;
+	struct resource		*dbdma_irq;
 	void			*dbdma_ih;
-	int 			 rid, oirq, err;
-	phandle_t 		 port;
+	int			 rid, oirq, err;
+	phandle_t		 port;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 
@@ -279,21 +279,21 @@ static struct gpio_match {
 } gpio_controls[] = {
 	{"headphone-mute",      HEADPHONE_MUTE},
 	{"lineout-mute",	LINEOUT_MUTE},
-	{"amp-mute",	    	AMP_MUTE},
+	{"amp-mute",		AMP_MUTE},
 	{"headphone-detect",    HEADPHONE_DETECT},
 	{"lineout-detect",      LINEOUT_DETECT},
 	{"line-output-detect",  LINEOUT_DETECT},
 	{"audio-hw-reset",      AUDIO_HW_RESET},
-	{"hw-reset",	    	AUDIO_HW_RESET},
-	{NULL,		 	GPIO_CTRL_NUM}
+	{"hw-reset",		AUDIO_HW_RESET},
+	{NULL,			GPIO_CTRL_NUM}
 };
 
-static void 		i2s_cint(struct i2s_softc *);
+static void		i2s_cint(struct i2s_softc *);
 
 static void
 aoagpio_int(void *cookie)
 {
-	device_t 		 self = cookie;
+	device_t		 self = cookie;
 	struct aoagpio_softc	*sc;
 
 	sc = device_get_softc(self);
@@ -310,9 +310,9 @@ aoagpio_int(void *cookie)
 static int
 aoagpio_probe(device_t gpio)
 {
-	phandle_t	 	 node;
+	phandle_t		 node;
 	char			 bname[32];
-	const char 		*name;
+	const char		*name;
 	struct gpio_match	*m;
 	struct aoagpio_softc	*sc;
 
@@ -502,8 +502,8 @@ i2s_setup(struct i2s_softc *sc, u_int rate, u_int wordsize, u_int sclk_fs)
 	reg |= (x << 20) & SCLK_DIV_MASK;
 
 	/*
-	 * 	XXX use master mode for now. This needs to be 
-	 * 	revisited if we want to add recording from SPDIF some day.
+	 *	XXX use master mode for now. This needs to be 
+	 *	revisited if we want to add recording from SPDIF some day.
 	 */
 	reg |= SCLK_MASTER;
 
@@ -537,8 +537,8 @@ i2s_setup(struct i2s_softc *sc, u_int rate, u_int wordsize, u_int sclk_fs)
 	x = bus_read_4(sc->reg, I2S_FORMAT);
 	if (x != reg) {
 		/*
-		 * 	XXX to change the format we need to stop the clock
-		 * 	via the FCR registers. For now, rely on the firmware
+		 *	XXX to change the format we need to stop the clock
+		 *	via the FCR registers. For now, rely on the firmware
 		 *	to set sane defaults (44100).
 		 */
 		printf("i2s_setup: changing format not supported yet.\n");
@@ -578,8 +578,8 @@ i2s_setup(struct i2s_softc *sc, u_int rate, u_int wordsize, u_int sclk_fs)
 static phandle_t
 of_find_firstchild_byname(phandle_t node, const char *req_name)
 {
-	char 		name[32]; /* max name len per OF spec. */
-	phandle_t 	n;
+	char		name[32]; /* max name len per OF spec. */
+	phandle_t	n;
 
 	for (n = OF_child(node); n != -1; n = OF_peer(n)) {
 		bzero(name, sizeof(name));
@@ -606,8 +606,8 @@ gpio_read(enum gpio_ctrl ctrl)
 static void
 gpio_write(enum gpio_ctrl ctrl, u_int x)
 {
-	struct aoagpio_softc 	*sc;
-	u_int 			 reg;
+	struct aoagpio_softc	*sc;
+	u_int			 reg;
 
 	if ((sc = gpio_ctrls[ctrl]) == NULL)
 		return;
@@ -670,10 +670,10 @@ i2s_audio_hw_reset(struct i2s_softc *sc)
 #define LINEOUT_ACTIVE   0	      /* XXX OF */
 
 #define MUTE_CONTROL(xxx, yyy)				\
-static void 						\
+static void						\
 i2s_mute_##xxx(struct i2s_softc *sc, int mute)		\
 {							\
-	int 		x;				\
+	int		x;				\
 							\
 	if (gpio_ctrls[yyy##_MUTE] == NULL)		\
 		return;					\
@@ -693,7 +693,7 @@ MUTE_CONTROL(lineout, LINEOUT)
 static void
 i2s_set_outputs(void *ptr, u_int mask)
 {
-	struct i2s_softc 	*sc = ptr;
+	struct i2s_softc	*sc = ptr;
 
 	if (mask == sc->output_mask)
 		return;
@@ -728,9 +728,9 @@ i2s_set_outputs(void *ptr, u_int mask)
 static void
 i2s_postattach(void *xsc)
 {
-	struct i2s_softc 	*sc = xsc;
-	device_t 		 self;
-	int 			 i;
+	struct i2s_softc	*sc = xsc;
+	device_t		 self;
+	int			 i;
 
 	self = sc->aoa.sc_dev;
 
