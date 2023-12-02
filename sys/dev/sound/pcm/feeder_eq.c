@@ -375,7 +375,7 @@ feed_eq_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 
 	/*
 	 * 3 major states:
-	 * 	FEEDEQ_BYPASS  - Bypass entirely, nothing happened.
+	 *	FEEDEQ_BYPASS  - Bypass entirely, nothing happened.
 	 *      FEEDEQ_ENABLE  - Preamp+biquad filtering.
 	 *      FEEDEQ_DISABLE - Preamp only.
 	 */

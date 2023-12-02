@@ -707,7 +707,7 @@ sndbuf_dump(struct snd_dbuf *b, char *s, u_int32_t what)
 		printf(" dl: %d, rp: %d, rl: %d, hp: %d", b->dl, b->rp, b->rl, b->hp);
 	if (what & 0x04)
 		printf(" total: %ju, prev_total: %ju, xrun: %d", (uintmax_t)b->total, (uintmax_t)b->prev_total, b->xrun);
-   	if (what & 0x08)
+	if (what & 0x08)
 		printf(" fmt: 0x%x, spd: %d", b->fmt, b->spd);
 	if (what & 0x10)
 		printf(" blksz: %d, blkcnt: %d, flags: 0x%x", b->blksz, b->blkcnt, b->flags);
