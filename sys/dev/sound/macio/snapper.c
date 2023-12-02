@@ -49,7 +49,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * 	NetBSD: snapper.c,v 1.28 2008/05/16 03:49:54 macallan Exp
+ *	NetBSD: snapper.c,v 1.28 2008/05/16 03:49:54 macallan Exp
  *	Id: snapper.c,v 1.11 2002/10/31 17:42:13 tsubai Exp 
  */
 
@@ -94,7 +94,7 @@ struct snapper_softc
 };
 
 static int	snapper_probe(device_t);
-static int 	snapper_attach(device_t);
+static int	snapper_attach(device_t);
 static int	snapper_init(struct snd_mixer *m);
 static int	snapper_uninit(struct snd_mixer *m);
 static int	snapper_reinit(struct snd_mixer *m);
@@ -120,11 +120,11 @@ MODULE_VERSION(snapper, 1);
 MODULE_DEPEND(snapper, iicbus, 1, 1, 1);
 
 static kobj_method_t snapper_mixer_methods[] = {
-	KOBJMETHOD(mixer_init, 		snapper_init),
-	KOBJMETHOD(mixer_uninit, 	snapper_uninit),
-	KOBJMETHOD(mixer_reinit, 	snapper_reinit),
-	KOBJMETHOD(mixer_set, 		snapper_set),
-	KOBJMETHOD(mixer_setrecsrc, 	snapper_setrecsrc),
+	KOBJMETHOD(mixer_init,		snapper_init),
+	KOBJMETHOD(mixer_uninit,	snapper_uninit),
+	KOBJMETHOD(mixer_reinit,	snapper_reinit),
+	KOBJMETHOD(mixer_set,		snapper_set),
+	KOBJMETHOD(mixer_setrecsrc,	snapper_setrecsrc),
 	KOBJMETHOD_END
 };
 
@@ -218,7 +218,7 @@ struct snapper_reg {
 
 static const struct snapper_reg snapper_initdata = {
 	{ SNAPPER_MCR1_SC_64 | SNAPPER_MCR1_SM_I2S | 
-	  SNAPPER_MCR1_W_16 }, 					/* MCR1 */
+	  SNAPPER_MCR1_W_16 },					/* MCR1 */
 	{ 1, 0, 0, 0, 0, 0 },					/* DRC */
 	{ 0, 0, 0, 0, 0, 0 },					/* VOLUME */
 	{ 0x72 },						/* TREBLE */
@@ -289,7 +289,7 @@ static const char snapper_regsize[] = {
 };
 
 /* dB = 20 * log (x) table. */
-static u_int	snapper_volume_table[100] = {      	
+static u_int	snapper_volume_table[100] = {
 	0x00000148,   0x0000015C,   0x00000171,   0x00000186,   // -46.0,	-45.5,	-45.0,	-44.5,
 	0x0000019E,   0x000001B6,   0x000001D0,   0x000001EB,   // -44.0,	-43.5,	-43.0,	-42.5,
 	0x00000209,   0x00000227,   0x00000248,   0x0000026B,   // -42.0,	-41.5,	-41.0,	-40.5,
