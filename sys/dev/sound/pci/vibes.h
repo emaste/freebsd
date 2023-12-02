@@ -91,7 +91,7 @@
 #define SV_CM_DATA	0x05
 
 /* ------------------------------------------------------------------------- */
-/* Indexed Codec/Mixer Registers (left channels were applicable) */ 
+/* Indexed Codec/Mixer Registers (left channels were applicable) */
 
 #define SV_REG_ADC_INPUT	0x00
 #define	SV_INPUT_GAIN_MASK	0x0f
@@ -197,7 +197,7 @@
 #define		SV_DIGITAL_OFF		0x0f
 
 /* ------------------------------------------------------------------------- */
-/* ADC PLL constants */ 
+/* ADC PLL constants */
 
 #define		SV_F_SCALE		512
 #define		SV_F_REF		24576000
