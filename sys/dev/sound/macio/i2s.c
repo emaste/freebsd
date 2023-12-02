@@ -487,7 +487,7 @@ i2s_setup(struct i2s_softc *sc, u_int rate, u_int wordsize, u_int sclk_fs)
 		break;
 	}
 	reg |= (x << 24) & MCLK_DIV_MASK;
-		
+
 	switch (sdiv) {
 	case 1:
 		x = 8;
@@ -546,17 +546,17 @@ i2s_setup(struct i2s_softc *sc, u_int rate, u_int wordsize, u_int sclk_fs)
 
 #ifdef notyet
 		if (obio_fcr_isset(OBIO_FCR1, I2S0CLKEN)) {
-			
+
 			bus_space_write_4(sc->sc_tag, sc->sc_bsh, I2S_INT,
 					  I2S_INT_CLKSTOPPEND);
-			
+
 			obio_fcr_clear(OBIO_FCR1, I2S0CLKEN);
 
 			for (timo = 1000; timo > 0; timo--) {
 				if (bus_space_read_4(sc->sc_tag, sc->sc_bsh,
 				    I2S_INT) & I2S_INT_CLKSTOPPEND)
 					break;
-				
+
 				DELAY(10);
 			}
 
@@ -566,7 +566,7 @@ i2s_setup(struct i2s_softc *sc, u_int rate, u_int wordsize, u_int sclk_fs)
 		}
 
 		bus_space_write_4(sc->sc_tag, sc->sc_bsh, I2S_FORMAT, reg);
-		
+
 		obio_fcr_set(OBIO_FCR1, I2S0CLKEN);
 #endif
 	}
@@ -744,7 +744,7 @@ i2s_postattach(void *xsc)
 	/* Read initial port status. */
 	i2s_cint(sc);
 
-	/* Enable GPIO interrupt callback. */	
+	/* Enable GPIO interrupt callback. */
 	for (i = 0; i < GPIO_CTRL_NUM; i++)
 		if (gpio_ctrls[i])
 			gpio_ctrls[i]->i2s = sc;
