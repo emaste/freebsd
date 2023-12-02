@@ -1402,7 +1402,7 @@ sound_oss_card_info(oss_card_info *si)
 
 		PCM_UNLOCKASSERT(d);
 		PCM_LOCK(d);
-		
+
 		strlcpy(si->shortname, device_get_nameunit(d->dev),
 		    sizeof(si->shortname));
 		strlcpy(si->longname, device_get_desc(d->dev),

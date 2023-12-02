@@ -2772,7 +2772,7 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 
 			for (i = 0; i < ai->nrates; i++)
 				ai->rates[i] = rates[i];
-			
+
 			ai->next_play_engine = 0;
 			ai->next_rec_engine = 0;
 

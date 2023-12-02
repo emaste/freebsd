@@ -750,7 +750,7 @@ sndstat_dsp_nvlist_is_sane(const nvlist_t *nvlist)
 		    nvlist_exists_number(nvlist, "rfmts")))
 			return (false);
 	}
-	
+
 	return (true);
 
 }
