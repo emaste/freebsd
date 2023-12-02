@@ -498,7 +498,7 @@ via_attach(device_t dev)
 	}
 
 	/* Power everything up */
-	pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_DESIRED, 1);	
+	pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_DESIRED, 1);
 
 	/* Wait for codec to become ready (largest reported delay here 310ms) */
 	for (cnt = 0; cnt < 2000; cnt++) {

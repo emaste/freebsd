@@ -403,7 +403,7 @@ enum {
 
 #define CHN_F_MMAP_INVALID	(CHN_F_DEAD | CHN_F_RUNNING)
 
-					
+
 
 #define CHN_N_BLOCKSIZE		0x00000001
 #define CHN_N_TRIGGER		0x00000002
