@@ -287,7 +287,7 @@ tumbler_write(struct tumbler_softc *sc, uint8_t reg, const void *data)
 	struct iic_msg msg[] = {
 		{ sc->sc_addr, IIC_M_WR, 0, buf }
 	};
-		
+
 	KASSERT(reg < sizeof(tumbler_regsize), ("bad reg"));
 	size = tumbler_regsize[reg];
 	msg[0].len = size + 1;
@@ -321,7 +321,7 @@ static int
 tumbler_attach(device_t dev)
 {
 	struct tumbler_softc *sc;
-		
+
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_addr = iicbus_get_addr(dev);
@@ -399,7 +399,7 @@ tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 
 		l = (left == 0 ? 0 : tumbler_volume_table[left - 1]);
 		r = (right == 0 ? 0 : tumbler_volume_table[right - 1]);
-		
+
 		reg[0] = (l & 0xff0000) >> 16;
 		reg[1] = (l & 0x00ff00) >> 8;
 		reg[2] = l & 0x0000ff;
