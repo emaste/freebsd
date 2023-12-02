@@ -47,9 +47,9 @@
 
 #define	EMU_VAR_FUNC		0
 #define	EMU_VAR_ROUTE		1
-#define	EMU_VAR_ISEMU10K1 	2
-#define	EMU_VAR_MCH_DISABLED 	3
-#define	EMU_VAR_MCH_REC 	4
+#define	EMU_VAR_ISEMU10K1	2
+#define	EMU_VAR_MCH_DISABLED	3
+#define	EMU_VAR_MCH_REC	4
 
 #define EMU_A_IOCFG_DISABLE_ANALOG	0x0040	/* = 'enable' for Audigy2 */
 #define EMU_A_IOCFG_GPOUT2	0x0001
@@ -171,7 +171,7 @@ struct emu_route {
 };
 
 struct emu_voice* emu_valloc(struct emu_sc_info *sc);
-void 	emu_vfree(struct emu_sc_info *sc, struct emu_voice *v);
+void	emu_vfree(struct emu_sc_info *sc, struct emu_voice *v);
 int	emu_vinit(struct emu_sc_info *sc, struct emu_voice *m, struct emu_voice *s,
     uint32_t sz, struct snd_dbuf *b);
 void	emu_vroute(struct emu_sc_info *sc, struct emu_route *rt,  struct emu_voice *v);
