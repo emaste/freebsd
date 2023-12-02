@@ -50,8 +50,8 @@
 #define	EMUPAGESIZE	4096	/* don't change */
 #define	EMUMAXPAGES	(WAVEOUT_MAXBUFSIZE * NUM_G / EMUPAGESIZE)
 #define	EMU10K1_PCI_ID	0x00021102	/* 1102 => Creative Labs Vendor ID */
-#define	EMU10K2_PCI_ID	0x00041102	
-#define	EMU10K3_PCI_ID	0x00081102	
+#define	EMU10K2_PCI_ID	0x00041102
+#define	EMU10K3_PCI_ID	0x00081102
 #define	EMU_DEFAULT_BUFSZ	4096
 #define EMU_MAX_CHANS	8
 #define	EMU_CHANS	4
@@ -1152,7 +1152,7 @@ CHANNEL_DECLARE(emurchan);
 
 static unsigned char
 emu_mread(struct mpu401 *arg, void *sc, int reg)
-{	
+{
 	unsigned int d;
 
 	d = emu_rd((struct sc_info *)sc, 0x18 + reg, 1);
