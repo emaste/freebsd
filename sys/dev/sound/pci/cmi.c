@@ -778,7 +778,7 @@ MIXER_DECLARE(cmi_mixer);
 
 static unsigned char
 cmi_mread(struct mpu401 *arg, void *sc, int reg)
-{	
+{
 	unsigned int d;
 
 		d = bus_space_read_1(0,0, 0x330 + reg);
