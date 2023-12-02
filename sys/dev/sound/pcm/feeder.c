@@ -85,7 +85,7 @@ feeder_register(void *p)
 
 		if (snd_unit < 0)
 			snd_unit = -1;
-		
+
 		if (snd_maxautovchans < 0 ||
 		    snd_maxautovchans > SND_MAXVCHANS)
 			snd_maxautovchans = 0;
