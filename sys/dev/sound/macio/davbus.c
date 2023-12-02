@@ -57,25 +57,25 @@
 #include "mixer_if.h"
 
 struct davbus_softc {
-	struct aoa_softc 	 aoa;
-	phandle_t 		 node;
-	phandle_t 		 soundnode;
-	struct resource 	*reg;
-	struct mtx 		 mutex;
-	int 			 device_id;
-	u_int 			 output_mask;
-	u_int 			(*read_status)(struct davbus_softc *, u_int);
+	struct aoa_softc	 aoa;
+	phandle_t		 node;
+	phandle_t		 soundnode;
+	struct resource		*reg;
+	struct mtx		 mutex;
+	int			 device_id;
+	u_int			 output_mask;
+	u_int			(*read_status)(struct davbus_softc *, u_int);
 	void			(*set_outputs)(struct davbus_softc *, u_int);
 };
 
-static int 	davbus_probe(device_t);
-static int 	davbus_attach(device_t);
+static int	davbus_probe(device_t);
+static int	davbus_attach(device_t);
 static void	davbus_cint(void *);
 
 static device_method_t pcm_davbus_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		davbus_probe),
-	DEVMETHOD(device_attach, 	davbus_attach),
+	DEVMETHOD(device_attach,	davbus_attach),
 	{ 0, 0 }
 };
 
@@ -94,7 +94,7 @@ MODULE_DEPEND(pcm_davbus, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 static int
 davbus_probe(device_t self)
 {
-	const char 		*name;
+	const char		*name;
 
 	name = ofw_bus_get_name(self);
 	if (!name)
@@ -115,7 +115,7 @@ davbus_probe(device_t self)
 static int	burgundy_init(struct snd_mixer *m);
 static int	burgundy_uninit(struct snd_mixer *m);
 static int	burgundy_reinit(struct snd_mixer *m);
-static void 	burgundy_write_locked(struct davbus_softc *, u_int, u_int);
+static void	burgundy_write_locked(struct davbus_softc *, u_int, u_int);
 static void	burgundy_set_outputs(struct davbus_softc *d, u_int mask);
 static u_int	burgundy_read_status(struct davbus_softc *d, u_int status);
 static int	burgundy_set(struct snd_mixer *m, unsigned dev, unsigned left,
@@ -123,10 +123,10 @@ static int	burgundy_set(struct snd_mixer *m, unsigned dev, unsigned left,
 static u_int32_t	burgundy_setrecsrc(struct snd_mixer *m, u_int32_t src);
 
 static kobj_method_t burgundy_mixer_methods[] = {
-	KOBJMETHOD(mixer_init, 		burgundy_init),
-	KOBJMETHOD(mixer_uninit, 	burgundy_uninit),
-	KOBJMETHOD(mixer_reinit, 	burgundy_reinit),
-	KOBJMETHOD(mixer_set, 		burgundy_set),
+	KOBJMETHOD(mixer_init,		burgundy_init),
+	KOBJMETHOD(mixer_uninit,	burgundy_uninit),
+	KOBJMETHOD(mixer_reinit,	burgundy_reinit),
+	KOBJMETHOD(mixer_set,		burgundy_set),
 	KOBJMETHOD(mixer_setrecsrc,	burgundy_setrecsrc),
 	KOBJMETHOD_END
 };
@@ -146,7 +146,7 @@ burgundy_init(struct snd_mixer *m)
 	/*
 	 * We configure the Burgundy codec as follows:
 	 *
-	 * 	o Input subframe 0 is connected to input digital
+	 *	o Input subframe 0 is connected to input digital
 	 *	  stream A (ISA).
 	 *	o Stream A (ISA) is mixed in mixer 2 (MIX2).
 	 *	o Output of mixer 2 (MIX2) is routed to output sources
@@ -311,7 +311,7 @@ burgundy_setrecsrc(struct snd_mixer *m, u_int32_t src)
 static int	screamer_init(struct snd_mixer *m);
 static int	screamer_uninit(struct snd_mixer *m);
 static int	screamer_reinit(struct snd_mixer *m);
-static void 	screamer_write_locked(struct davbus_softc *, u_int, u_int);
+static void	screamer_write_locked(struct davbus_softc *, u_int, u_int);
 static void	screamer_set_outputs(struct davbus_softc *d, u_int mask);
 static u_int	screamer_read_status(struct davbus_softc *d, u_int status);
 static int	screamer_set(struct snd_mixer *m, unsigned dev, unsigned left,
@@ -319,10 +319,10 @@ static int	screamer_set(struct snd_mixer *m, unsigned dev, unsigned left,
 static u_int32_t	screamer_setrecsrc(struct snd_mixer *m, u_int32_t src);
 
 static kobj_method_t screamer_mixer_methods[] = {
-	KOBJMETHOD(mixer_init, 		screamer_init),
-	KOBJMETHOD(mixer_uninit, 	screamer_uninit),
-	KOBJMETHOD(mixer_reinit, 	screamer_reinit),
-	KOBJMETHOD(mixer_set, 		screamer_set),
+	KOBJMETHOD(mixer_init,		screamer_init),
+	KOBJMETHOD(mixer_uninit,	screamer_uninit),
+	KOBJMETHOD(mixer_reinit,	screamer_reinit),
+	KOBJMETHOD(mixer_set,		screamer_set),
 	KOBJMETHOD(mixer_setrecsrc,	screamer_setrecsrc),
 	KOBJMETHOD_END
 };
@@ -374,7 +374,7 @@ screamer_reinit(struct snd_mixer *m)
 static void
 screamer_write_locked(struct davbus_softc *d, u_int reg, u_int val)
 {
-	u_int 		x;
+	u_int		x;
 
 	KASSERT(val == (val & 0xfff), ("bad val"));
 
@@ -394,7 +394,7 @@ screamer_write_locked(struct davbus_softc *d, u_int reg, u_int val)
 static void
 screamer_set_outputs(struct davbus_softc *d, u_int mask)
 {
-	u_int 	x;
+	u_int	x;
 
 	if (mask == d->output_mask) {
 		return;
@@ -433,7 +433,7 @@ screamer_set_outputs(struct davbus_softc *d, u_int mask)
 static u_int
 screamer_read_status(struct davbus_softc *d, u_int status)
 {
-	int 	headphones;
+	int	headphones;
 
 	switch (d->device_id) {
 	case 5: /* Sawtooth */
@@ -492,11 +492,11 @@ screamer_setrecsrc(struct snd_mixer *m, u_int32_t src)
 static int
 davbus_attach(device_t self)
 {
-	struct davbus_softc 	*sc;
-	struct resource 	*dbdma_irq, *cintr;
-	void 			*cookie;
+	struct davbus_softc	*sc;
+	struct resource		*dbdma_irq, *cintr;
+	void			*cookie;
 	char			 compat[64];
-	int 			 rid, oirq, err;
+	int			 rid, oirq, err;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 
