@@ -122,7 +122,7 @@ typedef uint64_t uintpcm64_t;
 	*((int32_t *)(b8)) = (val);					\
 } while (0)
 #define _PCM_WRITE_S16_BE(bb8, vval)	do {				\
-	intpcm_t val = (vval); 						\
+	intpcm_t val = (vval);						\
 	uint8_t *b8 = (bb8);						\
 	b8[1] = val;							\
 	b8[0] = val >> 8;						\
