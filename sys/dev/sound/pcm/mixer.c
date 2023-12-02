@@ -414,7 +414,7 @@ mixer_get_recroute(struct snd_mixer *m, int *route)
  *
  * This function sets a recording source based on a recording device's
  * routing number.  Said number is translated to an old school recdev
- * mask and passed over mixer_setrecsrc. 
+ * mask and passed over mixer_setrecsrc.
  *
  * @param m	mixer context container thing
  *

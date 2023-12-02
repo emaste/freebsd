@@ -50,7 +50,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	NetBSD: tumbler.c,v 1.28 2008/05/16 03:49:54 macallan Exp
- *	Id: tumbler.c,v 1.11 2002/10/31 17:42:13 tsubai Exp 
+ *	Id: tumbler.c,v 1.11 2002/10/31 17:42:13 tsubai Exp
  */
 
 /*
@@ -199,7 +199,7 @@ struct tumbler_reg {
 };
 
 const struct tumbler_reg tumbler_initdata = {
-	{ TUMBLER_MCR_SC_64 | TUMBLER_MCR_SM_I2S | 
+	{ TUMBLER_MCR_SC_64 | TUMBLER_MCR_SM_I2S |
           TUMBLER_MCR_ISM_I2S | TUMBLER_MCR_W_16 },             /* MCR */
         { TUMBLER_DRC_COMP_31, TUMBLER_DRC_DEFL_TH },           /* DRC */
         { 0, 0, 0, 0, 0, 0 },				        /* VOLUME */
@@ -308,7 +308,7 @@ tumbler_probe(device_t dev)
 	if (name == NULL)
 		return (ENXIO);
 
-	if (strcmp(name, "deq") == 0 && iicbus_get_addr(dev) == 
+	if (strcmp(name, "deq") == 0 && iicbus_get_addr(dev) ==
 	    TUMBLER_IICADDR) {
 		device_set_desc(dev, "Texas Instruments TAS3001 Audio Codec");
 		return (0);
