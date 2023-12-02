@@ -1179,9 +1179,9 @@ emu_muninit(struct mpu401 *arg, void *cookie)
 }
 
 static kobj_method_t emu_mpu_methods[] = {
-    	KOBJMETHOD(mpufoi_read,		emu_mread),
-    	KOBJMETHOD(mpufoi_write,	emu_mwrite),
-    	KOBJMETHOD(mpufoi_uninit,	emu_muninit),
+	KOBJMETHOD(mpufoi_read,		emu_mread),
+	KOBJMETHOD(mpufoi_write,	emu_mwrite),
+	KOBJMETHOD(mpufoi_uninit,	emu_muninit),
 	KOBJMETHOD_END
 };
 

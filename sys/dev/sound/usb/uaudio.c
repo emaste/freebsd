@@ -5466,7 +5466,7 @@ uaudio_mixer_init_sub(struct uaudio_softc *sc, struct snd_mixer *m)
 int
 uaudio_mixer_uninit_sub(struct uaudio_softc *sc, struct snd_mixer *m)
 {
-  	unsigned index = uaudio_get_child_index_by_dev(sc, mix_get_dev(m));
+	unsigned index = uaudio_get_child_index_by_dev(sc, mix_get_dev(m));
 
 	DPRINTF("child=%u\n", index);
 
@@ -5482,7 +5482,7 @@ void
 uaudio_mixer_set(struct uaudio_softc *sc, struct snd_mixer *m,
     unsigned type, unsigned left, unsigned right)
 {
-    	unsigned index = uaudio_get_child_index_by_dev(sc, mix_get_dev(m));
+	unsigned index = uaudio_get_child_index_by_dev(sc, mix_get_dev(m));
 	struct uaudio_mixer_node *mc;
 	int chan;
 
@@ -5501,7 +5501,7 @@ uaudio_mixer_set(struct uaudio_softc *sc, struct snd_mixer *m,
 uint32_t
 uaudio_mixer_setrecsrc(struct uaudio_softc *sc, struct snd_mixer *m, uint32_t src)
 {
-      	unsigned index = uaudio_get_child_index_by_dev(sc, mix_get_dev(m));
+	unsigned index = uaudio_get_child_index_by_dev(sc, mix_get_dev(m));
 	struct uaudio_mixer_node *mc;
 	uint32_t mask;
 	uint32_t temp;

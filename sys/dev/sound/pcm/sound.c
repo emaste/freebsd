@@ -395,7 +395,7 @@ pcm_mode_init(struct snddev_info *d)
 static void
 pcm_sysinit(device_t dev)
 {
-  	struct snddev_info *d = device_get_softc(dev);
+	struct snddev_info *d = device_get_softc(dev);
 	u_int8_t mode;
 
 	mode = pcm_mode_init(d);
@@ -576,7 +576,7 @@ pcm_unregister(device_t dev)
  * @brief	Handle OSSv4 SNDCTL_SYSINFO ioctl.
  *
  * @param si	Pointer to oss_sysinfo struct where information about the
- * 		sound subsystem will be written/copied.
+ *		sound subsystem will be written/copied.
  *
  * This routine returns information about the sound system, such as the
  * current OSS version, number of audio, MIDI, and mixer drivers, etc.
