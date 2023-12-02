@@ -94,7 +94,7 @@ synth_alloc_t noalloc;
 	    return 0;
 	}
 
-    int 
+    int
 	noaftertouch ( void /* X */ * _kobj, uint8_t _x1, uint8_t _x2)
 	{
 	    printf("noaftertouch\n");
@@ -108,14 +108,14 @@ synth_alloc_t noalloc;
 	    return 0;
 	}
 
-    int 
+    int
 	nocontroller ( void /* X */ * _kobj, uint8_t _x1, uint8_t _x2, uint16_t _x3)
 	{
 	    printf("nocontroller\n");
 	    return 0;
 	}
 
-    int 
+    int
 	novolumemethod (
 		void /* X */ * _kobj,
 		uint8_t _x1)
@@ -124,14 +124,14 @@ synth_alloc_t noalloc;
 	    return 0;
 	}
 
-    int 
+    int
 	nobender ( void /* X */ * _kobj, uint8_t _voice, uint16_t _bend)
 	{
 	    printf("nobender\n");
 	    return 0;
 	}
 
-    int 
+    int
 	nosetupvoice ( void /* X */ * _kobj, uint8_t _voice, uint8_t _chn)
 	{
 
@@ -139,28 +139,28 @@ synth_alloc_t noalloc;
 	    return 0;
 	}
 
-    int 
+    int
 	nosendsysex ( void /* X */ * _kobj, void * _buf, size_t _len)
 	{
 	    printf("nosendsysex\n");
 	    return 0;
 	}
 
-    int 
+    int
 	noallocvoice ( void /* X */ * _kobj, uint8_t _chn, uint8_t _note, void *_x)
 	{
 	    printf("noallocvoice\n");
 	    return 0;
 	}
 
-    int 
+    int
 	nowriteraw ( void /* X */ * _kobjt, uint8_t * _buf, size_t _len)
 	{
 	    printf("nowriteraw\n");
 	    return 1;
 	}
 
-    int 
+    int
 	noreset ( void /* X */ * _kobjt)
 	{
 
@@ -175,7 +175,7 @@ synth_alloc_t noalloc;
 	    return "noshortname";
 	}
 
-    int 
+    int
 	noclose ( void /* X */ * _kobjt)
 	{
 
@@ -191,7 +191,7 @@ synth_alloc_t noalloc;
 	    return 0;
 	}
 
-    int 
+    int
 	noalloc ( void /* x */ * _kbojt, uint8_t _chn, uint8_t _note)
 	{
 	    printf("noalloc\n");
