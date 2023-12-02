@@ -2440,8 +2440,8 @@ envy24ht_alloc_resource(struct sc_info *sc)
 static int
 envy24ht_pci_attach(device_t dev)
 {
-	struct sc_info 		*sc;
-	char 			status[SND_STATUSLEN];
+	struct sc_info		*sc;
+	char			status[SND_STATUSLEN];
 	int			err = 0;
 	int			i;
 

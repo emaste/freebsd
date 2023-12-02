@@ -54,24 +54,24 @@
 #include "mixer_if.h"
 
 struct aoa_dma {
-	struct mtx 		 mutex;
-	struct resource 	*reg; 		/* DBDMA registers */
-	dbdma_channel_t 	*channel; 	/* DBDMA channel */
-	bus_dma_tag_t 		 tag; 		/* bus_dma tag */
-	struct pcm_channel 	*pcm;		/* PCM channel */
-	struct snd_dbuf		*buf; 		/* PCM buffer */
-	u_int 			 slots; 	/* # of slots */
-	u_int 			 slot;		/* current slot */
-	u_int 			 bufsz; 	/* buffer size */
-	u_int 			 blksz; 	/* block size */
-	int 			 running;
+	struct mtx		 mutex;
+	struct resource		*reg;		/* DBDMA registers */
+	dbdma_channel_t		*channel;	/* DBDMA channel */
+	bus_dma_tag_t		 tag;		/* bus_dma tag */
+	struct pcm_channel	*pcm;		/* PCM channel */
+	struct snd_dbuf		*buf;		/* PCM buffer */
+	u_int			 slots;		/* # of slots */
+	u_int			 slot;		/* current slot */
+	u_int			 bufsz;		/* buffer size */
+	u_int			 blksz;		/* block size */
+	int			 running;
 };
 
 static void
 aoa_dma_set_program(struct aoa_dma *dma)
 {
-	u_int32_t 		 addr;
-	int 			 i;
+	u_int32_t		 addr;
+	int			 i;
 
 	addr = (u_int32_t) sndbuf_getbufaddr(dma->buf);
 	KASSERT(dma->bufsz == sndbuf_getsize(dma->buf), ("bad size"));
@@ -113,8 +113,8 @@ static struct aoa_dma *
 aoa_dma_create(struct aoa_softc *sc)
 {
 	struct aoa_dma *dma;
-	bus_dma_tag_t 	tag;
-	int 		err;
+	bus_dma_tag_t	tag;
+	int		err;
 	device_t	self;
 
 	self = sc->sc_dev;
@@ -147,8 +147,8 @@ aoa_dma_delete(struct aoa_dma *dma)
 static u_int32_t
 aoa_chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksz)
 {
-	struct aoa_dma 		*dma = data;
-	int 			 err, lz;
+	struct aoa_dma		*dma = data;
+	int			 err, lz;
 
 	DPRINTF(("aoa_chan_setblocksize: blocksz = %u, dma->blksz = %u\n", 
 		blocksz, dma->blksz));
@@ -209,7 +209,7 @@ aoa_chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static u_int32_t
 aoa_chan_getptr(kobj_t obj, void *data)
 {
-	struct aoa_dma 	 *dma = data;
+	struct aoa_dma	 *dma = data;
 
 	if (!dma->running)
 		return (0);
@@ -221,9 +221,9 @@ static void *
 aoa_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, 
 	struct pcm_channel *c, int dir)
 {
-	struct aoa_softc 	*sc = devinfo;
+	struct aoa_softc	*sc = devinfo;
 	struct aoa_dma		*dma;
-	int 	 		 max_slots, err;
+	int			 max_slots, err;
 
 	KASSERT(dir == PCMDIR_PLAY, ("bad dir"));
 
@@ -257,8 +257,8 @@ aoa_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 static int
 aoa_chan_trigger(kobj_t obj, void *data, int go)
 {
-	struct aoa_dma 	*dma = data;
-	int 		 i;
+	struct aoa_dma	*dma = data;
+	int		 i;
 
 	switch (go) {
 	case PCMTRIG_START:
@@ -304,7 +304,7 @@ aoa_chan_trigger(kobj_t obj, void *data, int go)
 static int
 aoa_chan_free(kobj_t obj, void *data)
 {
-	struct aoa_dma 	*dma = data;
+	struct aoa_dma	*dma = data;
 
 	sndbuf_free(dma->buf);
 	dbdma_free_channel(dma->channel);
@@ -349,10 +349,10 @@ aoa_chan_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t aoa_chan_methods[] = {
-	KOBJMETHOD(channel_init, 	aoa_chan_init),
-	KOBJMETHOD(channel_free, 	aoa_chan_free),
-	KOBJMETHOD(channel_setformat, 	aoa_chan_setformat),
-	KOBJMETHOD(channel_setspeed, 	aoa_chan_setspeed),
+	KOBJMETHOD(channel_init,	aoa_chan_init),
+	KOBJMETHOD(channel_free,	aoa_chan_free),
+	KOBJMETHOD(channel_setformat,	aoa_chan_setformat),
+	KOBJMETHOD(channel_setspeed,	aoa_chan_setspeed),
 	KOBJMETHOD(channel_setblocksize,aoa_chan_setblocksize),
 	KOBJMETHOD(channel_trigger,	aoa_chan_trigger),
 	KOBJMETHOD(channel_getptr,	aoa_chan_getptr),

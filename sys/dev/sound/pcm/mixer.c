@@ -81,7 +81,7 @@ static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_PCM]	= 75,
 	[SOUND_MIXER_SPEAKER]	= 75,
 	[SOUND_MIXER_LINE]	= 75,
-	[SOUND_MIXER_MIC] 	= 25,
+	[SOUND_MIXER_MIC]	= 25,
 	[SOUND_MIXER_CD]	= 75,
 	[SOUND_MIXER_IGAIN]	= 0,
 	[SOUND_MIXER_LINE1]	= 75,
@@ -567,7 +567,7 @@ mix_setrecdevs(struct snd_mixer *m, u_int32_t v)
 
 	/*
 	 * NB:	The SNDCTL_DSP_GET_RECSRC_NAMES ioctl ignores the dev
-	 * 	and ctrl fields.
+	 *	and ctrl fields.
 	 */
 	ei->nvalues = nvalues;
 	m->recdevs = v;
@@ -1291,9 +1291,9 @@ mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			return (0);
 		case SNDCTL_CARDINFO:
 			return (sound_oss_card_info((oss_card_info *)arg));
-	    	case SNDCTL_AUDIOINFO:
-	    	case SNDCTL_AUDIOINFO_EX:
-	    	case SNDCTL_ENGINEINFO:
+		case SNDCTL_AUDIOINFO:
+		case SNDCTL_AUDIOINFO_EX:
+		case SNDCTL_ENGINEINFO:
 			return (dsp_oss_audioinfo(i_dev, (oss_audioinfo *)arg));
 		case SNDCTL_MIXERINFO:
 			return (mixer_oss_mixerinfo(i_dev, (oss_mixerinfo *)arg));

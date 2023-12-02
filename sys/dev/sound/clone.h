@@ -120,7 +120,7 @@ void snd_clone_register(struct snd_clone_entry *, struct cdev *);
 struct snd_clone_entry *snd_clone_alloc(struct snd_clone *, struct cdev **,
     int *, int);
 
-#define snd_clone_enabled(x)	((x) != NULL && 			\
+#define snd_clone_enabled(x)	((x) != NULL &&				\
 				(snd_clone_getflags(x) & SND_CLONE_ENABLE))
 #define snd_clone_disabled(x)	(!snd_clone_enabled(x))
 
