@@ -1155,7 +1155,7 @@ emu_mread(struct mpu401 *arg, void *sc, int reg)
 {	
 	unsigned int d;
 
-	d = emu_rd((struct sc_info *)sc, 0x18 + reg, 1); 
+	d = emu_rd((struct sc_info *)sc, 0x18 + reg, 1);
 	return d;
 }
 
@@ -1957,7 +1957,7 @@ emu_init(struct sc_info *sc)
 		}
 	} else {
 		/* EMU10K1 initialization code */
-		tmp = EMU_HCFG_AUDIOENABLE | EMU_HCFG_LOCKTANKCACHE_MASK 
+		tmp = EMU_HCFG_AUDIOENABLE | EMU_HCFG_LOCKTANKCACHE_MASK
 		    | EMU_HCFG_AUTOMUTE;
 		if (sc->rev >= 6)
 			tmp |= EMU_HCFG_JOYENABLE;

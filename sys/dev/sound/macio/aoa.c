@@ -79,7 +79,7 @@ aoa_dma_set_program(struct aoa_dma *dma)
 	dma->slots = dma->bufsz / dma->blksz;
 
 	for (i = 0; i < dma->slots; ++i) {
-		dbdma_insert_command(dma->channel, 
+		dbdma_insert_command(dma->channel,
 		    i, /* slot */
 		    DBDMA_OUTPUT_MORE, /* command */
 		    0, /* stream */
@@ -109,7 +109,7 @@ aoa_dma_set_program(struct aoa_dma *dma)
 
 #define AOA_BUFFER_SIZE		65536
 
-static struct aoa_dma * 
+static struct aoa_dma *
 aoa_dma_create(struct aoa_softc *sc)
 {
 	struct aoa_dma *dma;
@@ -118,10 +118,10 @@ aoa_dma_create(struct aoa_softc *sc)
 	device_t	self;
 
 	self = sc->sc_dev;
-	err = bus_dma_tag_create(bus_get_dma_tag(self), 
-	    4, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, 
+	err = bus_dma_tag_create(bus_get_dma_tag(self),
+	    4, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    AOA_BUFFER_SIZE, 1, AOA_BUFFER_SIZE, 0, NULL, NULL, &tag);
-	if (err != 0) 
+	if (err != 0)
 		return (NULL);
 
 	dma = malloc(sizeof(*dma), M_DEVBUF, M_WAITOK | M_ZERO);
@@ -150,7 +150,7 @@ aoa_chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksz)
 	struct aoa_dma		*dma = data;
 	int			 err, lz;
 
-	DPRINTF(("aoa_chan_setblocksize: blocksz = %u, dma->blksz = %u\n", 
+	DPRINTF(("aoa_chan_setblocksize: blocksz = %u, dma->blksz = %u\n",
 		blocksz, dma->blksz));
 	KASSERT(!dma->running, ("dma is running"));
 	KASSERT(blocksz > 0, ("bad blocksz"));
@@ -218,7 +218,7 @@ aoa_chan_getptr(kobj_t obj, void *data)
 }
 
 static void *
-aoa_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, 
+aoa_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	struct pcm_channel *c, int dir)
 {
 	struct aoa_softc	*sc = devinfo;
@@ -313,7 +313,7 @@ aoa_chan_free(kobj_t obj, void *data)
 	return (0);
 }
 
-void 
+void
 aoa_interrupt(void *xsc)
 {
 	struct aoa_softc	*sc = xsc;
@@ -380,7 +380,7 @@ aoa_attach(void *xsc)
 
 	pcm_addchan(self, PCMDIR_PLAY, &aoa_chan_class, sc);
 
-	snprintf(status, sizeof(status), "at %s", ofw_bus_get_name(self)); 
+	snprintf(status, sizeof(status), "at %s", ofw_bus_get_name(self));
 
 	return (pcm_register(self, status));
 }
