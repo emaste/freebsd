@@ -115,12 +115,12 @@ struct sc_info {
 	bus_dma_tag_t		parent_dmat;
 	struct resource		*reg, *irq;
 	int			regid, irqid;
-	void 			*ih;
+	void			*ih;
 	struct mtx		*lock;
 
 	int			spdif_enabled;
 	unsigned int		bufsz;
-	struct sc_chinfo 	pch, rch;
+	struct sc_chinfo	pch, rch;
 
 	struct mpu401	*mpu;
 	mpu401_intr_t		*mpu_intr;
@@ -439,7 +439,7 @@ cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 		}
 		rsp = cmi_rd(ch->parent, CMPCI_REG_FUNC_1, 4);
 		rsp >>= CMPCI_REG_DAC_FS_SHIFT;
-		rsp &= 	CMPCI_REG_DAC_FS_MASK;
+		rsp &=	CMPCI_REG_DAC_FS_MASK;
 	} else {
 		cmi_partial_wr4(ch->parent,
 				CMPCI_REG_FUNC_1,
@@ -448,7 +448,7 @@ cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 				r);
 		rsp = cmi_rd(ch->parent, CMPCI_REG_FUNC_1, 4);
 		rsp >>= CMPCI_REG_ADC_FS_SHIFT;
-		rsp &= 	CMPCI_REG_ADC_FS_MASK;
+		rsp &=	CMPCI_REG_ADC_FS_MASK;
 	}
 	snd_mtxunlock(sc->lock);
 	ch->spd = cmpci_regvalue_to_rate(r);
@@ -583,13 +583,13 @@ cmichan_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t cmichan_methods[] = {
-    	KOBJMETHOD(channel_init,		cmichan_init),
-    	KOBJMETHOD(channel_setformat,		cmichan_setformat),
-    	KOBJMETHOD(channel_setspeed,		cmichan_setspeed),
-    	KOBJMETHOD(channel_setblocksize,	cmichan_setblocksize),
-    	KOBJMETHOD(channel_trigger,		cmichan_trigger),
-    	KOBJMETHOD(channel_getptr,		cmichan_getptr),
-    	KOBJMETHOD(channel_getcaps,		cmichan_getcaps),
+	KOBJMETHOD(channel_init,		cmichan_init),
+	KOBJMETHOD(channel_setformat,		cmichan_setformat),
+	KOBJMETHOD(channel_setspeed,		cmichan_setspeed),
+	KOBJMETHOD(channel_setblocksize,	cmichan_setblocksize),
+	KOBJMETHOD(channel_trigger,		cmichan_trigger),
+	KOBJMETHOD(channel_getptr,		cmichan_getptr),
+	KOBJMETHOD(channel_getcaps,		cmichan_getcaps),
 	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(cmichan);
@@ -808,9 +808,9 @@ cmi_muninit(struct mpu401 *arg, void *cookie)
 }
 
 static kobj_method_t cmi_mpu_methods[] = {
-    	KOBJMETHOD(mpufoi_read,		cmi_mread),
-    	KOBJMETHOD(mpufoi_write,	cmi_mwrite),
-    	KOBJMETHOD(mpufoi_uninit,	cmi_muninit),
+	KOBJMETHOD(mpufoi_read,		cmi_mread),
+	KOBJMETHOD(mpufoi_write,	cmi_mwrite),
+	KOBJMETHOD(mpufoi_uninit,	cmi_muninit),
 	KOBJMETHOD_END
 };
 

@@ -147,7 +147,7 @@ feed_mixer_init(struct pcm_feeder *f)
 	for (i = 0; i < FEEDMIXER_TAB_SIZE; i++) {
 		if (AFMT_ENCODING(f->desc->in) ==
 		    feed_mixer_info_tab[i].format) {
-		    	f->data =
+			f->data =
 			    FEEDMIXER_DATA(i, AFMT_CHANNEL(f->desc->in));
 			return (0);
 		}
