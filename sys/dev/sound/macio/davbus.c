@@ -219,9 +219,9 @@ burgundy_write_locked(struct davbus_softc *d, u_int reg, u_int val)
 		while (bus_read_4(d->reg, DAVBUS_CODEC_CTRL) &
 		    DAVBUS_CODEC_BUSY)
 			DELAY(1);
-		
+
 		val >>= 8; /* next byte. */
-	}	
+	}
 }
 
 /* Must be called with d->mutex held. */
@@ -251,7 +251,7 @@ burgundy_set_outputs(struct davbus_softc *d, u_int mask)
 	}
 	if (mask & (1 << 1)) {
 		DPRINTF((" HEADPHONES"));
-		x |= BURGUNDY_P14L_EN | BURGUNDY_P14R_EN;	
+		x |= BURGUNDY_P14L_EN | BURGUNDY_P14R_EN;
 	}
 	DPRINTF(("\n"));
 
@@ -531,7 +531,7 @@ davbus_attach(device_t self)
 	err = powerpc_config_intr(oirq, INTR_TRIGGER_EDGE, INTR_POLARITY_LOW);
 	if (err != 0)
 		return (err);
-		
+
 	snd_setup_intr(self, dbdma_irq, INTR_MPSAFE, aoa_interrupt,
 	    sc, &cookie);
 
@@ -581,9 +581,9 @@ davbus_cint(void *ptr)
 
 	reg = bus_read_4(d->reg, DAVBUS_SOUND_CTRL);
 	if (reg & DAVBUS_PORTCHG) {
-		
+
 		status = bus_read_4(d->reg, DAVBUS_CODEC_STATUS);
-		
+
 		if (d->read_status && d->set_outputs) {
 			mask = (*d->read_status)(d, status);
 			(*d->set_outputs)(d, mask);
