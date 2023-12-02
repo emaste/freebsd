@@ -42,7 +42,7 @@
 
 static MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 
-#define MAXFEEDERS 	256
+#define MAXFEEDERS	256
 
 struct feedertab_entry {
 	SLIST_ENTRY(feedertab_entry) link;
@@ -456,7 +456,7 @@ feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u
 }
 
 static kobj_method_t feeder_root_methods[] = {
-    	KOBJMETHOD(feeder_feed,		feed_root),
+	KOBJMETHOD(feeder_feed,		feed_root),
 	KOBJMETHOD_END
 };
 static struct feeder_class feeder_root_class = {

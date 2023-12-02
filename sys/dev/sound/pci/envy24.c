@@ -295,8 +295,8 @@ static struct cfg_info cfg_table[] = {
 		0xc0, 0xff, 0x7f,
 		0x10, 0x20, 0x01, 0x01, 0x00,
 		0x00,
- 		&delta_codec,
- 	},
+		&delta_codec,
+	},
 	{
 		"Envy24 audio (M Audio Audiophile 2496)",
 		0x1412, 0xd634,
@@ -304,8 +304,8 @@ static struct cfg_info cfg_table[] = {
 		0x04, 0xfe, 0xfb,
 		0x08, 0x02, 0x20, 0x00, 0x01,
 		0x00,
- 		&delta_codec,
- 	},
+		&delta_codec,
+	},
         {
                 "Envy24 audio (M Audio Delta 66)",
                 0x1412, 0xd632,
@@ -2536,8 +2536,8 @@ envy24_alloc_resource(struct sc_info *sc)
 static int
 envy24_pci_attach(device_t dev)
 {
-	struct sc_info 		*sc;
-	char 			status[SND_STATUSLEN];
+	struct sc_info		*sc;
+	char			status[SND_STATUSLEN];
 	int			err = 0;
 	int			i;
 

@@ -171,10 +171,10 @@ struct pcm_channel {
 	} channels;
 
 	struct pcmchan_matrix matrix;
-  	struct pcmchan_matrix matrix_scratch;
+	struct pcmchan_matrix matrix_scratch;
 
 	int16_t volume[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
-  	int8_t muted[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
+	int8_t muted[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
 };
 
 #define CHN_HEAD(x, y)			&(x)->y.head
@@ -201,7 +201,7 @@ struct pcm_channel {
 	CHN_FOREACH(t, x, z) {						\
 		if (t == y)						\
 			break;						\
-	} 								\
+	}								\
 	if (t != y)							\
 		CHN_INSERT_HEAD(x, y, z);				\
 } while (0)
@@ -211,7 +211,7 @@ struct pcm_channel {
 	CHN_FOREACH(t, w, z) {						\
 		if (t == y)						\
 			break;						\
-	} 								\
+	}								\
 	if (t != y)							\
 		CHN_INSERT_AFTER(x, y, z);				\
 } while (0)
@@ -367,7 +367,7 @@ enum {
 #define CHN_F_NBIO              0x00000040  /* do non-blocking i/o */
 #define CHN_F_MMAP		0x00000080  /* has been mmap()ed */
 
-#define CHN_F_BUSY              0x00000100  /* has been opened 	*/
+#define CHN_F_BUSY              0x00000100  /* has been opened	*/
 #define CHN_F_DIRTY		0x00000200  /* need re-config */
 #define CHN_F_DEAD		0x00000400  /* too many errors, dead, mdk */
 /* unused			0x00000800 */
