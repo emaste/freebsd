@@ -265,7 +265,7 @@ aoa_chan_trigger(kobj_t obj, void *data, int go)
 
 		/* Start the DMA. */
 		dma->running = 1;
-		
+
 		dma->slot = 0;
 		dbdma_set_current_cmd(dma->channel, dma->slot);
 
@@ -275,7 +275,7 @@ aoa_chan_trigger(kobj_t obj, void *data, int go)
 
 	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
-		
+
 		mtx_lock(&dma->mutex);
 
 		dma->running = 0;
