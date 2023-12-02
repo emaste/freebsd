@@ -326,7 +326,7 @@ snapper_write(struct snapper_softc *sc, uint8_t reg, const void *data)
 	struct iic_msg msg[] = {
 		{ sc->sc_addr, IIC_M_WR, 0, buf }
 	};
-		
+
 	KASSERT(reg < sizeof(snapper_regsize), ("bad reg"));
 	size = snapper_regsize[reg];
 	msg[0].len = size + 1;
@@ -366,7 +366,7 @@ static int
 snapper_attach(device_t dev)
 {
 	struct snapper_softc *sc;
-		
+
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_addr = iicbus_get_addr(dev);
