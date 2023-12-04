@@ -1004,11 +1004,8 @@ snd_str2afmt(const char *req)
 	int ext;
 	int ch;
 	int i;
-	char b1[8];
-	char b2[8];
-
-	memset(b1, 0, sizeof(b1));
-	memset(b2, 0, sizeof(b2));
+	char b1[8] = { 0 };
+	char b2[8] = { 0 };
 
 	i = sscanf(req, "%5[^:]:%6s", b1, b2);
 
