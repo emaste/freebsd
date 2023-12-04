@@ -260,6 +260,12 @@ show_class_attr_string(struct class *class,
 		dev_warn(dev, __VA_ARGS__);	\
 } while (0)
 
+#define	dev_info_ratelimited(dev, ...) do {	\
+	static linux_ratelimit_t __ratelimited;	\
+	if (linux_ratelimited(&__ratelimited))	\
+		dev_info(dev, __VA_ARGS__);	\
+} while (0)
+
 #define	dev_dbg_ratelimited(dev, ...) do {	\
 	static linux_ratelimit_t __ratelimited;	\
 	if (linux_ratelimited(&__ratelimited))	\
