@@ -38,4 +38,7 @@
 #define	preempt_disable()	critical_enter()
 #define	preempt_enable()	critical_exit()
 
+#define	migrate_disable()	sched_pin()
+#define	migrate_enable()	sched_unpin()
+
 #endif					/* _LINUXKPI_LINUX_PREEMPT_H_ */
