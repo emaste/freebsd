@@ -49,6 +49,16 @@ iosys_map_memcpy_to(struct iosys_map *ism, size_t off, const void *src,
 		memcpy(ism->vaddr + off, src, len);
 }
 
+static inline void
+iosys_map_memcpy_from(void *dbm, const struct iosys_map *src,
+    size_t src_offset, size_t len)
+{
+	if (src->is_iomem)
+		memcpy_toio(dbm, src->vaddr_iomem + src_offset, len);
+	else
+		memcpy(dbm, src->vaddr + src_offset, len);
+}
+
 static inline bool
 iosys_map_is_null(const struct iosys_map *ism)
 {
