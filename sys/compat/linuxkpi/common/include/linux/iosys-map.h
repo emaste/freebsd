@@ -24,6 +24,12 @@ struct iosys_map {
 	ism_dst;							\
 })
 
+#define	IOSYS_MAP_INIT_VADDR(_vaddr) \
+{ \
+	.vaddr = (_vaddr), \
+	is_iomem = false, \
+}
+
 static inline void
 iosys_map_incr(struct iosys_map *ism, size_t n)
 {
