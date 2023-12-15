@@ -72,6 +72,14 @@ pgprot2cachemode(pgprot_t prot)
 		return (VM_MEMATTR_DEFAULT);
 }
 
+/*
+ * Resolve a page into a virtual address:
+ *
+ * NOTE: This function only works for pages allocated by the kernel.
+ */
+void *linux_page_address(struct page *);
+
+#define	page_to_virt(page)	linux_page_address(page)
 #define	virt_to_page(x)		PHYS_TO_VM_PAGE(vtophys(x))
 #define	page_to_pfn(pp)		(VM_PAGE_TO_PHYS(pp) >> PAGE_SHIFT)
 #define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
