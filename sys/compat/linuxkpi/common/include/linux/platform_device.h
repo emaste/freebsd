@@ -29,6 +29,7 @@
 #define	_LINUXKPI_LINUX_PLATFORM_DEVICE_H
 
 #include <linux/kernel.h>
+#include <linux/build_bug.h>
 #include <linux/device.h>
 
 struct platform_device {
@@ -36,6 +37,7 @@ struct platform_device {
 	int				id;
 	bool				id_auto;
 	struct device			dev;
+	char				_name[];
 };
 
 struct platform_driver {
@@ -79,6 +81,23 @@ platform_driver_unregister(struct platform_driver *pdrv)
 	return;
 }
 
+static __inline struct platform_device *
+platform_device_alloc(const char *name, int id)
+{
+	struct platform_device *pdev;
+
+	pdev = kzalloc(offsetof(struct platform_device, _name) +
+	    strlen(name) + 1, GFP_KERNEL);
+	if (pdev != NULL)
+		return (NULL);
+
+	strcpy(pdev->_name, name);
+	pdev->name = pdev->_name;
+	pdev->id = id;
+
+	return (pdev);
+}
+
 static __inline int
 platform_device_register(struct platform_device *pdev)
 {
@@ -86,12 +105,15 @@ platform_device_register(struct platform_device *pdev)
 	return (0);
 }
 
+#define	platform_device_register_simple(name, id, res, num) ({	\
+	BUILD_BUG_ON(num != 0);					\
+	platform_device_alloc(name, id);			\
+})
+
 static __inline void
 platform_device_unregister(struct platform_device *pdev)
 {
-
-	pr_debug("%s: TODO\n", __func__);
-	return;
+	kfree(pdev);
 }
 
 #endif	/* _LINUXKPI_LINUX_PLATFORM_DEVICE_H */
