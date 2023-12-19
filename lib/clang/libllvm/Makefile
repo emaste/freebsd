@@ -2077,21 +2077,26 @@ beforebuild:
 	MCCodeEmitter/-gen-emitter \
 	MCPseudoLowering/-gen-pseudo-lowering \
 	MnemonicTables/-gen-x86-mnemonic-tables,-asmwriternum=1 \
-	O0PreLegalizeGICombiner/-gen-global-isel-combiner-matchtable,-combiners=${arch:H}O0PreLegalizerCombiner \
-	PostLegalizeGICombiner/-gen-global-isel-combiner-matchtable,-combiners=${arch:H}PostLegalizerCombiner \
-	PostLegalizeGILowering/-gen-global-isel-combiner-matchtable,-combiners=${arch:H}PostLegalizerLowering \
-	PreLegalizeGICombiner/-gen-global-isel-combiner-matchtable,-combiners=${arch:H}PreLegalizerCombiner \
+	O0PreLegalizeGICombiner/-gen-global-isel-combiner,-combiners=${arch:H}O0PreLegalizerCombiner \
+	PostLegalizeGICombiner/-gen-global-isel-combiner,-combiners=${arch:H}PostLegalizerCombiner \
+	PostLegalizeGILowering/-gen-global-isel-combiner,-combiners=${arch:H}PostLegalizerLowering \
+	PreLegalizeGICombiner/-gen-global-isel-combiner,-combiners=${arch:H}PreLegalizerCombiner \
 	RegisterBank/-gen-register-bank \
 	RegisterInfo/-gen-register-info \
 	SearchableTables/-gen-searchable-tables \
 	SubtargetInfo/-gen-subtarget \
 	SystemOperands/-gen-searchable-tables \
 	SystemRegister/-gen-searchable-tables
-${arch:T}Gen${hdr:H}.inc: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
+.  if "${arch:T}" == "RISCV" && "${hdr:T:C/(-gen-global-isel).*/\1/}" == "-gen-global-isel"
+tdfile_${arch:T}_${hdr:H}=	${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}GISel.td
+.  else
+tdfile_${arch:T}_${hdr:H}=	${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
+.endif
+${arch:T}Gen${hdr:H}.inc: ${tdfile_${arch:T}_${hdr:H}}
 	${LLVM_TBLGEN} ${hdr:T:C/,/ /g} \
 	    -I ${LLVM_SRCS}/include -I ${LLVM_SRCS}/lib/Target/${arch:H} \
 	    -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
+	    ${tdfile_${arch:T}_${hdr:H}}
 . endfor
 .endfor
 .if ${MK_LLVM_TARGET_AARCH64} != "no"
