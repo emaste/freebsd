@@ -430,6 +430,7 @@ SRCS_EXT+=	Format/IntegerLiteralSeparatorFixer.cpp
 SRCS_EXT+=	Format/MacroCallReconstructor.cpp
 SRCS_EXT+=	Format/MacroExpander.cpp
 SRCS_EXT+=	Format/NamespaceEndCommentsFixer.cpp
+SRCS_EXT+=	Format/ObjCPropertyAttributeOrderFixer.cpp
 SRCS_EXT+=	Format/QualifierAlignmentFixer.cpp
 SRCS_EXT+=	Format/SortJavaScriptImports.cpp
 SRCS_EXT+=	Format/TokenAnalyzer.cpp
