@@ -259,8 +259,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			if (!defobj->tls_static) {
 				if (!allocate_tls_offset(
 				    __DECONST(Obj_Entry *, defobj))) {
-					_rtld_error("%s: No space available "
-					    "for static Thread Local Storage",
+					_rtld_error("%s: No space available for static Thread Local Storage",
 					    obj->path);
 					goto done;
 				}
@@ -280,8 +279,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			if (!defobj->tls_static) {
 				if (!allocate_tls_offset(
 				    __DECONST(Obj_Entry *, defobj))) {
-					_rtld_error("%s: No space available "
-					    "for static Thread Local Storage",
+					_rtld_error("%s: No space available for static Thread Local Storage",
 					    obj->path);
 					goto done;
 				}
