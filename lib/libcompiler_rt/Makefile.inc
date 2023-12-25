@@ -148,9 +148,10 @@ SRCF+=		floatundixf
 .endif
 
 # __cpu_model support, only used on aarch64 and x86
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    ${MACHINE_CPUARCH} == "i386"
-SRCF+=		cpu_model
+.if ${MACHINE_CPUARCH} == "aarch64"
+SRCS+=		cpu_model/aarch64.c
+.elif ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+SRCS+=		cpu_model/x86.c
 .endif
 
 # The fp_mode implementation for amd64 and i386 is shared, while other
