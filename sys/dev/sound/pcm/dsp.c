@@ -1109,7 +1109,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			 * (e.g. more than SND_CHN_MAX channels) are not
 			 * subject to any mapping.
 			 */
-			if (!(pcm_getflags(d->dev) & SD_F_BITPERFECT)) {
+			if ((pcm_getflags(d->dev) & SD_F_BITPERFECT) == 0) {
 				struct pcmchan_matrix *m;
 
 				if (*arg_i > SND_CHN_MAX)
