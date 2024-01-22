@@ -39,7 +39,7 @@ All of the tools necessary to build a release are available from the
 source code repository in
 .Pa src/release .
 A complete release can be built with only a single command,
-including the creation of ISO images suitable for burning to CD-ROM,
+including the creation of ISO images suitable for burning to DVD media,
 memory stick images, and a network install directory.
 This command is aptly named
 .Dq Li "make release" .
@@ -477,7 +477,7 @@ platform.
 Copy all produced release media to
 .Pa ${DESTDIR} .
 .It Cm cdrom
-Builds installation CD-ROM images.
+Builds installation DVD images.
 This may require the
 .Xr md 4
 (memory disk) device driver be present in the kernel
@@ -652,7 +652,7 @@ make install DESTDIR=/var/freebsd-snapshot
 .Ed
 .Pp
 After running these commands, all produced distribution files (tarballs
-for FTP, CD-ROM images, etc.) are available in the
+for FTP, DVD images, etc.) are available in the
 .Pa /var/freebsd-snapshot
 directory.
 .Pp
