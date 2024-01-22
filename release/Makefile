@@ -298,6 +298,7 @@ dvd: packagesystem
 release.iso: disc1.iso
 disc1.iso: disc1
 	cd disc1 && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
+	@echo "$(pwd)/disc1/${.TARGET} built"
 
 dvd1.iso: dvd pkg-stage
 	cd dvd && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
