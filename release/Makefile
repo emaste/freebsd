@@ -37,6 +37,7 @@
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 
+NO_ROOT=
 REPODIR?=	${OBJROOT}repo
 
 .include "${WORLDDIR}/share/mk/bsd.compat.pre.mk"
@@ -51,7 +52,7 @@ TARGET_ARCH=	${MACHINE_ARCH}
 TARGET_ARCH=	${TARGET}
 .endif
 .endif
-IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
+IMAKE=		${MAKE} -DNO_ROOT TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
 DISTDIR=	dist
 
 # Define OSRELEASE by using newvers.sh
