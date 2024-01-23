@@ -951,6 +951,10 @@ OLD_FILES+=usr/share/man/man9/contigfree.9.gz
 OLD_FILES+=usr/share/man/man9/vm_page_alloc_freelist.9.gz
 OLD_FILES+=usr/share/man/man9/vm_page_alloc_freelist_domain.9.gz
 
+# xxxxxxxx: Removal of fdisk(8)
+OLD_FILES+=sbin/fdisk
+OLD_FILES+=usr/share/man/man8/fdisk.8.gz
+
 # 20240716: retire mergemaster
 OLD_FILES+=usr/sbin/mergemaster
 OLD_FILES+=usr/share/man/man8/mergemaster.8.gz
@@ -1467,6 +1471,7 @@ OLD_DIRS+=usr/share/examples/IPv6
 
 # 20240122: callout_async_drain() removed
 OLD_FILES+=usr/share/man/man9/callout_async_drain.9.gz
+
 
 # 20240114: Removal of geom_map(4)
 OLD_FILES+=usr/share/man/man4/geom_map.4.gz
