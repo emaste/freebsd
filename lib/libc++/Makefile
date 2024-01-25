@@ -985,6 +985,7 @@ NUM_HEADERS+=	partial_sum.h
 NUM_HEADERS+=	pstl_reduce.h
 NUM_HEADERS+=	pstl_transform_reduce.h
 NUM_HEADERS+=	reduce.h
+NUM_HEADERS+=	saturation_arithmetic.h
 NUM_HEADERS+=	transform_exclusive_scan.h
 NUM_HEADERS+=	transform_inclusive_scan.h
 NUM_HEADERS+=	transform_reduce.h
