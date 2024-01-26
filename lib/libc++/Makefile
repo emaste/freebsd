@@ -88,16 +88,21 @@ cxxrt_${_S}: ${_LIBCXXRTDIR}/${_S} .NOMETA
 .endfor
 
 WARNS?=		0
+CFLAGS+=	-isystem ${SRCDIR}
 CFLAGS+=	-isystem ${.CURDIR}
 CFLAGS+=	-isystem ${HDRDIR}
-CFLAGS+=	-isystem ${SRCDIR}
 CFLAGS+=	-isystem ${_LIBCXXRTDIR}
 CFLAGS+=	-nostdinc++
 CFLAGS+=	-nostdlib
 CFLAGS+=	-D_LIBCPP_BUILDING_LIBRARY
+CFLAGS+=	-D_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER
+CFLAGS+=	-D_LIBCPP_REMOVE_TRANSITIVE_INCLUDES
 CFLAGS+=	-DLIBCXXRT
-CFLAGS+=	-ffunction-sections
 CFLAGS+=	-fdata-sections
+CFLAGS+=	-ffunction-sections
+CFLAGS+=	-fno-semantic-interposition
+CFLAGS+=	-fvisibility-inlines-hidden
+CFLAGS+=	-fvisibility=hidden
 CXXSTD?=	c++20
 
 LIBADD+=	cxxrt
