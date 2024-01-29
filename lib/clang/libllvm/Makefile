@@ -16,7 +16,7 @@ CFLAGS+=	-I${SRCTOP}/sys/contrib/zstd/lib
  MK_LLVM_TARGET_RISCV, or MK_LLVM_TARGET_X86
 .endif
 
-.for arch in AArch64 ARM BPF Mips PowerPC RISCV X86
+.for arch in AArch64 ARM BPF PowerPC RISCV X86
 . if ${MK_LLVM_TARGET_${arch:tu}} != "no"
 CFLAGS+=	-I${LLVM_SRCS}/lib/Target/${arch}
 . endif
@@ -1405,7 +1405,6 @@ SRCS_MIN+=	Target/BPF/MCTargetDesc/BPFMCCodeEmitter.cpp
 SRCS_MIN+=	Target/BPF/MCTargetDesc/BPFMCTargetDesc.cpp
 SRCS_MIN+=	Target/BPF/TargetInfo/BPFTargetInfo.cpp
 .endif # MK_LLVM_TARGET_BPF
-SRCS_MIN+=	Target/Mips/MipsPreLegalizerCombiner.cpp
 .if ${MK_LLVM_TARGET_POWERPC} != "no"
 SRCS_MIN+=	Target/PowerPC/AsmParser/PPCAsmParser.cpp
 SRCS_MIN+=	Target/PowerPC/Disassembler/PPCDisassembler.cpp
@@ -2055,7 +2054,7 @@ beforebuild:
 
 # Note: some rules are superfluous, not every combination is valid.
 .for arch in \
-	AArch64/AArch64 ARM/ARM BPF/BPF Mips/Mips PowerPC/PPC RISCV/RISCV \
+	AArch64/AArch64 ARM/ARM BPF/BPF PowerPC/PPC RISCV/RISCV \
 	X86/X86
 . for hdr in \
 	AsmMatcher/-gen-asm-matcher \
