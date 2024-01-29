@@ -53,6 +53,7 @@
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Memory.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/BinaryFormat/ELF.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/Support/Endian.h"
 #include <algorithm>
@@ -104,6 +105,13 @@ void elf::reportRangeError(uint8_t *loc, const Relocation &rel, const Twine &v,
       hint = "; references '" + lld::toString(*rel.sym) + '\'';
     else if (auto *d = dyn_cast<Defined>(rel.sym))
       hint = ("; references section '" + d->section->name + "'").str();
+
+    if (config->emachine == EM_X86_64 && rel.type == R_X86_64_PC32 &&
+        rel.sym->getOutputSection() &&
+        (rel.sym->getOutputSection()->flags & SHF_X86_64_LARGE)) {
+      hint += "; R_X86_64_PC32 should not reference a section marked "
+              "SHF_X86_64_LARGE";
+    }
   }
   if (!errPlace.srcLoc.empty())
     hint += "\n>>> referenced by " + errPlace.srcLoc;
@@ -199,10 +207,7 @@ static bool needsPlt(RelExpr expr) {
                R_PPC32_PLTREL, R_PPC64_CALL_PLT>(expr);
 }
 
-// Returns true if Expr refers a GOT entry. Note that this function
-// returns false for TLS variables even though they need GOT, because
-// TLS variables uses GOT differently than the regular variables.
-static bool needsGot(RelExpr expr) {
+bool lld::elf::needsGot(RelExpr expr) {
   return oneof<R_GOT, R_GOT_OFF, R_MIPS_GOT_LOCAL_PAGE, R_MIPS_GOT_OFF,
                R_MIPS_GOT_OFF32, R_AARCH64_GOT_PAGE_PC, R_GOT_PC, R_GOTPLT,
                R_AARCH64_GOT_PAGE, R_LOONGARCH_GOT, R_LOONGARCH_GOT_PAGE_PC>(
@@ -212,10 +217,10 @@ static bool needsGot(RelExpr expr) {
 // True if this expression is of the form Sym - X, where X is a position in the
 // file (PC, or GOT for example).
 static bool isRelExpr(RelExpr expr) {
-  return oneof<R_PC, R_GOTREL, R_GOTPLTREL, R_MIPS_GOTREL, R_PPC64_CALL,
-               R_PPC64_RELAX_TOC, R_AARCH64_PAGE_PC, R_RELAX_GOT_PC,
-               R_RISCV_PC_INDIRECT, R_PPC64_RELAX_GOT_PC, R_LOONGARCH_PAGE_PC>(
-      expr);
+  return oneof<R_PC, R_GOTREL, R_GOTPLTREL, R_ARM_PCA, R_MIPS_GOTREL,
+               R_PPC64_CALL, R_PPC64_RELAX_TOC, R_AARCH64_PAGE_PC,
+               R_RELAX_GOT_PC, R_RISCV_PC_INDIRECT, R_PPC64_RELAX_GOT_PC,
+               R_LOONGARCH_PAGE_PC>(expr);
 }
 
 static RelExpr toPlt(RelExpr expr) {
@@ -311,7 +316,7 @@ static void replaceWithDefined(Symbol &sym, SectionBase &sec, uint64_t value,
           size, &sec)
       .overwrite(sym);
 
-  sym.verdefIndex = old.verdefIndex;
+  sym.versionId = old.versionId;
   sym.exportDynamic = true;
   sym.isUsedInRegularObj = true;
   // A copy relocated alias may need a GOT entry.
@@ -509,8 +514,7 @@ int64_t RelocationScanner::computeMipsAddend(const RelTy &rel, RelExpr expr,
 template <class ELFT>
 static std::string maybeReportDiscarded(Undefined &sym) {
   auto *file = dyn_cast_or_null<ObjFile<ELFT>>(sym.file);
-  if (!file || !sym.discardedSecIdx ||
-      file->getSections()[sym.discardedSecIdx] != &InputSection::discarded)
+  if (!file || !sym.discardedSecIdx)
     return "";
   ArrayRef<typename ELFT::Shdr> objSections =
       file->template getELFShdrs<ELFT>();
@@ -742,7 +746,10 @@ static void reportUndefinedSymbol(const UndefinedDiag &undef,
     uint64_t offset = l.offset;
 
     msg += "\n>>> referenced by ";
-    std::string src = sec.getSrcMsg(sym, offset);
+    // In the absence of line number information, utilize DW_TAG_variable (if
+    // present) for the enclosing symbol (e.g. var in `int *a[] = {&undef};`).
+    Symbol *enclosing = sec.getEnclosingSymbol(offset);
+    std::string src = sec.getSrcMsg(enclosing ? *enclosing : sym, offset);
     if (!src.empty())
       msg += src + "\n>>>               ";
     msg += sec.getObjMsg(offset);
@@ -859,6 +866,23 @@ static void addRelativeReloc(InputSectionBase &isec, uint64_t offsetInSec,
                              RelType type) {
   Partition &part = isec.getPartition();
 
+  if (sym.isTagged()) {
+    std::lock_guard<std::mutex> lock(relocMutex);
+    part.relaDyn->addRelativeReloc(target->relativeRel, isec, offsetInSec, sym,
+                                   addend, type, expr);
+    // With MTE globals, we always want to derive the address tag by `ldg`-ing
+    // the symbol. When we have a RELATIVE relocation though, we no longer have
+    // a reference to the symbol. Because of this, when we have an addend that
+    // puts the result of the RELATIVE relocation out-of-bounds of the symbol
+    // (e.g. the addend is outside of [0, sym.getSize()]), the AArch64 MemtagABI
+    // says we should store the offset to the start of the symbol in the target
+    // field. This is described in further detail in:
+    // https://github.com/ARM-software/abi-aa/blob/main/memtagabielf64/memtagabielf64.rst#841extended-semantics-of-r_aarch64_relative
+    if (addend < 0 || static_cast<uint64_t>(addend) >= sym.getSize())
+      isec.relocations.push_back({expr, type, offsetInSec, addend, &sym});
+    return;
+  }
+
   // Add a relative relocation. If relrDyn section is enabled, and the
   // relocation offset is guaranteed to be even, add the relocation to
   // the relrDyn section, otherwise add it to the relaDyn section.
@@ -889,7 +913,7 @@ static void addPltEntry(PltSection &plt, GotPltSection &gotPlt,
                 sym, 0, R_ABS});
 }
 
-static void addGotEntry(Symbol &sym) {
+void elf::addGotEntry(Symbol &sym) {
   in.got->addEntry(sym);
   uint64_t off = sym.getGotOffset();
 
@@ -971,8 +995,8 @@ bool RelocationScanner::isStaticLinkTimeConstant(RelExpr e, RelType type,
   if (!config->isPic)
     return true;
 
-  // The size of a non preemptible symbol is a constant.
-  if (e == R_SIZE)
+  // Constant when referencing a non-preemptible symbol.
+  if (e == R_SIZE || e == R_RISCV_LEB128)
     return true;
 
   // For the target and the relocation, we want to know if they are
@@ -1040,6 +1064,10 @@ void RelocationScanner::processAux(RelExpr expr, RelType type, uint64_t offset,
     } else if (!isAbsoluteValue(sym)) {
       expr =
           target->adjustGotPcExpr(type, addend, sec->content().data() + offset);
+      // If the target adjusted the expression to R_RELAX_GOT_PC, we may end up
+      // needing the GOT if we can't relax everything.
+      if (expr == R_RELAX_GOT_PC)
+        in.got->hasGotOffRel.store(true, std::memory_order_relaxed);
     }
   }
 
@@ -1137,8 +1165,8 @@ void RelocationScanner::processAux(RelExpr expr, RelType type, uint64_t offset,
   }
 
   // When producing an executable, we can perform copy relocations (for
-  // STT_OBJECT) and canonical PLT (for STT_FUNC).
-  if (!config->shared) {
+  // STT_OBJECT) and canonical PLT (for STT_FUNC) if sym is defined by a DSO.
+  if (!config->shared && sym.isShared()) {
     if (!canDefineSymbolInExecutable(sym)) {
       errorOrWarn("cannot preempt symbol: " + toString(sym) +
                   getLocation(*sec, sym, offset));
@@ -1556,7 +1584,8 @@ template <class ELFT> void elf::scanRelocations() {
         scanner.template scanSection<ELFT>(*sec);
       if (part.armExidx && part.armExidx->isLive())
         for (InputSection *sec : part.armExidx->exidxSections)
-          scanner.template scanSection<ELFT>(*sec);
+          if (sec->isLive())
+            scanner.template scanSection<ELFT>(*sec);
     }
   });
 }
@@ -1645,6 +1674,10 @@ void elf::postScanRelocations() {
     auto flags = sym.flags.load(std::memory_order_relaxed);
     if (handleNonPreemptibleIfunc(sym, flags))
       return;
+
+    if (sym.isTagged() && sym.isDefined())
+      mainPart->memtagGlobalDescriptors->addSymbol(sym);
+
     if (!sym.needsDynReloc())
       return;
     sym.allocateAux();
@@ -1724,7 +1757,7 @@ void elf::postScanRelocations() {
 
   GotSection *got = in.got.get();
   if (ctx.needsTlsLd.load(std::memory_order_relaxed) && got->addTlsIndex()) {
-    static Undefined dummy(nullptr, "", STB_LOCAL, 0, 0);
+    static Undefined dummy(ctx.internalFile, "", STB_LOCAL, 0, 0);
     if (config->shared)
       mainPart->relaDyn->addReloc(
           {target->tlsModuleIndexRel, got, got->getTlsIndexOff()});

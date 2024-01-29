@@ -9,7 +9,7 @@ NO_PIC=
 
 .PATH:		${SRCDIR}/src
 
-SRCS+=		experimental/memory_resource.cpp
+SRCS+=		experimental/keep.cpp
 
 WARNS?=		0
 CXXFLAGS+=	${PICFLAG}
