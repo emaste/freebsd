@@ -283,6 +283,7 @@ VNET_DEFINE_STATIC(uma_zone_t,	pf_sources_z);
 uma_zone_t		pf_mtag_z;
 VNET_DEFINE(uma_zone_t,	 pf_state_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_key_z);
+VNET_DEFINE(uma_zone_t,	 pf_udp_mapping_z);
 
 VNET_DEFINE(struct unrhdr64, pf_stateid);
 
@@ -328,7 +329,7 @@ static int		 pf_create_state(struct pf_krule *, struct pf_krule *,
 			    struct pf_state_key *, struct mbuf *, int,
 			    u_int16_t, u_int16_t, int *, struct pfi_kkif *,
 			    struct pf_kstate **, int, u_int16_t, u_int16_t,
-			    int, struct pf_krule_slist *);
+			    int, struct pf_krule_slist *, struct pf_udp_mapping *);
 static int		 pf_test_fragment(struct pf_krule **, struct pfi_kkif *,
 			    struct mbuf *, void *, struct pf_pdesc *,
 			    struct pf_krule **, struct pf_kruleset **);
@@ -482,6 +483,7 @@ MALLOC_DEFINE(M_PF_RULE_ITEM, "pf_krule_item", "pf(4) rule items");
 VNET_DEFINE(struct pf_keyhash *, pf_keyhash);
 VNET_DEFINE(struct pf_idhash *, pf_idhash);
 VNET_DEFINE(struct pf_srchash *, pf_srchash);
+VNET_DEFINE(struct pf_udpendpointhash *, pf_udpendpointhash);
 
 SYSCTL_NODE(_net, OID_AUTO, pf, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "pf(4)");
@@ -660,6 +662,18 @@ pf_hashkey(const struct pf_state_key *sk)
 
 	h = murmur3_32_hash32((const uint32_t *)sk,
 	    sizeof(struct pf_state_key_cmp)/sizeof(uint32_t),
+	    V_pf_hashseed);
+
+	return (h & pf_hashmask);
+}
+
+static inline uint32_t
+pf_hashudpendpoint(struct pf_udp_endpoint *endpoint)
+{
+	uint32_t h;
+
+	h = murmur3_32_hash32((uint32_t *)endpoint,
+	    sizeof(struct pf_udp_endpoint_cmp)/sizeof(uint32_t),
 	    V_pf_hashseed);
 
 	return (h & pf_hashmask);
@@ -1072,6 +1086,7 @@ pf_initialize(void)
 {
 	struct pf_keyhash	*kh;
 	struct pf_idhash	*ih;
+	struct pf_udpendpointhash *uh;
 	struct pf_srchash	*sh;
 	u_int i;
 
@@ -1092,11 +1107,16 @@ pf_initialize(void)
 	V_pf_state_key_z = uma_zcreate("pf state keys",
 	    sizeof(struct pf_state_key), pf_state_key_ctor, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
+	
+	V_pf_udp_mapping_z = uma_zcreate("pf UDP mappings",
+	    sizeof(struct pf_udp_mapping), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	V_pf_keyhash = mallocarray(pf_hashsize, sizeof(struct pf_keyhash),
 	    M_PFHASH, M_NOWAIT | M_ZERO);
 	V_pf_idhash = mallocarray(pf_hashsize, sizeof(struct pf_idhash),
 	    M_PFHASH, M_NOWAIT | M_ZERO);
+	V_pf_udpendpointhash = mallocarray(pf_hashsize, sizeof(struct pf_udpendpointhash),
+	    M_PFHASH, M_WAITOK | M_ZERO);
 	if (V_pf_keyhash == NULL || V_pf_idhash == NULL) {
 		printf("pf: Unable to allocate memory for "
 		    "state_hashsize %lu.\n", pf_hashsize);
@@ -1112,10 +1132,11 @@ pf_initialize(void)
 	}
 
 	pf_hashmask = pf_hashsize - 1;
-	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash; i <= pf_hashmask;
-	    i++, kh++, ih++) {
+	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash, uh=V_pf_udpendpointhash; i <= pf_hashmask;
+	    i++, kh++, ih++, uh++) {
 		mtx_init(&kh->lock, "pf_keyhash", NULL, MTX_DEF | MTX_DUPOK);
 		mtx_init(&ih->lock, "pf_idhash", NULL, MTX_DEF);
+		mtx_init(&uh->lock, "pf_udpendpointhash", NULL, MTX_DEF | MTX_DUPOK);
 	}
 
 	/* Source nodes. */
@@ -1173,21 +1194,26 @@ pf_cleanup(void)
 {
 	struct pf_keyhash	*kh;
 	struct pf_idhash	*ih;
+	struct pf_udpendpointhash *uh;
 	struct pf_srchash	*sh;
 	struct pf_send_entry	*pfse, *next;
 	u_int i;
 
-	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash; i <= pf_hashmask;
-	    i++, kh++, ih++) {
+	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash, uh=V_pf_udpendpointhash; i <= pf_hashmask;
+	    i++, kh++, ih++, uh++) {
 		KASSERT(LIST_EMPTY(&kh->keys), ("%s: key hash not empty",
 		    __func__));
 		KASSERT(LIST_EMPTY(&ih->states), ("%s: id hash not empty",
 		    __func__));
+		KASSERT(LIST_EMPTY(&uh->endpoints), ("%s: udpendpoint hash not empty",
+		    __func__));
 		mtx_destroy(&kh->lock);
 		mtx_destroy(&ih->lock);
+		mtx_destroy(&uh->lock);
 	}
 	free(V_pf_keyhash, M_PFHASH);
 	free(V_pf_idhash, M_PFHASH);
+	free(V_pf_udpendpointhash, M_PFHASH);
 
 	for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask; i++, sh++) {
 		KASSERT(LIST_EMPTY(&sh->nodes),
@@ -1205,6 +1231,7 @@ pf_cleanup(void)
 	uma_zdestroy(V_pf_sources_z);
 	uma_zdestroy(V_pf_state_z);
 	uma_zdestroy(V_pf_state_key_z);
+	uma_zdestroy(V_pf_udp_mapping_z);
 }
 
 static int
@@ -1733,6 +1760,114 @@ pf_find_state_all_exists(const struct pf_state_key_cmp *key, u_int dir)
 	return (false);
 }
 
+struct pf_udp_mapping*
+pf_udp_mapping_create(sa_family_t af, struct pf_addr *src_addr, uint16_t src_port,
+    struct pf_addr *nat_addr, uint16_t nat_port)
+{
+	struct pf_udp_mapping *mapping;
+
+	mapping = uma_zalloc(V_pf_udp_mapping_z, M_NOWAIT | M_ZERO);
+	if (mapping == NULL)
+		return NULL;
+	PF_ACPY(&mapping->endpoints[0].addr, src_addr, af);
+	mapping->endpoints[0].port = src_port;
+	mapping->endpoints[0].af = af;
+	mapping->endpoints[0].mapping = mapping;
+	PF_ACPY(&mapping->endpoints[1].addr, nat_addr, af);
+	mapping->endpoints[1].port = nat_port;
+	mapping->endpoints[1].af = af;
+	mapping->endpoints[1].mapping = mapping;
+	refcount_init(&mapping->refs, 1);
+	return (mapping);
+}
+
+int
+pf_udp_mapping_insert(struct pf_udp_mapping *mapping)
+{
+	struct pf_udpendpointhash *h0, *h1;
+	struct pf_udp_endpoint *endpoint;
+	int ret = 1;
+
+	h0 = &V_pf_udpendpointhash[pf_hashudpendpoint(&mapping->endpoints[0])];
+	h1 = &V_pf_udpendpointhash[pf_hashudpendpoint(&mapping->endpoints[1])];
+	if (h0 == h1) {
+		PF_HASHROW_LOCK(h0);
+	} else if (h0 < h1) {
+		PF_HASHROW_LOCK(h0);
+		PF_HASHROW_LOCK(h1);
+	} else {
+		PF_HASHROW_LOCK(h1);
+		PF_HASHROW_LOCK(h0);
+	}
+
+	LIST_FOREACH(endpoint, &h0->endpoints, entry)
+		if (bcmp(endpoint, &mapping->endpoints[0], sizeof(struct pf_udp_endpoint_cmp)) == 0)
+			break;
+	if (endpoint != NULL)
+		goto cleanup;
+	LIST_FOREACH(endpoint, &h1->endpoints, entry)
+		if (bcmp(endpoint, &mapping->endpoints[1], sizeof(struct pf_udp_endpoint_cmp)) == 0)
+			break;
+	if (endpoint != NULL)
+		goto cleanup;
+	LIST_INSERT_HEAD(&h0->endpoints, &mapping->endpoints[0], entry);
+	LIST_INSERT_HEAD(&h1->endpoints, &mapping->endpoints[1], entry);
+	ret = 0;
+
+cleanup:
+	if (h0 != h1) {
+		PF_HASHROW_UNLOCK(h0);
+		PF_HASHROW_UNLOCK(h1);
+	} else {
+		PF_HASHROW_UNLOCK(h0);
+	}
+	return (ret);
+}
+
+void
+pf_udp_mapping_release(struct pf_udp_mapping *mapping)
+{
+	/* refcount is synchronized on the source endpoint's row lock */
+	struct pf_udpendpointhash *h0, *h1;
+
+	h0 = &V_pf_udpendpointhash[pf_hashudpendpoint(&mapping->endpoints[0])];
+	PF_HASHROW_LOCK(h0);
+	if (refcount_release(&mapping->refs)) {
+		LIST_REMOVE(&mapping->endpoints[0], entry);
+		PF_HASHROW_UNLOCK(h0);
+		h1 = &V_pf_udpendpointhash[pf_hashudpendpoint(&mapping->endpoints[1])];
+		PF_HASHROW_LOCK(h1);
+		LIST_REMOVE(&mapping->endpoints[1], entry);
+		PF_HASHROW_UNLOCK(h1);
+
+		uma_zfree(V_pf_udp_mapping_z, mapping);
+	} else {
+		PF_HASHROW_UNLOCK(h0);
+	}
+}
+
+struct pf_udp_mapping *
+pf_udp_mapping_find(struct pf_udp_endpoint_cmp *key)
+{
+	struct pf_udpendpointhash *uh;
+	struct pf_udp_endpoint *endpoint;
+
+	uh = &V_pf_udpendpointhash[pf_hashudpendpoint((struct pf_udp_endpoint*)key)];
+
+	PF_HASHROW_LOCK(uh);
+	LIST_FOREACH(endpoint, &uh->endpoints, entry)
+		if (bcmp(endpoint, key, sizeof(struct pf_udp_endpoint_cmp)) == 0 &&
+				bcmp(endpoint, &endpoint->mapping->endpoints[0], sizeof(struct pf_udp_endpoint_cmp)) == 0)
+			break;
+	if (endpoint == NULL) {
+		PF_HASHROW_UNLOCK(uh);
+		return NULL;
+	}
+	refcount_acquire(&endpoint->mapping->refs);
+	PF_HASHROW_UNLOCK(uh);
+	return (endpoint->mapping);
+}
+
 /* END state table stuff */
 
 static void
@@ -2183,6 +2318,10 @@ pf_unlink_state(struct pf_kstate *s)
 	PF_HASHROW_UNLOCK(ih);
 
 	pf_detach_state(s);
+
+	if (s->udp_mapping)
+		pf_udp_mapping_release(s->udp_mapping);
+	
 	/* pf_state_insert() initialises refs to 2 */
 	return (pf_release_staten(s, 2));
 }
@@ -4439,6 +4578,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 	u_int16_t		 bproto_sum = 0, bip_sum = 0;
 	u_int8_t		 icmptype = 0, icmpcode = 0;
 	struct pf_kanchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
+	struct pf_udp_mapping	*udp_mapping = NULL;
 
 	PF_RULES_RASSERT();
 
@@ -4507,7 +4647,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 
 	/* check packet for BINAT/NAT/RDR */
 	if ((nr = pf_get_translation(pd, m, off, kif, &nsn, &sk,
-	    &nk, saddr, daddr, sport, dport, anchor_stack)) != NULL) {
+	    &nk, saddr, daddr, sport, dport, anchor_stack, &udp_mapping)) != NULL) {
 		KASSERT(sk != NULL, ("%s: null sk", __func__));
 		KASSERT(nk != NULL, ("%s: null nk", __func__));
 
@@ -4798,8 +4938,10 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 		int action;
 		action = pf_create_state(r, nr, a, pd, nsn, nk, sk, m, off,
 		    sport, dport, &rewrite, kif, sm, tag, bproto_sum, bip_sum,
-		    hdrlen, &match_rules);
+		    hdrlen, &match_rules, udp_mapping);
 		if (action != PF_PASS) {
+			if (udp_mapping != NULL)
+				pf_udp_mapping_release(udp_mapping);
 			if (action == PF_DROP &&
 			    (r->rule_flag & PFRULE_RETURN))
 				pf_return(r, nr, pd, sk, off, m, th, kif,
@@ -4815,6 +4957,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 
 		uma_zfree(V_pf_state_key_z, sk);
 		uma_zfree(V_pf_state_key_z, nk);
+		if (udp_mapping != NULL)
+			pf_udp_mapping_release(udp_mapping);
 	}
 
 	/* copy back packet headers if we performed NAT operations */
@@ -4842,6 +4986,10 @@ cleanup:
 
 	uma_zfree(V_pf_state_key_z, sk);
 	uma_zfree(V_pf_state_key_z, nk);
+
+	if (udp_mapping != NULL)
+		pf_udp_mapping_release(udp_mapping);
+
 	return (PF_DROP);
 }
 
@@ -4851,7 +4999,8 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
     struct pf_state_key *sk, struct mbuf *m, int off, u_int16_t sport,
     u_int16_t dport, int *rewrite, struct pfi_kkif *kif, struct pf_kstate **sm,
     int tag, u_int16_t bproto_sum, u_int16_t bip_sum, int hdrlen,
-    struct pf_krule_slist *match_rules)
+    struct pf_krule_slist *match_rules,
+    struct pf_udp_mapping *udp_mapping)
 {
 	struct pf_kstate	*s = NULL;
 	struct pf_ksrc_node	*sn = NULL;
@@ -5067,6 +5216,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		REASON_SET(&reason, PFRES_SYNPROXY);
 		return (PF_SYNPROXY_DROP);
 	}
+	s->udp_mapping = udp_mapping;
 
 	return (PF_PASS);
 

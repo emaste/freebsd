@@ -940,6 +940,29 @@ struct pf_state_peer {
 	u_int8_t	pad[1];
 };
 
+/* Keep synced with struct pf_udp_endpoint. */
+struct pf_udp_endpoint_cmp {
+	struct pf_addr	addr;
+	uint16_t	port;
+	sa_family_t	af;
+	uint8_t		pad[1];
+};
+
+struct pf_udp_endpoint {
+	struct pf_addr	addr;
+	uint16_t	port;
+	sa_family_t	af;
+	uint8_t		pad[1];
+
+	struct pf_udp_mapping *mapping;
+	LIST_ENTRY(pf_udp_endpoint) entry;
+};
+
+struct pf_udp_mapping {
+	struct pf_udp_endpoint endpoints[2];
+	u_int refs;
+};
+
 /* Keep synced with struct pf_state_key. */
 struct pf_state_key_cmp {
 	struct pf_addr	 addr[2];
@@ -1069,6 +1092,7 @@ struct pf_kstate {
 	union pf_krule_ptr	 nat_rule;
 	struct pf_addr		 rt_addr;
 	struct pf_state_key	*key[2];	/* addresses stack and wire  */
+	struct pf_udp_mapping	*udp_mapping;
 	struct pfi_kkif		*kif;
 	struct pfi_kkif		*orig_kif;	/* The real kif, even if we're a floating state (i.e. if == V_pfi_all). */
 	struct pfi_kkif		*rt_kif;
@@ -2114,6 +2138,11 @@ struct pf_srchash {
 	struct mtx			lock;
 };
 
+struct pf_udpendpointhash {
+	LIST_HEAD(, pf_udp_endpoint)	endpoints;
+	struct mtx			lock;
+};
+
 struct pf_keyhash {
 	LIST_HEAD(, pf_state_key)	keys;
 	struct mtx			lock;
@@ -2129,8 +2158,10 @@ extern u_long		pf_hashmask;
 extern u_long		pf_srchashmask;
 #define	PF_HASHSIZ	(131072)
 #define	PF_SRCHASHSIZ	(PF_HASHSIZ/4)
+VNET_DECLARE(struct pf_udpendpointhash *, pf_udpendpointhash);
 VNET_DECLARE(struct pf_keyhash *, pf_keyhash);
 VNET_DECLARE(struct pf_idhash *, pf_idhash);
+#define V_pf_udpendpointhash	VNET(pf_udpendpointhash)
 #define V_pf_keyhash	VNET(pf_keyhash)
 #define	V_pf_idhash	VNET(pf_idhash)
 VNET_DECLARE(struct pf_srchash *, pf_srchash);
@@ -2207,6 +2238,8 @@ VNET_DECLARE(uma_zone_t,	 pf_state_z);
 #define	V_pf_state_z		 VNET(pf_state_z)
 VNET_DECLARE(uma_zone_t,	 pf_state_key_z);
 #define	V_pf_state_key_z	 VNET(pf_state_key_z)
+VNET_DECLARE(uma_zone_t,	 pf_udp_mapping_z);
+#define	V_pf_udp_mapping_z	 VNET(pf_udp_mapping_z)
 VNET_DECLARE(uma_zone_t,	 pf_state_scrub_z);
 #define	V_pf_state_scrub_z	 VNET(pf_state_scrub_z)
 
@@ -2279,6 +2312,13 @@ extern struct pf_kstate		*pf_find_state_all(
 extern bool			pf_find_state_all_exists(
 				    const struct pf_state_key_cmp *,
 				    u_int);
+extern struct pf_udp_mapping	*pf_udp_mapping_find(struct pf_udp_endpoint_cmp *endpoint);
+extern struct pf_udp_mapping	*pf_udp_mapping_create(sa_family_t af,
+				    struct pf_addr *src_addr, uint16_t src_port,
+				    struct pf_addr *nat_addr, uint16_t nat_port);
+extern int			 pf_udp_mapping_insert(struct pf_udp_mapping *mapping);
+extern void			 pf_udp_mapping_release(struct pf_udp_mapping *mapping);
+
 extern struct pf_ksrc_node	*pf_find_src_node(struct pf_addr *,
 				    struct pf_krule *, sa_family_t,
 				    struct pf_srchash **, bool);
@@ -2567,7 +2607,8 @@ struct pf_krule		*pf_get_translation(struct pf_pdesc *, struct mbuf *,
 			    int, struct pfi_kkif *, struct pf_ksrc_node **,
 			    struct pf_state_key **, struct pf_state_key **,
 			    struct pf_addr *, struct pf_addr *,
-			    uint16_t, uint16_t, struct pf_kanchor_stackframe *);
+			    uint16_t, uint16_t, struct pf_kanchor_stackframe *,
+			    struct pf_udp_mapping **udp_mapping);
 
 struct pf_state_key	*pf_state_key_setup(struct pf_pdesc *, struct pf_addr *,
 			    struct pf_addr *, u_int16_t, u_int16_t);

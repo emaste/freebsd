@@ -65,7 +65,8 @@ static struct pf_krule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
 			    uint16_t, int, struct pf_kanchor_stackframe *);
 static int pf_get_sport(sa_family_t, uint8_t, struct pf_krule *,
     struct pf_addr *, uint16_t, struct pf_addr *, uint16_t, struct pf_addr *,
-    uint16_t *, uint16_t, uint16_t, struct pf_ksrc_node **);
+    uint16_t *, uint16_t, uint16_t, struct pf_ksrc_node **,
+    struct pf_udp_mapping**);
 
 static void
 pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
@@ -198,10 +199,36 @@ static int
 pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
     struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
     uint16_t dport, struct pf_addr *naddr, uint16_t *nport, uint16_t low,
-    uint16_t high, struct pf_ksrc_node **sn)
+    uint16_t high, struct pf_ksrc_node **sn,
+    struct pf_udp_mapping **udp_mapping)
 {
 	struct pf_state_key_cmp	key;
 	struct pf_addr		init_addr;
+	struct pf_srchash	*sh = NULL;
+
+	if (proto == IPPROTO_UDP) {
+		struct pf_udp_endpoint_cmp udp_source;
+
+		bzero(&udp_source, sizeof(udp_source));
+		udp_source.af = af;
+		PF_ACPY(&udp_source.addr, saddr, af);
+		udp_source.port = sport;
+		*udp_mapping = pf_udp_mapping_find(&udp_source);
+		if (*udp_mapping) {
+			PF_ACPY(naddr, &(*udp_mapping)->endpoints[1].addr, af);
+			*nport = (*udp_mapping)->endpoints[1].port;
+			/* as per pf_map_addr(): */
+			if (*sn == NULL && r->rpool.opts & PF_POOL_STICKYADDR &&
+			    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
+				*sn = pf_find_src_node(saddr, r, af, &sh, 0);
+			return (0);
+		} else {
+			*udp_mapping = pf_udp_mapping_create(af, saddr, sport,
+			    &init_addr, 0);
+			if (*udp_mapping == NULL)
+				goto failed;
+		}
+	}
 
 	bzero(&init_addr, sizeof(init_addr));
 	if (pf_map_addr(af, r, saddr, naddr, NULL, &init_addr, sn))
@@ -215,6 +242,8 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 
 	do {
 		PF_ACPY(&key.addr[1], naddr, key.af);
+		if ((*udp_mapping))
+			PF_ACPY(&(*udp_mapping)->endpoints[1].addr, naddr, af);
 
 		/*
 		 * port search; start random, step;
@@ -242,8 +271,16 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 		} else if (low == high) {
 			key.port[1] = htons(low);
 			if (!pf_find_state_all_exists(&key, PF_IN)) {
-				*nport = htons(low);
-				return (0);
+				if (proto == IPPROTO_UDP) {
+					(*udp_mapping)->endpoints[1].port = htons(low);
+					if (pf_udp_mapping_insert(*udp_mapping) == 0) {
+						*nport = htons(low);
+						return (0);
+					}
+				} else {
+					*nport = htons(low);
+					return (0);
+				}
 			}
 		} else {
 			uint32_t tmp;
@@ -258,18 +295,34 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 			cut = arc4random() % (1 + high - low) + low;
 			/* low <= cut <= high */
 			for (tmp = cut; tmp <= high && tmp <= 0xffff; ++tmp) {
-				key.port[1] = htons(tmp);
-				if (!pf_find_state_all_exists(&key, PF_IN)) {
-					*nport = htons(tmp);
-					return (0);
+				if (proto == IPPROTO_UDP) {
+					(*udp_mapping)->endpoints[1].port = htons(tmp);
+					if (pf_udp_mapping_insert(*udp_mapping) == 0) {
+						*nport = htons(tmp);
+						return (0);
+					}
+				} else {
+					key.port[1] = htons(tmp);
+					if (!pf_find_state_all_exists(&key, PF_IN)) {
+						*nport = htons(tmp);
+						return (0);
+					}
 				}
 			}
 			tmp = cut;
 			for (tmp -= 1; tmp >= low && tmp <= 0xffff; --tmp) {
+				if (proto == IPPROTO_UDP) {
+					(*udp_mapping)->endpoints[1].port = htons(tmp);
+					if (pf_udp_mapping_insert(*udp_mapping) == 0) {
+						*nport = htons(tmp);
+						return (0);
+					}
+				} else {
 				key.port[1] = htons(tmp);
-				if (!pf_find_state_all_exists(&key, PF_IN)) {
-					*nport = htons(tmp);
-					return (0);
+					if (!pf_find_state_all_exists(&key, PF_IN)) {
+						*nport = htons(tmp);
+						return (0);
+					}
 				}
 			}
 		}
@@ -291,14 +344,20 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 			return (1);
 		}
 	} while (! PF_AEQ(&init_addr, naddr, af) );
-	return (1);					/* none available */
+	/* none available */
+failed:
+	if (*udp_mapping) {
+		uma_zfree(V_pf_udp_mapping_z, *udp_mapping);
+		*udp_mapping = NULL;
+	}
+	return (1);
 }
 
 static int
 pf_get_mape_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
     struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
     uint16_t dport, struct pf_addr *naddr, uint16_t *nport,
-    struct pf_ksrc_node **sn)
+    struct pf_ksrc_node **sn, struct pf_udp_mapping** udp_mapping)
 {
 	uint16_t psmask, low, highmask;
 	uint16_t i, ahigh, cut;
@@ -318,13 +377,13 @@ pf_get_mape_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 	for (i = cut; i <= ahigh; i++) {
 		low = (i << ashift) | psmask;
 		if (!pf_get_sport(af, proto, r, saddr, sport, daddr, dport,
-		    naddr, nport, low, low | highmask, sn))
+		    naddr, nport, low, low | highmask, sn, udp_mapping))
 			return (0);
 	}
 	for (i = cut - 1; i > 0; i--) {
 		low = (i << ashift) | psmask;
 		if (!pf_get_sport(af, proto, r, saddr, sport, daddr, dport,
-		    naddr, nport, low, low | highmask, sn))
+		    naddr, nport, low, low | highmask, sn, udp_mapping))
 			return (0);
 	}
 	return (1);
@@ -561,7 +620,8 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
     struct pfi_kkif *kif, struct pf_ksrc_node **sn,
     struct pf_state_key **skp, struct pf_state_key **nkp,
     struct pf_addr *saddr, struct pf_addr *daddr,
-    uint16_t sport, uint16_t dport, struct pf_kanchor_stackframe *anchor_stack)
+    uint16_t sport, uint16_t dport, struct pf_kanchor_stackframe *anchor_stack,
+    struct pf_udp_mapping **udp_mapping)
 {
 	struct pf_krule	*r = NULL;
 	struct pf_addr	*naddr;
@@ -623,7 +683,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		}
 		if (r->rpool.mape.offset > 0) {
 			if (pf_get_mape_sport(pd->af, pd->proto, r, saddr,
-			    sport, daddr, dport, naddr, nport, sn)) {
+			    sport, daddr, dport, naddr, nport, sn, udp_mapping)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: MAP-E port allocation (%u/%u/%u)"
 				    " failed\n",
@@ -633,7 +693,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 				goto notrans;
 			}
 		} else if (pf_get_sport(pd->af, pd->proto, r, saddr, sport,
-		    daddr, dport, naddr, nport, low, high, sn)) {
+		    daddr, dport, naddr, nport, low, high, sn, udp_mapping)) {
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: NAT proxy port allocation (%u-%u) failed\n",
 			    r->rpool.proxy_port[0], r->rpool.proxy_port[1]));
