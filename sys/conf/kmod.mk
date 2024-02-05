@@ -266,7 +266,10 @@ ${FULLPROG}: ${OBJS} ${BLOB_OBJS}
 	${LD} -m ${LD_EMULATION} ${_LDFLAGS} ${LDSCRIPT_FLAGS} -r \
 	    -o ${.TARGET} ${OBJS} ${BLOB_OBJS}
 .if ${MK_CTF} != "no"
-	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS} ${BLOB_OBJS}
+	if ! ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS} ${BLOB_OBJS}; then
+		rm ${.TARGET}
+		false
+	fi
 .endif
 .if defined(EXPORT_SYMS)
 .if ${EXPORT_SYMS} != YES
