@@ -44,11 +44,10 @@ FEATURES=$( bsddialog --backtitle "$OSNAME Installer" \
 	"2 hide_jail" "Hide processes running in jails" ${hide_jail:-off} \
 	"3 read_msgbuf" "Disable reading kernel message buffer for unprivileged users" ${read_msgbuf:-off} \
 	"4 proc_debug" "Disable process debugging facilities for unprivileged users" ${proc_debug:-off} \
-	"5 random_pid" "Randomize the PID of newly created processes" ${random_pid:-off} \
-	"6 clear_tmp" "Clean the /tmp filesystem on system startup" ${clear_tmp:-off} \
-	"7 disable_syslogd" "Disable opening Syslogd network socket (disables remote logging)" ${disable_syslogd:-off} \
-	"8 secure_console" "Enable console password prompt" ${secure_console:-off} \
-	"9 disable_ddtrace" "Disallow DTrace destructive-mode" ${disable_ddtrace:-off} \
+	"5 clear_tmp" "Clean the /tmp filesystem on system startup" ${clear_tmp:-off} \
+	"6 disable_syslogd" "Disable opening Syslogd network socket (disables remote logging)" ${disable_syslogd:-off} \
+	"7 secure_console" "Enable console password prompt" ${secure_console:-off} \
+	"8 disable_ddtrace" "Disallow DTrace destructive-mode" ${disable_ddtrace:-off} \
 2>&1 1>&5 )
 retval=$?
 exec 5>&-
@@ -73,9 +72,6 @@ for feature in $FEATURES; do
 		;;
 	proc_debug)
 		echo security.bsd.unprivileged_proc_debug=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
-		;;
-	random_pid)
-		echo kern.randompid=1 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
 		;;
 	clear_tmp)
 		echo 'clear_tmp_enable="YES"' >> $BSDINSTALL_TMPETC/rc.conf.hardening
