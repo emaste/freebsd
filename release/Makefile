@@ -92,12 +92,14 @@ VOLUME_LABEL=	FreeBSD_Install
 NOPORTS= true
 .endif
 
+.if defined(KEEP_OLD_STUFF)
 DISTRIBUTIONS= base.txz kernel.txz
 .if !defined(NOPORTS)
 DISTRIBUTIONS+= ports.txz
 .endif
 .if !defined(NOSRC)
 DISTRIBUTIONS+= src.txz
+.endif
 .endif
 
 RELEASE_TARGETS= ftp
