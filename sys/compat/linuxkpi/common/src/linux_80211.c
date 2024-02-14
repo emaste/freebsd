@@ -714,6 +714,34 @@ lkpi_lsta_dump(struct lkpi_sta *lsta, struct ieee80211_node *ni,
 #endif
 }
 
+void lkpi_sta_dump(struct ieee80211_sta *sta, const char *_f, int _l);
+void
+lkpi_sta_dump(struct ieee80211_sta *sta, const char *_f, int _l)
+{
+#ifdef LINUXKPI_DEBUG_80211
+	struct lkpi_sta *lsta;
+	struct ieee80211_node *ni;
+
+	lsta = STA_TO_LSTA(sta);
+	ni = lsta->ni;
+	if (ni != NULL) {
+		struct ieee80211vap *vap;
+		struct lkpi_vif *lvif;
+
+		vap = ni->ni_vap;
+		lvif = VAP_TO_LVIF(vap);
+
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
+		   "lvif_bss->ni %p synched %d\n", _f, _l,
+		   lvif, vap, vap->iv_bss, lvif->lvif_bss,
+		   (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
+		   lvif->lvif_bss_synched);
+	}
+
+	lkpi_lsta_dump(lsta, ni, _f, _l);
+#endif
+}
+
 static void
 lkpi_lsta_remove(struct lkpi_sta *lsta, struct lkpi_vif *lvif)
 {
