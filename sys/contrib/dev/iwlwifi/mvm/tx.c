@@ -1183,6 +1183,10 @@ static int iwl_mvm_tx_pkt_queued(struct iwl_mvm *mvm,
 	return 0;
 }
 
+#if defined(__FreeBSD__)
+void lkpi_sta_dump(struct ieee80211_sta *, const char *, int);
+#endif
+
 /*
  * Sets the fields in the Tx cmd that are crypto related.
  *
@@ -1279,6 +1283,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		    "skb %p { len %u } info %p sta %p (see PR 274382)\n",
 		    __func__, __LINE__,
 		    fc, tid, txq_id, mvm, skb, skb->len, info, sta);
+//		lkpi_sta_dump(sta, __func__, __LINE__);
 #endif
 		iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
 		spin_unlock(&mvmsta->lock);
