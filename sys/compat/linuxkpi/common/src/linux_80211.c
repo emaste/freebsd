@@ -3763,6 +3763,10 @@ lkpi_iv_update_bss(struct ieee80211vap *vap, struct ieee80211_node *ni)
 	lvif = VAP_TO_LVIF(vap);
 
 	LKPI_80211_LVIF_LOCK(lvif);
+	ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p lvif_bss->ni %p synched %d, ni %p\n",
+	    __func__, __LINE__, lvif, vap, vap->iv_bss, lvif->lvif_bss,
+	    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
+	    lvif->lvif_bss_synched, ni);
 	lvif->lvif_bss_synched = false;
 	LKPI_80211_LVIF_UNLOCK(lvif);
 
