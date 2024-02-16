@@ -736,6 +736,17 @@ lkpi_sta_dump(struct ieee80211_sta *sta, const char *_f, int _l)
 		   lvif, vap, vap->iv_bss, lvif->lvif_bss,
 		   (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
 		   lvif->lvif_bss_synched);
+
+		printf("iv_nstate %#x %s iv_nstate_b %d iv_nstate_n %d\n",
+		    vap->iv_nstate,
+		    ieee80211_state_name[vap->iv_nstate], /* historic */
+		    vap->iv_nstate_b, vap->iv_nstate_n);
+		for (int i = 0; i < NET80211_IV_NSTATE_NUM; i++) {
+			printf("\t [%d] iv_nstates %#x %s _task %p _args %d\n", i,
+			    vap->iv_nstates[i],
+			    ieee80211_state_name[vap->iv_nstates[i]],
+			&vap->iv_nstate_task[i], vap->iv_nstate_args[i]);
+		}
 	}
 
 	lkpi_lsta_dump(lsta, ni, _f, _l);
@@ -3767,6 +3778,16 @@ lkpi_iv_update_bss(struct ieee80211vap *vap, struct ieee80211_node *ni)
 	    __func__, __LINE__, lvif, vap, vap->iv_bss, lvif->lvif_bss,
 	    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
 	    lvif->lvif_bss_synched, ni);
+
+	printf("iv_nstate %#x %s iv_nstate_b %d iv_nstate_n %d\n",
+	    vap->iv_nstate, ieee80211_state_name[vap->iv_nstate], /* historic */
+	    vap->iv_nstate_b, vap->iv_nstate_n);
+	for (int i = 0; i < NET80211_IV_NSTATE_NUM; i++) {
+		printf("\t [%d] iv_nstates %#x %s _task %p _args %d\n", i,
+		    vap->iv_nstates[i],
+		    ieee80211_state_name[vap->iv_nstates[i]],
+		&vap->iv_nstate_task[i], vap->iv_nstate_args[i]);
+	}
 	lvif->lvif_bss_synched = false;
 	LKPI_80211_LVIF_UNLOCK(lvif);
 
