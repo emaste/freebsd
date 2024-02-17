@@ -1109,6 +1109,10 @@ static int iwl_mvm_tx_pkt_queued(struct iwl_mvm *mvm,
 	return 0;
 }
 
+#if defined(__FreeBSD__)
+void lkpi_sta_dump(struct ieee80211_sta *, const char *, int);
+#endif
+
 /*
  * Sets the fields in the Tx cmd that are crypto related.
  *
@@ -1127,10 +1131,12 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	u16 txq_id;
 	bool is_ampdu = false;
 	int hdrlen;
+	uint8_t x[2];
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	fc = hdr->frame_control;
 	hdrlen = ieee80211_hdrlen(fc);
+	memcpy(x, hdr, 2);
 
 	if (IWL_MVM_NON_TRANSMITTING_AP && ieee80211_is_probe_resp(fc))
 		return -1;
@@ -1199,10 +1205,13 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	if (WARN_ONCE(txq_id == IWL_MVM_INVALID_QUEUE, "Invalid TXQ id")) {
 #if defined(__FreeBSD__)
-		printf("%s:%d: fc %#06x tid %u txq_id %u mvm %p "
+		printf("%s:%d: fc %#06x x[0] %#04x x[1] %#04x, tid %u txq_id %u mvm %p "
 		    "skb %p { len %u } info %p sta %p (if you see this please "
 		    "report to PR 274382)\n", __func__, __LINE__,
-		    fc, tid, txq_id, mvm, skb, skb->len, info, sta);
+		    le16toh(fc), x[0], x[1], tid, txq_id, mvm, skb, skb->len, info, sta);
+		printf("%s:%d: data_qos %d qos_nullfunc %d data %d, mgmt %d ctl %d reassocreq %d assoc req %d auth %d, data present %d\n", __func__, __LINE__,
+		    ieee80211_is_data_qos(fc), ieee80211_is_qos_nullfunc(fc), ieee80211_is_data(fc), ieee80211_is_mgmt(fc), ieee80211_is_ctl(fc), ieee80211_is_reassoc_req(fc), ieee80211_is_assoc_req(fc), ieee80211_is_auth(fc), ieee80211_is_data_present(fc));
+		lkpi_sta_dump(sta, __func__, __LINE__);
 #endif
 		iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
 		spin_unlock(&mvmsta->lock);
@@ -1226,6 +1235,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		if (unlikely(mvm->queue_info[txq_id].status ==
 			     IWL_MVM_QUEUE_SHARED &&
 			     iwl_mvm_txq_should_update(mvm, txq_id)))
+printf("XXX-BZ %s:%d:\n", __func__, __LINE__);
 			schedule_work(&mvm->add_stream_wk);
 	}
 

@@ -631,7 +631,8 @@ lkpi_80211_mo_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *txctrl,
 	if (lhw->ops->tx == NULL)
 		return;
 
-	LKPI_80211_TRACE_MO("hw %p txctrl %p skb %p", hw, txctrl, skb);
+	LKPI_80211_TRACE_MO("hw %p txctrl %p skb %p { priority %u queue %d }",
+	    hw, txctrl, skb, skb->priority, skb_get_queue_mapping(skb));
 	lhw->ops->tx(hw, txctrl, skb);
 }
 
@@ -639,12 +640,23 @@ void
 lkpi_80211_mo_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 {
 	struct lkpi_hw *lhw;
+#ifdef LINUXKPI_DEBUG_80211
+	struct lkpi_txq *ltxq;
+#endif
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->wake_tx_queue == NULL)
 		return;
 
-	LKPI_80211_TRACE_MO("hw %p txq %p", hw, txq);
+#ifdef LINUXKPI_DEBUG_80211
+	ltxq = TXQ_TO_LTXQ(txq);
+#endif
+	LKPI_80211_TRACE_MO("hw %p txq %p { sta %p vif %p ac %d tid %u } "
+	    "ltxq %p { seen_dequeue %d stopped %d generation %u skbq %p len %u }",
+	    hw, txq, txq->sta, txq->vif, txq->ac, txq->tid,
+	    ltxq, ltxq->seen_dequeue, ltxq->stopped, ltxq->txq_generation,
+	    &ltxq->skbq, skb_queue_len(&ltxq->skbq));
+
 	lhw->ops->wake_tx_queue(hw, txq);
 }
 

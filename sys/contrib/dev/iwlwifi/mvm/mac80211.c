@@ -811,11 +811,13 @@ void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	ieee80211_free_txskb(hw, skb);
 }
 
-void iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
+void _iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq, const char *_f, int _l)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_txq *mvmtxq = iwl_mvm_txq_from_mac80211(txq);
 	struct sk_buff *skb = NULL;
+
+printf("XXX-BZ %s:%d: [%s:%d] hw %p txq %p mvmtxq->state %#010lx tx_request %d\n", __func__, __LINE__, _f, _l, hw, txq, mvmtxq->state, atomic_read(&mvmtxq->tx_request));
 
 	/*
 	 * No need for threads to be pending here, they can leave the first
@@ -885,6 +887,7 @@ void iwl_mvm_mac_wake_tx_queue(struct ieee80211_hw *hw,
 	    /* recheck under lock */
 	    !test_bit(IWL_MVM_TXQ_STATE_READY, &mvmtxq->state)) {
 		list_add_tail(&mvmtxq->list, &mvm->add_stream_txqs);
+		printf("XXX-BZ %s:%d:\n", __func__, __LINE__);
 		schedule_work(&mvm->add_stream_wk);
 	}
 	spin_unlock_bh(&mvm->add_stream_lock);

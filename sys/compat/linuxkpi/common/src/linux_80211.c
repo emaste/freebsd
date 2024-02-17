@@ -1308,6 +1308,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
+#if 0
 	/*
 	 * Wakeup all queues now that sta is there so we have as much time to
 	 * possibly prepare the queue in the driver to be ready for the 1st
@@ -1317,6 +1318,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	 * for all queues.
 	 */
 	lkpi_wake_tx_queues(hw, LSTA_TO_STA(lsta), false, false);
+#endif
 
 	/* Start mgd_prepare_tx. */
 	memset(&prep_tx_info, 0, sizeof(prep_tx_info));
@@ -2531,6 +2533,11 @@ lkpi_iv_update_bss(struct ieee80211vap *vap, struct ieee80211_node *ni)
 	lvif = VAP_TO_LVIF(vap);
 
 	LKPI_80211_LVIF_LOCK(lvif);
+	ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
+	    "lvif_bss->ni %p synched %d, ni %p\n", __func__, __LINE__,
+	     lvif, vap, vap->iv_bss, lvif->lvif_bss,
+	     (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
+	     lvif->lvif_bss_synched, ni);
 	lvif->lvif_bss_synched = false;
 	LKPI_80211_LVIF_UNLOCK(lvif);
 
@@ -3665,13 +3672,22 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	hdr = (void *)skb->data;
 	tid = linuxkpi_ieee80211_get_tid(hdr, true);
 	if (tid == IEEE80211_NONQOS_TID) { /* == IEEE80211_NUM_TIDS */
-		skb->priority = 0;
-		ac = IEEE80211_AC_BE;
+		if (!ieee80211_is_data(hdr->frame_control)) {
+			/* MGMT and CTRL frames go on TID 7/VO. */
+			skb->priority = 7;
+			ac = IEEE80211_AC_VO;
+		} else {
+			/* Other non-QOS traffic goes to BE. */
+			/* Contrary to net80211 we MUST NOT propmote M_EAPOL. */
+			skb->priority = 0;
+			ac = IEEE80211_AC_BE;
+		}
 	} else {
 		skb->priority = tid & IEEE80211_QOS_CTL_TID_MASK;
 		ac = ieee80211e_up_to_ac[tid & 7];
 	}
 	skb_set_queue_mapping(skb, ac);
+printf("XXX-BZ %s:%d: wh->i_fc[0] %#04x [1] %#04x tid %u priority %d ac %u qmap %d\n", __func__, __LINE__, wh->i_fc[0], wh->i_fc[1], tid, skb->priority, ac, skb->qmap);
 
 	info = IEEE80211_SKB_CB(skb);
 	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
@@ -6008,6 +6024,45 @@ linuxkpi_cfg80211_bss_flush(struct wiphy *wiphy)
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
 		ieee80211_scan_flush(vap);
 	IEEE80211_UNLOCK(ic);
+}
+
+/* -------------------------------------------------------------------------- */
+/*
+ * Temporary debugging aid.
+ */
+void lkpi_sta_dump(struct ieee80211_sta *sta, const char *_f, int _l);
+
+/*
+ * Includes parts of lkpi_lsta_dump() so they are unconditional of
+ * LINUXKPI_DEBUG_80211 or D80211_TRACE_STA.
+ */
+void
+lkpi_sta_dump(struct ieee80211_sta *sta, const char *_f, int _l)
+{
+	struct lkpi_sta *lsta;
+	struct ieee80211_node *ni;
+
+	lsta = STA_TO_LSTA(sta);
+	ni = lsta->ni;
+	if (ni != NULL) {
+		struct ieee80211vap *vap;
+		struct lkpi_vif *lvif;
+
+		vap = ni->ni_vap;
+		lvif = VAP_TO_LVIF(vap);
+
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
+		   "lvif_bss->ni %p synched %d\n", _f, _l,
+		   lvif, vap, vap->iv_bss, lvif->lvif_bss,
+		   (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
+		   lvif->lvif_bss_synched);
+	}
+	printf("%s:%d lsta %p ni %p sta %p\n", _f, _l, lsta, ni, &lsta->sta);
+	printf("\ttxq_task txq len %d mtx\n", mbufq_len(&lsta->txq));
+	printf("\tkc %p state %d added_to_drv %d in_mgd %d\n",
+		lsta->kc, lsta->state, lsta->added_to_drv, lsta->in_mgd);
+	if (ni != NULL)
+		ieee80211_dump_node(NULL, ni);
 }
 
 /* -------------------------------------------------------------------------- */

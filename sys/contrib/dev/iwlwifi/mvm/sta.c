@@ -1537,12 +1537,14 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 			spin_lock_bh(&mvm->add_stream_lock);
 			list_del_init(&mvmtxq->list);
 			spin_unlock_bh(&mvm->add_stream_lock);
+printf("XXX-BZ %s:%d: txq %p tid %u %u mvmtxq->state %#010lx tx_request %d\n", __func__, __LINE__, txq, txq->tid, tid, mvmtxq->state, atomic_read(&mvmtxq->tx_request));
 			continue;
 		}
 
 		/* now we're ready, any remaining races/concurrency will be
 		 * handled in iwl_mvm_mac_itxq_xmit()
 		 */
+printf("XXX-BZ %s:%d: txq %p tid %u %u mvmtxq->state %#010lx tx_request %d\n", __func__, __LINE__, txq, txq->tid, tid, mvmtxq->state, atomic_read(&mvmtxq->tx_request));
 		set_bit(IWL_MVM_TXQ_STATE_READY, &mvmtxq->state);
 
 		local_bh_disable();
@@ -1550,6 +1552,7 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 		list_del_init(&mvmtxq->list);
 		spin_unlock(&mvm->add_stream_lock);
 
+printf("XXX-BZ %s:%d: txq %p tid %u %u mvmtxq->state %#010lx tx_request %d\n", __func__, __LINE__, txq, txq->tid, tid, mvmtxq->state, atomic_read(&mvmtxq->tx_request));
 		iwl_mvm_mac_itxq_xmit(mvm->hw, txq);
 		local_bh_enable();
 	}
