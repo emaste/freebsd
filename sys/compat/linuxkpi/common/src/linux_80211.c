@@ -3748,7 +3748,9 @@ printf("XXX-BZ %s:%d: wh->i_fc[0] %#04x [1] %#04x tid %u priority %d ac %u qmap 
 		    ltxq->txq.tid, ac, skb->priority, skb->qmap);
 #endif
 	LKPI_80211_LTXQ_UNLOCK(ltxq);
+	LKPI_80211_LHW_LOCK(lhw);
 	lkpi_80211_mo_wake_tx_queue(hw, &ltxq->txq);
+	LKPI_80211_LHW_UNLOCK(lhw);
 	return;
 
 ops_tx:
@@ -3761,7 +3763,9 @@ ops_tx:
 #endif
 	memset(&control, 0, sizeof(control));
 	control.sta = sta;
+	LKPI_80211_LHW_LOCK(lhw);
 	lkpi_80211_mo_tx(hw, &control, skb);
+	LKPI_80211_LHW_UNLOCK(lhw);
 }
 
 static void
