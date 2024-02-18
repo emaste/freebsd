@@ -1137,6 +1137,15 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	IEEE80211_UNLOCK(vap->iv_ic);
 	LKPI_80211_LHW_LOCK(lhw);
 
+	/*
+	 * Given ni and lsta are 1:1 from alloc to free we can assert that
+	 * ni always has lsta data attach despite net80211 node swapping
+	 * under the hoods.
+	 */
+	KASSERT(ni->ni_drv_data != NULL, ("%s: ni %p ni_drv_data %p\n",
+	    __func__, ni, ni->ni_drv_data));
+	lsta = ni->ni_drv_data;
+
 	/* Add chanctx (or if exists, change it). */
 	if (vif->chanctx_conf != NULL) {
 		conf = vif->chanctx_conf;
@@ -1260,35 +1269,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	IMPROVE("bss info: not all needs to come now and rates are missing");
 	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
-	/*
-	 * Given ni and lsta are 1:1 from alloc to free we can assert that
-	 * ni always has lsta data attach despite net80211 node swapping
-	 * under the hoods.
-	 */
-	KASSERT(ni->ni_drv_data != NULL, ("%s: ni %p ni_drv_data %p\n",
-	    __func__, ni, ni->ni_drv_data));
-	lsta = ni->ni_drv_data;
-
 	LKPI_80211_LVIF_LOCK(lvif);
-	/* Re-check given (*iv_update_bss) could have happened. */
-	/* XXX-BZ KASSERT later? or deal as error? */
-	if (lvif->lvif_bss_synched || lvif->lvif_bss != NULL)
-		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
-		    "lvif_bss->ni %p synched %d, ni %p lsta %p\n", __func__, __LINE__,
-		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
-		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
-		    lvif->lvif_bss_synched, ni, lsta);
-
-	/*
-	 * Reference the ni for this cache of lsta/ni on lvif->lvif_bss
-	 * essentially out lsta version of the iv_bss.
-	 * Do NOT use iv_bss here anymore as that may have diverged from our
-	 * function local ni already and would lead to inconsistencies.
-	 */
-	ieee80211_ref_node(ni);
-	lvif->lvif_bss = lsta;
-	lvif->lvif_bss_synched = true;
-
 	/* Insert the [l]sta into the list of known stations. */
 	TAILQ_INSERT_TAIL(&lvif->lsta_head, lsta, lsta_entry);
 	LKPI_80211_LVIF_UNLOCK(lvif);
@@ -1337,9 +1318,52 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	 * (ideally we'd do that on a callback for something else ...)
 	 */
 
+	LKPI_80211_LHW_UNLOCK(lhw);
+	IEEE80211_LOCK(vap->iv_ic);
+
+	LKPI_80211_LVIF_LOCK(lvif);
+	/* Re-check given (*iv_update_bss) could have happened while we were unlocked. */
+	if (lvif->lvif_bss_synched || lvif->lvif_bss != NULL ||
+	    lsta->ni != vap->iv_bss)
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
+		    "lvif_bss->ni %p synched %d, ni %p lsta %p\n", __func__, __LINE__,
+		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
+		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
+		    lvif->lvif_bss_synched, ni, lsta);
+
+	/*
+	 * Reference the ni for this cache of lsta/ni on lvif->lvif_bss
+	 * essentially out lsta version of the iv_bss.
+	 * Do NOT use iv_bss here anymore as that may have diverged from our
+	 * function local ni already and would lead to inconsistencies.
+	 * As a matter of fact, go and see if we lost a race and do not
+	 * update lvif_bss_synched in that case.
+	 */
+	ieee80211_ref_node(lsta->ni);
+	lvif->lvif_bss = lsta;
+	if (lsta->ni == vap->iv_bss) {
+		lvif->lvif_bss_synched = true;
+	} else {
+		/* Set to un-synched no matter what. */
+		lvif->lvif_bss_synched = false;
+		/*
+		 * We do not error as someone has to take us down.
+		 * If we are followed by a 2nd, new join1() going to AUTH
+		 * lkpi_sta_a_to_a() will error, lkpi_sta_auth_to_{scan,init}()
+		 * will take the lvif->lvif_bss node down eventually.
+		 * What happens with the vap->iv_bss node will entirely be up
+		 * to net80211 as we never used the node beyond alloc()/free()
+		 * and we do not hold an extra reference for that anymore given
+		 * ni : lsta == 1:1.
+		 */
+	}
+	LKPI_80211_LVIF_UNLOCK(lvif);
+	goto out_relocked;
+
 out:
 	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
+out_relocked:
 	/*
 	 * Release the reference that keop the ni stable locally
 	 * during the work of this function.
