@@ -325,6 +325,7 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 		skb_queue_head_init(&ltxq->skbq);
 		LKPI_80211_LTXQ_LOCK_INIT(ltxq);
 		sta->txq[tid] = &ltxq->txq;
+		printf("%s:%d: XXX-BZ lsta %p sta %p txq[%d] %p\n", __func__, __LINE__, lsta, sta, tid, sta->txq[tid]);
 	}
 
 	/* Deflink information. */
@@ -3493,6 +3494,7 @@ lkpi_ic_node_alloc(struct ieee80211vap *vap,
 
 	hw = LHW_TO_HW(lhw);
 	lsta = lkpi_lsta_alloc(vap, mac, hw, ni);
+printf("XXX-BZ %s:%d: ni %p lsta %p\n", __func__, __LINE__, ni, lsta);
 	if (lsta == NULL) {
 		if (lhw->ic_node_free != NULL)
 			lhw->ic_node_free(ni);
@@ -3743,15 +3745,22 @@ printf("XXX-BZ %s:%d: wh->i_fc[0] %#04x [1] %#04x tid %u priority %d ac %u qmap 
 	IMPROVE();
 
 	ltxq = NULL;
+printf("%s:%d: XXX-BZ lsta %p { added %d } sta %p ni %p %6D skbb %p datapres %d tpye %d txq %p / %p\n", __func__, __LINE__, lsta, lsta->added_to_drv, sta, ni, ni->ni_macaddr, ":", skb, ieee80211_is_data_present(hdr->frame_control), vif->type, sta->txq[IEEE80211_NUM_TIDS], sta->txq[IEEE80211_NUM_TIDS]);
 	if (!ieee80211_is_data_present(hdr->frame_control)) {
 		if (vif->type == NL80211_IFTYPE_STATION &&
 		    lsta->added_to_drv &&
-		    sta->txq[IEEE80211_NUM_TIDS] != NULL)
+		    sta->txq[IEEE80211_NUM_TIDS] != NULL) {
 			ltxq = TXQ_TO_LTXQ(sta->txq[IEEE80211_NUM_TIDS]);
+printf("%s:%d: XXX-BZ txq %p ltxq %p\n", __func__, __LINE__, sta->txq[skb->priority], ltxq);
+		} else {
+printf("%s:%d: XXX-BZ NO DATA NO ltxq %p\n", __func__, __LINE__, ltxq);
+		}
 	} else if (lsta->added_to_drv &&
 	    sta->txq[skb->priority] != NULL) {
 		ltxq = TXQ_TO_LTXQ(sta->txq[skb->priority]);
+printf("%s:%d: XXX-BZ txq %p ltxq %p\n", __func__, __LINE__, sta->txq[skb->priority], ltxq);
 	}
+printf("%s:%d: XXX-BZ ltxq %p\n", __func__, __LINE__, ltxq);
 	if (ltxq == NULL)
 		goto ops_tx;
 
@@ -3778,13 +3787,10 @@ printf("XXX-BZ %s:%d: wh->i_fc[0] %#04x [1] %#04x tid %u priority %d ac %u qmap 
 	return;
 
 ops_tx:
-#ifdef LINUXKPI_DEBUG_80211
-	if (linuxkpi_debug_80211 & D80211_TRACE_TX)
 		printf("%s:%d mo_tx :: lsta %p sta %p ni %p %6D skb %p "
 		    "TX ac %d prio %u qmap %u\n",
 		    __func__, __LINE__, lsta, sta, ni, ni->ni_macaddr, ":",
 		    skb, ac, skb->priority, skb->qmap);
-#endif
 	memset(&control, 0, sizeof(control));
 	control.sta = sta;
 	LKPI_80211_LHW_LOCK(lhw);
