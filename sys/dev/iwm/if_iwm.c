@@ -5868,7 +5868,13 @@ iwm_probe(device_t dev)
 		if (pci_get_vendor(dev) == PCI_VENDOR_INTEL &&
 		    pci_get_device(dev) == iwm_devices[i].device) {
 			device_set_desc(dev, iwm_devices[i].cfg->name);
-			return (BUS_PROBE_DEFAULT);
+
+			/*
+			 * Another driver (iwlwifi) supports a superset of
+			 * devices compared to iwm, so allow it to take
+			 * priority.
+			 */
+			return (BUS_PROBE_LOW_PRIORITY);
 		}
 	}
 
