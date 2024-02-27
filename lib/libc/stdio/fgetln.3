@@ -131,6 +131,8 @@ However, if the last line in a file does not contain a newline,
 the returned text won't contain a newline either.
 The following code demonstrates how to deal with this problem by allocating a
 temporary buffer:
+.\" Static analyzers may complain about potential leak, because they cannot
+.\" detect that the else case below can only be executed once (at EOF).
 .Bd -literal
 	char *buf, *lbuf;
 	size_t len;
