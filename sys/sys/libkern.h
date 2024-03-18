@@ -245,7 +245,6 @@ void	 qsort(void *base, size_t nmemb, size_t size,
 	    int (*compar)(const void *, const void *));
 void	 qsort_r(void *base, size_t nmemb, size_t size,
 	    int (*compar)(const void *, const void *, void *), void *thunk);
-u_long	 random(void);
 int	 scanc(u_int, const u_char *, const u_char *, int);
 int	 strcasecmp(const char *, const char *);
 char	*strcasestr(const char *, const char *);
