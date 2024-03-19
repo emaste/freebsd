@@ -4068,6 +4068,7 @@ libkern/memchr.c		standard
 libkern/memmem.c		optional gdb
 libkern/qsort.c			standard
 libkern/qsort_r.c		standard
+libkern/random.c		standard
 libkern/scanc.c			standard
 libkern/strcasecmp.c		standard
 libkern/strcasestr.c		standard
