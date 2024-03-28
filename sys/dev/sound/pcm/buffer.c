@@ -132,11 +132,8 @@ sndbuf_setup(struct snd_dbuf *b, void *buf, unsigned int size)
 void
 sndbuf_free(struct snd_dbuf *b)
 {
-	if (b->tmpbuf)
-		free(b->tmpbuf, M_DEVBUF);
-
-	if (b->shadbuf)
-		free(b->shadbuf, M_DEVBUF);
+	free(b->tmpbuf, M_DEVBUF);
+	free(b->shadbuf, M_DEVBUF);
 
 	if (b->buf) {
 		if (b->flags & SNDBUF_F_MANAGED) {
