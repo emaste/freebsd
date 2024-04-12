@@ -484,8 +484,13 @@ _Static_assert(sizeof(struct amdiommu_irte_guest_vapic_x2) ==
 
 struct amdiommu_cmd_generic {
 	u_int	w0:32;
-	u_int	w1:27;
-	u_int	op:4;
+	union {
+		u_int ww1:32;
+		struct {
+			u_int	w1:28;
+			u_int	op:4;
+		};
+	};
 	u_int	w2:32;
 	u_int	w3:32;
 } __packed;
