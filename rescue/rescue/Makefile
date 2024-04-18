@@ -175,14 +175,12 @@ CRUNCH_LIBS+= -lmd
 CRUNCH_LIBS+= -lmt -lsbuf -lufs -lz
 
 .if ${MACHINE_CPUARCH} == "i386"
-CRUNCH_PROGS_sbin+= bsdlabel fdisk
-CRUNCH_ALIAS_bsdlabel= disklabel
+CRUNCH_PROGS_sbin+= fdisk
 #CRUNCH_LIBS+= -lsmb
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
-CRUNCH_PROGS_sbin+= bsdlabel fdisk
-CRUNCH_ALIAS_bsdlabel= disklabel
+CRUNCH_PROGS_sbin+= fdisk
 .endif
 
 CRUNCH_SRCDIR_rtquery= ${SRCTOP}/sbin/routed/rtquery
