@@ -1,1 +1,2 @@
 SUBDIR += bsdlabel
+SUBDIR += fdisk
