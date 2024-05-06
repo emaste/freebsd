@@ -125,7 +125,7 @@ SYSCTL_UINT(_net_inet_icmp, OID_AUTO, maskfake, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmpmaskfake), 0,
 	"Fake reply to ICMP Address Mask Request packets");
 
-VNET_DEFINE(int, drop_redirect) = 0;
+VNET_DEFINE(int, drop_redirect) = 1;
 #define	V_drop_redirect			VNET(drop_redirect)
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, drop_redirect, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(drop_redirect), 0,
