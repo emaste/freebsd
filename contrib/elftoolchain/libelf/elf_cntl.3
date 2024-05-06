@@ -51,9 +51,9 @@ This value instructs the ELF library not to perform any further
 I/O on the file descriptor associated with argument
 .Ar elf .
 For ELF descriptors opened with mode
-.Ar ELF_C_WRITE
+.Dv ELF_C_WRITE
 or
-.Ar ELF_C_RDWR
+.Dv ELF_C_RDWR
 subsequent
 .Fn elf_update
 operations on the descriptor will fail.
