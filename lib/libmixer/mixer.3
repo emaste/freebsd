@@ -242,7 +242,7 @@ Left and right-ear volumes.
 Although the OSS API stores volumes in integers from 0-100, \
 we normalize them to 32-bit floating point numbers.
 However, the volumes can be denormalized using the
-.Ar MIX_VOLDENORM
+.Dv MIX_VOLDENORM
 macro if needed.
 .It Fa nctl
 Number of user-defined mixer controls associated with the device.
@@ -310,7 +310,7 @@ and so on.
 If
 .Ar name
 is
-.Ar NULL
+.Dv NULL
 or
 .Ar /dev/mixer ,
 .Fn mixer_open
