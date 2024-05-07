@@ -28,6 +28,9 @@ SRCS+=	cbor/internal/unicode.c
 
 CFLAGS+= -I${DIST}/src -I${.CURDIR}
 
+# GCC complains about #pragma clang diagnostic push
+CFLAGS.gcc+= -Wno-error=unknown-pragmas
+
 WARNS?=	2
 IGNORE_PRAGMA=
 MAN=
