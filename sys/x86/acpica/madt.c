@@ -439,9 +439,11 @@ madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
 			    "MADT: Found IO APIC ID %u, Interrupt %u at %p\n",
 			    apic->Id, apic->GlobalIrqBase,
 			    (void *)(uintptr_t)apic->Address);
-		if (apic->Id > IOAPIC_MAX_ID)
-			panic("%s: I/O APIC ID %u too high", __func__,
+		if (apic->Id > IOAPIC_MAX_ID) {
+			printf("%s: I/O APIC ID %u too high", __func__,
 			    apic->Id);
+			break;
+		}
 		if (ioapics[apic->Id].io_apic != NULL)
 			panic("%s: Double APIC ID %u", __func__, apic->Id);
 		ioapics[apic->Id].io_apic = ioapic_create(apic->Address,
