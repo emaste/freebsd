@@ -374,7 +374,7 @@ madt_add_cpu(u_int acpi_id, u_int apic_id, u_int flags)
 	if (!(flags & ACPI_MADT_ENABLED))
 		return;
 	if (apic_id > max_apic_id) {
-		printf("MADT: Ignoring local APIC ID %u (too high)\n",
+		printf("MADT: Ignoring local APIC ID %u (too damn high)\n",
 		    apic_id);
 		return;
 	}
@@ -440,7 +440,7 @@ madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
 			    apic->Id, apic->GlobalIrqBase,
 			    (void *)(uintptr_t)apic->Address);
 		if (apic->Id > IOAPIC_MAX_ID) {
-			printf("%s: I/O APIC ID %u too high", __func__,
+			printf("%s: I/O APIC ID %u too damn high\n", __func__,
 			    apic->Id);
 			break;
 		}
