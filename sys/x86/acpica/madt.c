@@ -440,7 +440,7 @@ madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
 			    apic->Id, apic->GlobalIrqBase,
 			    (void *)(uintptr_t)apic->Address);
 		if (apic->Id > IOAPIC_MAX_ID) {
-			printf("%s: I/O APIC ID %u too damn high", __func__,
+			printf("%s: I/O APIC ID %u too damn high\n", __func__,
 			    apic->Id);
 			break;
 		}
