@@ -454,7 +454,8 @@ amdiommu_attach(device_t dev)
 	sc->domids = new_unrhdr(0, 0xffff, &sc->iommu.lock);
 	LIST_INIT(&sc->domains);
 
-	sc->mmio_sz = ((sc->efr & AMDIOMMU_EFR_PC_SUP) != 0 ? 512 : 16) * 1024;
+	sc->mmio_sz = ((sc->efr & AMDIOMMU_EFR_PC_SUP) != 0 ? 512 : 16) *
+	    1024;
 
 	sc->mmio_rid = AMDIOMMU_RID;
 	error = bus_set_resource(dev, SYS_RES_MEMORY, AMDIOMMU_RID,
@@ -468,7 +469,7 @@ amdiommu_attach(device_t dev)
 		goto errout1;
 	}
 	sc->mmio_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mmio_rid,
-	    sc->mmio_base, sc->mmio_base + sc->mmio_sz, sc->mmio_sz,
+	    sc->mmio_base, sc->mmio_base + sc->mmio_sz - 1, sc->mmio_sz,
 	    RF_ALLOCATED | RF_ACTIVE | RF_SHAREABLE);
 	if (sc->mmio_res == NULL) {
 		device_printf(dev,
