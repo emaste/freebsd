@@ -33,8 +33,6 @@
 
 #include <dev/iommu/iommu.h>
 
-#define	AMDIOMMU_DEV_REPORTED	0x00000001
-
 struct amdiommu_unit;
 
 struct amdiommu_domain {
@@ -45,7 +43,6 @@ struct amdiommu_domain {
 	u_int ctx_cnt;			/* (u) Number of contexts owned */
 	u_int refs;			/* (u) Refs, including ctx */
 	LIST_ENTRY(amdiommu_domain) link;/* (u) Member in the iommu list */
-	LIST_HEAD(, amdiommu_ctx) contexts;/* (u) */
 	vm_object_t pgtbl_obj;		/* (c) Page table pages */
 	vm_page_t pgtblr;		/* (c) Page table root page */
 	u_int pglvl;			/* (c) Page table levels */
@@ -53,10 +50,6 @@ struct amdiommu_domain {
 
 struct amdiommu_ctx {
 	struct iommu_ctx context;
-	u_int busno;
-	LIST_ENTRY(amdiommu_ctx) link;	/* (u) Member in the domain list */
-	u_int refs;			/* (u) References from tags */
-
 	struct amdiommu_irte_basic_novapic *irtb;
 	struct amdiommu_irte_basic_vapic_x2 *irtx2;
 	vmem_t *irtids;
@@ -186,7 +179,7 @@ int amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp,
     uint16_t *ridp, uint8_t *dtep, uint32_t *edtep, bool verbose);
 int amdiommu_find_unit_for_ioapic(int apic_id, struct amdiommu_unit **unitp,
     uint16_t *ridp, uint8_t *dtep, uint32_t *edtep, bool verbose);
-int amdiommu_find_unit_for_hpet(int hpet_no, struct amdiommu_unit **unitp,
+int amdiommu_find_unit_for_hpet(device_t hpet, struct amdiommu_unit **unitp,
     uint16_t *ridp, uint8_t *dtep, uint32_t *edtep, bool verbose);
 
 int amdiommu_init_cmd(struct amdiommu_unit *unit);
@@ -219,7 +212,7 @@ void amdiommu_free_ctx_locked_method(struct iommu_unit *iommu,
     struct iommu_ctx *context);
 void amdiommu_free_ctx_method(struct iommu_ctx *context);
 struct amdiommu_domain *amdiommu_find_domain(struct amdiommu_unit *unit,
-    u_int busno, uint16_t rid);
+    uint16_t rid);
 
 void amdiommu_qi_invalidate_ctx_locked(struct amdiommu_ctx *ctx);
 void amdiommu_qi_invalidate_ctx_locked_nowait(struct amdiommu_ctx *ctx);
