@@ -818,59 +818,13 @@ amdiommu_find_unit_scan_0x10(ACPI_IVRS_HARDWARE1 *ivrs, void *arg)
 	return (res);
 }
 
-static void
-amdiommu_dev_prop_dtr(device_t dev, const char *name, void *val, void *dtr_ctx)
-{
-	free(val, M_DEVBUF);
-}
-
-static int *
-amdiommu_dev_fetch_flagsp(struct amdiommu_unit *unit, device_t dev)
-{
-	int *flagsp, error;
-
-	bus_topo_assert();
-	error = device_get_prop(dev, device_get_nameunit(unit->iommu.dev),
-	    (void **)&flagsp);
-	if (error == ENOENT) {
-		flagsp = malloc(sizeof(int), M_DEVBUF, M_WAITOK | M_ZERO);
-		device_set_prop(dev, device_get_nameunit(unit->iommu.dev),
-		    flagsp, amdiommu_dev_prop_dtr, unit);
-	}
-	return (flagsp);
-}
-
-static int
-amdiommu_get_dev_prop_flags(struct amdiommu_unit *unit, device_t dev)
-{
-	int *flagsp, flags;
-
-	bus_topo_lock();
-	flagsp = amdiommu_dev_fetch_flagsp(unit, dev);
-	flags = *flagsp;
-	bus_topo_unlock();
-	return (flags);
-}
-
-static void
-amdiommu_set_dev_prop_flags(struct amdiommu_unit *unit, device_t dev,
-    int flag)
-{
-	int *flagsp;
-
-	bus_topo_lock();
-	flagsp = amdiommu_dev_fetch_flagsp(unit, dev);
-	*flagsp |= flag;
-	bus_topo_unlock();
-}
-
 int
 amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
     uint8_t *dtep, uint32_t *edtep, bool verbose)
 {
 	struct ivhd_find_unit ifu;
 	struct amdiommu_unit *unit;
-	int error, flags;
+	int error;
 	bool res;
 
 	if (device_get_devclass(device_get_parent(dev)) !=
@@ -882,8 +836,9 @@ amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
 	
 	error = pci_get_id(dev, PCI_ID_RID, &ifu.rid);
 	if (error != 0) {
-		device_printf(dev, "amdiommu cannot get rid, error %d\n",
-		    error);
+		if (verbose)
+			device_printf(dev,
+			    "amdiommu cannot get rid, error %d\n", error);
 		return (ENXIO);
 	}
 
@@ -891,17 +846,19 @@ amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
 	res = amdiommu_ivrs_iterate_tbl(amdiommu_find_unit_scan_0x11,
 	    amdiommu_find_unit_scan_0x11, amdiommu_find_unit_scan_0x10, &ifu);
 	if (!res) {
-		device_printf(dev,
-		    "(%#06x:%#06x) amdiommu cannot match rid in IVHD\n",
-		    ifu.domain, (unsigned)ifu.rid);
+		if (verbose)
+			device_printf(dev,
+			    "(%#06x:%#06x) amdiommu cannot match rid in IVHD\n",
+			    ifu.domain, (unsigned)ifu.rid);
 		return (ENXIO);
 	}
 
 	unit = amdiommu_unit_by_id(ifu.unit_id);
 	if (unit == NULL) {
-		device_printf(dev,
-		    "(%#06x:%#06x) amdiommu cannot find unit id\n",
-		    ifu.domain, (unsigned)ifu.rid);
+		if (verbose)
+			device_printf(dev,
+			    "(%#06x:%#06x) amdiommu cannot find unit id\n",
+			    ifu.domain, (unsigned)ifu.rid);
 		return (ENXIO);
 	}
 	*unitp = unit;
@@ -912,14 +869,9 @@ amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
 	if (edtep != NULL)
 		*edtep = ifu.edte;
 	if (verbose) {
-		flags = amdiommu_get_dev_prop_flags(unit, dev);
-		if ((flags & AMDIOMMU_DEV_REPORTED) == 0) {
-			amdiommu_set_dev_prop_flags(unit, dev,
-			    AMDIOMMU_DEV_REPORTED);
-			device_printf(dev, "amdiommu%d "
-			    "initiator rid %#06x dte %#x edte %#x\n",
-			    ifu.unit_id, ifu.rid_real, ifu.dte, ifu.edte);
-		}
+		device_printf(dev, "amdiommu%d "
+		    "initiator rid %#06x dte %#x edte %#x\n",
+		    ifu.unit_id, ifu.rid_real, ifu.dte, ifu.edte);
 	}
 	return (0);
 }
@@ -940,14 +892,17 @@ amdiommu_find_unit_for_ioapic(int apic_id, struct amdiommu_unit **unitp,
 	res = amdiommu_ivrs_iterate_tbl(amdiommu_find_unit_scan_0x11,
 	    amdiommu_find_unit_scan_0x11, amdiommu_find_unit_scan_0x10, &ifu);
 	if (!res) {
-		printf("amdiommu cannot match ioapic no %d in IVHD\n",
-		    apic_id);
+		if (verbose)
+			printf("amdiommu cannot match ioapic no %d in IVHD\n",
+			    apic_id);
 		return (ENXIO);
 	}
 
 	unit = amdiommu_unit_by_id(ifu.unit_id);
 	if (unit == NULL) {
-		printf("amdiommu cannot find unit id %d\n", ifu.unit_id);
+		if (verbose)
+			printf("amdiommu cannot find unit id %d\n",
+			    ifu.unit_id);
 		return (ENXIO);
 	}
 	*unitp = unit;
@@ -966,13 +921,15 @@ amdiommu_find_unit_for_ioapic(int apic_id, struct amdiommu_unit **unitp,
 }
 
 int
-amdiommu_find_unit_for_hpet(int hpet_no, struct amdiommu_unit **unitp,
+amdiommu_find_unit_for_hpet(device_t hpet, struct amdiommu_unit **unitp,
     uint16_t *ridp, uint8_t *dtep, uint32_t *edtep, bool verbose)
 {
 	struct ivhd_find_unit ifu;
 	struct amdiommu_unit *unit;
+	int hpet_no;
 	bool res;
 
+	hpet_no = hpet_get_uid(hpet);
 	bzero(&ifu, sizeof(ifu));
 	ifu.type = IFU_DEV_HPET;
 	ifu.devno = hpet_no;
@@ -988,7 +945,9 @@ amdiommu_find_unit_for_hpet(int hpet_no, struct amdiommu_unit **unitp,
 
 	unit = amdiommu_unit_by_id(ifu.unit_id);
 	if (unit == NULL) {
-		printf("amdiommu cannot find unit id %d\n", ifu.unit_id);
+		if (verbose)
+			printf("amdiommu cannot find unit id %d\n",
+			    hpet_no);
 		return (ENXIO);
 	}
 	*unitp = unit;
@@ -1070,9 +1029,32 @@ SYSINIT(x86_iommu, SI_SUB_TUNABLES, SI_ORDER_ANY, x86_iommu_set_amd, NULL);
 #include <ddb/db_lex.h>
 
 static void
+amdiommu_print_domain(struct amdiommu_domain *domain, bool show_mappings)
+{
+	struct iommu_domain *iodom;
+
+	iodom = DOM2IODOM(domain);
+
+#if 0
+	db_printf(
+	    "  @%p dom %d mgaw %d agaw %d pglvl %d end %jx refs %d\n"
+	    "   ctx_cnt %d flags %x pgobj %p map_ents %u\n",
+	    domain, domain->domain, domain->mgaw, domain->agaw, domain->pglvl,
+	    (uintmax_t)domain->iodom.end, domain->refs, domain->ctx_cnt,
+	    domain->iodom.flags, domain->pgtbl_obj, domain->iodom.entries_cnt);
+#endif
+
+	iommu_db_domain_print_contexts(iodom);
+
+	if (show_mappings)
+		iommu_db_domain_print_mappings(iodom);
+}
+
+static void
 amdiommu_print_one(struct amdiommu_unit *unit, bool show_domains,
     bool show_mappings, bool show_cmdq)
 {
+	struct amdiommu_domain *domain;
 	struct amdiommu_cmd_generic *cp;
 	u_int cmd_head, cmd_tail, ci;
 
@@ -1109,6 +1091,15 @@ amdiommu_print_one(struct amdiommu_unit *unit, bool show_domains,
 				ci = 0;
 		}
 	}
+
+	if (show_domains) {
+		db_printf("  domains:\n");
+		LIST_FOREACH(domain, &unit->domains, link) {
+			amdiommu_print_domain(domain, show_mappings);
+			if (db_pager_quit)
+				break;
+		}
+	}
 }
 
 DB_SHOW_COMMAND(amdiommu, db_amdiommu_print)
@@ -1120,7 +1111,7 @@ DB_SHOW_COMMAND(amdiommu, db_amdiommu_print)
 	show_mappings = strchr(modif, 'm') != NULL;
 	show_cmdq = strchr(modif, 'q') != NULL;
 	if (!have_addr) {
-		db_printf("usage: show amdiommu [/d] [/m] index\n");
+		db_printf("usage: show amdiommu [/d] [/m] [/q] index\n");
 		return;
 	}
 	if ((vm_offset_t)addr < 10000)
@@ -1137,7 +1128,7 @@ DB_SHOW_ALL_COMMAND(amdiommus, db_show_all_amdiommus)
 
 	show_domains = strchr(modif, 'd') != NULL;
 	show_mappings = strchr(modif, 'm') != NULL;
-	show_cmdq = strchr(modif, 'm') != NULL;
+	show_cmdq = strchr(modif, 'q') != NULL;
 
 	TAILQ_FOREACH(unit, &amdiommu_units, unit_next) {
 		amdiommu_print_one(unit, show_domains, show_mappings,

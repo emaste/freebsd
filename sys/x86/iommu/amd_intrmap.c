@@ -242,8 +242,8 @@ amdiommu_ir_find(device_t src, uint16_t *ridp, bool *is_iommu)
 		if (is_iommu != NULL)
 			*is_iommu = true;
 	} else if (src_class == devclass_find("hpet")) {
-		error = amdiommu_find_unit_for_hpet(hpet_get_uid(src), &unit,
-		    &rid, NULL, NULL, bootverbose);
+		error = amdiommu_find_unit_for_hpet(src, &unit, &rid, NULL,
+		    NULL, bootverbose);
 		ctx = NULL; // XXXKIB allocate ctx
 	} else {
 		error = amdiommu_find_unit(src, &unit, &rid, NULL, NULL,

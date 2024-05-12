@@ -77,7 +77,7 @@ static void amdiommu_unref_domain_locked(struct amdiommu_unit *unit,
 static struct amdiommu_dte *
 amdiommu_get_dtep(struct amdiommu_ctx *ctx)
 {
-	return (&CTX2AMD(ctx)->dev_tbl[(ctx->busno << 8) | ctx->context.rid]);
+	return (&CTX2AMD(ctx)->dev_tbl[ctx->context.rid]);
 }
 
 void
@@ -154,7 +154,7 @@ amdiommu_domain_destroy(struct amdiommu_domain *domain)
 
 	KASSERT(TAILQ_EMPTY(&domain->iodom.unload_entries),
 	    ("unfinished unloads %p", domain));
-	KASSERT(LIST_EMPTY(&domain->contexts),
+	KASSERT(LIST_EMPTY(&iodom->contexts),
 	    ("destroying dom %p with contexts", domain));
 	KASSERT(domain->ctx_cnt == 0,
 	    ("destroying dom %p with ctx_cnt %d", domain, domain->ctx_cnt));
@@ -242,7 +242,7 @@ amdiommu_domain_alloc(struct amdiommu_unit *unit, bool id_mapped)
 	domain = malloc(sizeof(*domain), M_AMDIOMMU_DOMAIN, M_WAITOK | M_ZERO);
 	iodom = DOM2IODOM(domain);
 	domain->domain = id;
-	LIST_INIT(&domain->contexts);
+	LIST_INIT(&iodom->contexts);
 	iommu_domain_init(AMD2IOMMU(unit), iodom, &amdiommu_domain_map_ops);
 
 	domain->unit = unit;
@@ -272,7 +272,7 @@ fail:
 }
 
 static struct amdiommu_ctx *
-amdiommu_ctx_alloc(struct amdiommu_domain *domain, u_int busno, uint16_t rid)
+amdiommu_ctx_alloc(struct amdiommu_domain *domain, uint16_t rid)
 {
 	struct amdiommu_ctx *ctx;
 
@@ -281,8 +281,7 @@ amdiommu_ctx_alloc(struct amdiommu_domain *domain, u_int busno, uint16_t rid)
 	ctx->context.tag = malloc(sizeof(struct bus_dma_tag_iommu),
 	    M_AMDIOMMU_CTX, M_WAITOK | M_ZERO);
 	ctx->context.rid = rid;
-	ctx->busno = busno;
-	ctx->refs = 1;
+	ctx->context.refs = 1;
 	return (ctx);
 }
 
@@ -298,7 +297,7 @@ amdiommu_ctx_link(struct amdiommu_ctx *ctx)
 	    domain->ctx_cnt));
 	domain->refs++;
 	domain->ctx_cnt++;
-	LIST_INSERT_HEAD(&domain->contexts, ctx, link);
+	LIST_INSERT_HEAD(&domain->iodom.contexts, &ctx->context, link);
 }
 
 static void
@@ -315,38 +314,36 @@ amdiommu_ctx_unlink(struct amdiommu_ctx *ctx)
 	    domain->refs, domain->ctx_cnt));
 	domain->refs--;
 	domain->ctx_cnt--;
-	LIST_REMOVE(ctx, link);
+	LIST_REMOVE(&ctx->context, link);
 }
 
 static struct amdiommu_ctx *
-amdiommu_find_ctx_locked(struct amdiommu_unit *unit, u_int busno, uint16_t rid)
+amdiommu_find_ctx_locked(struct amdiommu_unit *unit, uint16_t rid)
 {
 	struct amdiommu_domain *domain;
-	struct amdiommu_ctx *ctx;
+	struct iommu_ctx *ctx;
 
 	AMDIOMMU_ASSERT_LOCKED(unit);
 
 	LIST_FOREACH(domain, &unit->domains, link) {
-		LIST_FOREACH(ctx, &domain->contexts, link) {
-			if (ctx->busno == busno &&
-			    ctx->context.rid == rid)
-				return (ctx);
+		LIST_FOREACH(ctx, &domain->iodom.contexts, link) {
+			if (ctx->rid == rid)
+				return (IOCTX2CTX(ctx));
 		}
 	}
 	return (NULL);
 }
 
 struct amdiommu_domain *
-amdiommu_find_domain(struct amdiommu_unit *unit, u_int busno, uint16_t rid)
+amdiommu_find_domain(struct amdiommu_unit *unit, uint16_t rid)
 {
 	struct amdiommu_domain *domain;
-	struct amdiommu_ctx *ctx;
+	struct iommu_ctx *ctx;
 
 	AMDIOMMU_LOCK(unit);
 	LIST_FOREACH(domain, &unit->domains, link) {
-		LIST_FOREACH(ctx, &domain->contexts, link) {
-			if (ctx->busno == busno &&
-			    ctx->context.rid == rid)
+		LIST_FOREACH(ctx, &domain->iodom.contexts, link) {
+			if (ctx->rid == rid)
 				break;
 		}
 	}
@@ -361,15 +358,15 @@ amdiommu_free_ctx_locked(struct amdiommu_unit *unit, struct amdiommu_ctx *ctx)
 	struct amdiommu_domain *domain;
 
 	AMDIOMMU_ASSERT_LOCKED(unit);
-	KASSERT(ctx->refs >= 1,
-	    ("amdiommu %p ctx %p refs %u", unit, ctx, ctx->refs));
+	KASSERT(ctx->context.refs >= 1,
+	    ("amdiommu %p ctx %p refs %u", unit, ctx, ctx->context.refs));
 
 	/*
 	 * If our reference is not last, only the dereference should
 	 * be performed.
 	 */
-	if (ctx->refs > 1) {
-		ctx->refs--;
+	if (ctx->context.refs > 1) {
+		ctx->context.refs--;
 		AMDIOMMU_UNLOCK(unit);
 		return;
 	}
@@ -479,7 +476,7 @@ dte_entry_init_one(struct amdiommu_dte *dtep, struct amdiommu_ctx *ctx,
 }
 
 static void
-dte_entry_init(struct amdiommu_ctx *ctx, bool move, int busno)
+dte_entry_init(struct amdiommu_ctx *ctx, bool move)
 {
 	struct amdiommu_dte *dtep;
 	struct amdiommu_unit *unit;
@@ -494,7 +491,8 @@ dte_entry_init(struct amdiommu_ctx *ctx, bool move, int busno)
 	    ("amdiommu%d initializing valid dte @%p %#jx",
 	    CTX2AMD(ctx)->iommu.unit, dtep, (uintmax_t)(*(uint64_t *)dtep)));
 
-	if (iommu_is_buswide_ctx(AMD2IOMMU(unit), busno)) {
+	if (iommu_is_buswide_ctx(AMD2IOMMU(unit),
+	    PCI_RID2BUS(ctx->context.rid))) {
 		MPASS(!move);
 		for (i = 0; i <= PCI_BUSMAX; i++) {
 			dte_entry_init_one(&dtep[i], ctx, domain->pgtblr);
@@ -506,7 +504,7 @@ dte_entry_init(struct amdiommu_ctx *ctx, bool move, int busno)
 
 static struct amdiommu_ctx *
 amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
-    int dev_domain, int dev_busno, bool id_mapped, bool rmrr_init)
+    int dev_domain, bool id_mapped, bool rmrr_init)
 {
 	struct amdiommu_domain *domain, *domain1;
 	struct amdiommu_ctx *ctx, *ctx1;
@@ -517,7 +515,7 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 		slot = pci_get_slot(dev);
 		func = pci_get_function(dev);
 	} else {
-		bus = dev_busno;
+		bus = PCI_RID2BUS(rid);
 		slot = PCI_RID2SLOT(rid);
 		func = PCI_RID2FUNC(rid);
 	}
@@ -526,7 +524,7 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 	    (slot == 0 && func == 0),
 	    ("iommu%d pci%d:%d:%d get_ctx for buswide", AMD2IOMMU(unit)->unit,
 	    bus, slot, func));
-	ctx = amdiommu_find_ctx_locked(unit, bus, rid);
+	ctx = amdiommu_find_ctx_locked(unit, rid);
 	if (ctx == NULL) {
 		/*
 		 * Perform the allocations which require sleep or have
@@ -550,7 +548,7 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 			}
 #endif
 		}
-		ctx1 = amdiommu_ctx_alloc(domain1, bus, rid);
+		ctx1 = amdiommu_ctx_alloc(domain1, rid);
 		amdiommu_ctx_init_irte(ctx1);
 		AMDIOMMU_LOCK(unit);
 
@@ -558,7 +556,7 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 		 * Recheck the contexts, other thread might have
 		 * already allocated needed one.
 		 */
-		ctx = amdiommu_find_ctx_locked(unit, bus, rid);
+		ctx = amdiommu_find_ctx_locked(unit, rid);
 		if (ctx == NULL) {
 			domain = domain1;
 			ctx = ctx1;
@@ -567,7 +565,7 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 			iommu_device_tag_init(CTX2IOCTX(ctx), dev);
 
 			LIST_INSERT_HEAD(&unit->domains, domain, link);
-			dte_entry_init(ctx, false, bus);
+			dte_entry_init(ctx, false);
 			amdiommu_qi_invalidate_ctx_locked(ctx);
 			if (dev != NULL) {
 				device_printf(dev,
@@ -582,13 +580,13 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 			/* Nothing needs to be done to destroy ctx1. */
 			free(ctx1, M_AMDIOMMU_CTX);
 			domain = CTX2DOM(ctx);
-			ctx->refs++; /* tag referenced us */
+			ctx->context.refs++; /* tag referenced us */
 		}
 	} else {
 		domain = CTX2DOM(ctx);
 		if (ctx->context.tag->owner == NULL)
 			ctx->context.tag->owner = dev;
-		ctx->refs++; /* tag referenced us */
+		ctx->context.refs++; /* tag referenced us */
 	}
 	AMDIOMMU_UNLOCK(unit);
 
@@ -604,7 +602,7 @@ amdiommu_get_ctx(struct iommu_unit *iommu, device_t dev, uint16_t rid,
 
 	unit = IOMMU2AMD(iommu);
 	ret = amdiommu_get_ctx_for_dev(unit, dev, rid, pci_get_domain(dev),
-	    pci_get_bus(dev), id_mapped, rmrr_init);
+	    id_mapped, rmrr_init);
 	return (CTX2IOCTX(ret));
 }
 
