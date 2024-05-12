@@ -151,8 +151,8 @@ amdiommu_read8(const struct amdiommu_unit *unit, int reg)
 #ifdef __i386__
 	uint32_t high, low;
 
-	low = bus_read_4(unit->regs, reg);
-	high = bus_read_4(unit->regs, reg + 4);
+	low = bus_read_4(unit->mmio_res, reg);
+	high = bus_read_4(unit->mmio_res, reg + 4);
 	return (low | ((uint64_t)high << 32));
 #else
 	return (bus_read_8(unit->mmio_res, reg));
