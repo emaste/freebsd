@@ -681,7 +681,15 @@ smp_masked_invltlb(pmap_t pmap, smp_invl_cb_t curcpu_cb)
 {
 	if (invlpgb_works && pmap == kernel_pmap) {
 		invlpgb(INVLPGB_GLOB, 0, 0);
+
+		/*
+		 * TLBSYNC syncs only against INVLPGB executed on the
+		 * same CPU.  Since current thread is pinned by
+		 * caller, we do not need to enter critical section to
+		 * prevent migration.
+		 */
 		tlbsync();
+		sched_unpin();
 		return;
 	}
 
@@ -697,6 +705,7 @@ smp_masked_invlpg(vm_offset_t addr, pmap_t pmap, smp_invl_cb_t curcpu_cb)
 	if (invlpgb_works && pmap == kernel_pmap) {
 		invlpgb(INVLPGB_GLOB | INVLPGB_VA | trunc_page(addr), 0, 0);
 		tlbsync();
+		sched_unpin();
 		return;
 	}
 
@@ -737,6 +746,7 @@ smp_masked_invlpg_range(vm_offset_t addr1, vm_offset_t addr2, pmap_t pmap,
 			}
 		}
 		tlbsync();
+		sched_unpin();
 		return;
 	}
 
