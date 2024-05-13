@@ -439,7 +439,6 @@ madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
 			    "MADT: Found IO APIC ID %u, Interrupt %u at %p\n",
 			    apic->Id, apic->GlobalIrqBase,
 			    (void *)(uintptr_t)apic->Address);
-		static_assert(sizeof(apic->Id) == 1);
 		if (ioapics[apic->Id].io_apic != NULL)
 			panic("%s: Double APIC ID %u", __func__, apic->Id);
 		ioapics[apic->Id].io_apic = ioapic_create(apic->Address,
