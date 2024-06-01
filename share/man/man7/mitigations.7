@@ -474,6 +474,61 @@ directly via
 utility
 .Pc .
 .El
+.Ss Other hardware mitigation controls
+.Bl -tag -width security.bsd.unprivileged_proc_debug
+.It Dv vm.pmap.pti
+Tunable, amd64-only.
+Enables mode of operation of virtual memory system where usermode page
+tables are sanitized to prevent so-called Meltdown information leak on
+some Intel CPUs.
+By default, the system detects whether the CPU needs the workaround,
+and enables it automatically.
+See also
+.Xr proccontrol 1
+mode
+.Dv kpti .
+.It Dv machdep.mitigations.flush_rsb_ctxsw
+amd64.
+Controls Return Stack Buffer flush on context switch, to prevent
+cross-process ret2spec attacks.
+Only needed, and only enabled by default, if the machine
+supports SMEP, otherwise IBRS would do necessary flushing on kernel
+entry anyway.
+.It Dv hw.mds_disable
+amd64 and i386.
+Controls Microarchitectural Data Sampling hardware information leak
+mitigation.
+.It Dv hw.spec_store_bypass_disable
+amd64 and i386.
+Controls Speculative Store Bypass hardware information leak mitigation.
+.It Dv hw.ibrs_disable
+amd64 and i386.
+Controls Indirect Branch Restricted Speculation hardware information leak
+mitigation.
+.It Dv machdep.syscall_ret_flush_l1d
+amd64.
+Controls force-flush of L1D cache on return from syscalls which report
+errors other than
+.Ev EEXIST ,
+.Ev EAGAIN ,
+.Ev EXDEV ,
+.Ev ENOENT ,
+.Ev ENOTCONN ,
+and
+.Ev EINPROGRESS .
+This is mostly a paranoid setting added to prevent hypothetical exploitation
+of unknown gadgets for unknown hardware issues.
+The error codes exclusion list is composed of the most common errors which
+typically occurs on normal system operation.
+.It Dv machdep.nmi_flush_l1d_sw
+amd64.
+Controls force-flush of L1D cache on NMI;
+this provides software assist for bhyve mitigation of L1 terminal fault
+hardware information leak.
+.It Dv hw.vmm.vmx.l1d_flush
+amd64.
+Controls the mitigation of L1 Terminal Fault in bhyve hypervisor.
+.El
 .Pp
 The performance impact and threat models related to these mitigations
 should be considered when configuring and deploying them in a
