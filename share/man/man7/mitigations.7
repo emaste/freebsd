@@ -353,6 +353,22 @@ Capsicum is a lightweight OS capability and sandbox framework.
 See
 .Xr capsicum 4
 for more information.
+.\"
+.Ss Kernel memory permissions
+.Bl -column -offset indent "Recursive page table mappings" "Permissions"
+.It Sy Region Ta Sy Permissions
+.It Direct map (amd64)            Ta RW
+.It Kernel stacks                 Ta ?
+.It Recursive page table mappings Ta ?
+.It Kernel .text                  Ta RX
+.It Kernel .data                  Ta RW
+.It Kernel .bss                   Ta RW
+.It UMA and malloc                Ta RW (unless M_EXEC)
+.It pipe_map and exec_map         Ta RW
+.It Kernel module .text           Ta ?
+.It Kernel module .data           Ta ?
+.It kernel module .bss            Ta ?
+.El
 .Sh HARDWARE VULNERABILITY MITIGATIONS
 .Ss Firmware and Microcode
 Recent years have seen an unending stream of new hardware vulnerabilities,
