@@ -119,6 +119,8 @@
         ..
     ..
     libexec
+        dhcpcd-hooks tags=package=dhcpcd
+        ..
         resolvconf
         ..
     ..
