@@ -292,6 +292,10 @@
             ..
             csh
             ..
+            dhcpcd tags=package=dhcpcd
+                hooks tags=package=dhcpcd
+                ..
+            ..
             diskless
             ..
             dma
