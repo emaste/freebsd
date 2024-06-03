@@ -57,6 +57,7 @@ DIRDEPS+= \
 	sbin/devd \
 	sbin/devfs \
 	sbin/dhclient \
+	sbin/dhcpcd \
 	sbin/dmesg \
 	sbin/dump \
 	sbin/dumpfs \
