@@ -37,6 +37,8 @@
     ..
 /set mode=0755
     db
+        dhcpcd          tags=package=dhcpcd
+        ..
         entropy         uname=operator gname=operator mode=0700
         ..
         freebsd-update  mode=0700
@@ -76,6 +78,8 @@
         bhyve tags=package=bhyve
         ..
         dhclient tags=package=dhclient
+        ..
+        dhcpcd tags=package=dhcpcd
         ..
         ppp             gname=network mode=0770 tags=package=ppp
         ..

@@ -651,6 +651,29 @@ or
 .Pq Vt int
 When set to a positive value, wait up to this long after configuring
 DHCP interfaces at startup to give the interfaces time to receive a lease.
+.It Va dhcpcd_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to run
+.Xr dhcpcd 8
+in master mode (i.e., configure all available network interfaces) at startup.
+.It Va dhcpcd_program
+.Pq Vt str
+Path to the
+.Xr dhcpcd 8
+program (default
+.Pa /sbin/dhcpcd ) .
+.It Va dhcpcd_flags
+.Pq Vt str
+Additional flags to pass to the
+.Xr dhcpcd 8
+program.
+The default value is
+.Fl b ,
+i.e., tell
+.Xr dhcpcd 8
+to go to background immediately.
 .It Va firewall_enable
 .Pq Vt bool
 Set to
@@ -1877,6 +1900,8 @@ This static setting may be overridden by commands
 started with dynamic interface configuration utilities
 like
 .Xr dhclient 8
+or
+.Xr dhcpcd 8
 hooks.
 The description can be seen with
 .Xr ifconfig 8
@@ -5111,6 +5136,7 @@ to
 .Xr cron 8 ,
 .Xr devfs 8 ,
 .Xr dhclient 8 ,
+.Xr dhcpcd 8 ,
 .Xr ftpd 8 ,
 .Xr geli 8 ,
 .Xr hcsecd 8 ,

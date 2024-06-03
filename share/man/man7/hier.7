@@ -361,6 +361,13 @@ system utilities critical to binaries in
 .Pa /bin
 and
 .Pa /sbin
+.Pp
+.Bl -tag -width "dhcpcd-hooks/" -compact
+.It Pa dhcpcd-hooks/
+scripts for hooking into
+.Xr dhcpcd 8
+events
+.El
 .It Pa /media/
 mount points for removable storage media such as CDs, DVDs,
 and USB drives; see
@@ -914,6 +921,10 @@ files containing information about the operating system since it was booted
 .Xr bhyve 8
 virtual machine
 .Xr unix 4 Ns -domain sockets
+.It Pa dhcpcd/
+for storing files by
+.Xr dhcpcd 8
+hooks
 .It Pa ppp/
 writable by the
 .Dq network
