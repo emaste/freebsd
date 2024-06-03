@@ -199,6 +199,7 @@ CRUNCH_ALIAS_shutdown= poweroff
 
 # dhclient has historically been troublesome...
 CRUNCH_PROGS_sbin+= dhclient
+CRUNCH_PROGS_sbin+= dhcpcd
 
 ##################################################################
 # Programs from stock /usr/bin
