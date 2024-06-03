@@ -76,6 +76,10 @@ CONFS=	DAEMON \
 	watchdogd
 
 # Groups for files which don't go in -rc, or which depend on src.conf knobs.
+CONFGROUPS+=		DHCPCD
+DHCLIENT=		dhcpcd
+DHCLIENTPACKAGE=	dhcpcd
+
 
 .if ${MK_ACCT} != "no" || ${MK_UTMPX} != "no"
 CONFGROUPS+=			ACCT
