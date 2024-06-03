@@ -121,6 +121,8 @@
         ..
     ..
     libexec             tags=package=clibs
+        dhcpcd-hooks    tags=package=dhcpcd
+        ..
         resolvconf      tags=package=resolvconf
         ..
     ..
