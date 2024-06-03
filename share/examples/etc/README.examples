@@ -17,6 +17,7 @@ defaults/	- directory containing default configuration file
 devd.conf	- configuration file for devd(8)
 devfs.conf	- configuration file for devfs(8)
 dhclient.conf	- configuration file for dhclient(8)
+dhcpcd.conf	- configuration file for dhcpcd(8)
 disktab		- disk description file (see disktab(5))
 fbtab		- configuration file for login(1)
 ftpusers	- user restriction file for ftpd(8)
