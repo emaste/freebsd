@@ -5,6 +5,7 @@
 
 .*				lomac/high
 /sbin/dhclient			lomac/high[low]
+/sbin/dhcpcd			lomac/high[low]
 /dev(/.*)?			lomac/equal
 # This is not an exhaustive list of all "privileged" devices.
 /dev/mdctl			lomac/high
