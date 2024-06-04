@@ -90,6 +90,28 @@ dhcpcd-embedded.c: dhcpcd-embedded.c.in
 
 if-options.c: dhcpcd-embedded.h
 
+CLEANFILES+=	dhcpcd.conf.5 dhcpcd.8
+dhcpcd.conf.5:	dhcpcd.conf.5.in
+	sed -e 's?@RUNDIR@?/var/run/dhcpcd?' -e 's?@DBDIR@?/var/db/dhcpcd?' -e 's?@SCRIPT@?/libexec/dhcpcd-run-hooks?' ${.ALLSRC} > ${.TARGET}
+
+dhcpcd.8:	dhcpcd.8.in
+	sed -e 's?@RUNDIR@?/var/run/dhcpcd?' -e 's?@DBDIR@?/var/db/dhcpcd?' -e 's?@SCRIPT@?/libexec/dhcpcd-run-hooks?' ${.ALLSRC} > ${.TARGET}
+
+CLEANFILES+=	dhcpcd-run-hooks
+dhcpcd-run-hooks: dhcpcd-run-hooks.in
+	sed -e 's?@RUNDIR@?/var/run/dhcpcd?' -e 's?@DBDIR@?/var/db/dhcpcd?' -e 's?@SCRIPT@?/libexec/dhcpcd-run-hooks?' ${.ALLSRC} > ${.TARGET}
+
+CLEANFILES+=	dhcpcd-run-hooks.8
+dhcpcd-run-hooks.8: dhcpcd-run-hooks.8.in
+	sed -e 's?@RUNDIR@?/var/run/dhcpcd?' -e 's?@DBDIR@?/var/db/dhcpcd?' -e 's?@SCRIPT@?/libexec/dhcpcd-run-hooks?' ${.ALLSRC} > ${.TARGET}
+
+CLEANFILES+=	30-hostname
+30-hostname: 30-hostname.in
+	sed -e 's?@RUNDIR@?/var/run/dhcpcd?' -e 's?@DBDIR@?/var/db/dhcpcd?' -e 's?@SCRIPT@?/libexec/dhcpcd-run-hooks?' ${.ALLSRC} > ${.TARGET}
+
+CLEANFILES+=	50-ypbind
+50-ypbind: 50-ypbind.in
+	sed -e 's?@RUNDIR@?/var/run/dhcpcd?' -e 's?@DBDIR@?/var/db/dhcpcd?' -e 's?@SCRIPT@?/libexec/dhcpcd-run-hooks?' ${.ALLSRC} > ${.TARGET}
 ###
 
 .include <bsd.prog.mk>
