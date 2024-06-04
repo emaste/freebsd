@@ -78,4 +78,16 @@ FILES+=		${f}
 FILESDIR_${f}=	${_DATADIR}/dhcpcd/hooks
 .endfor
 
+###
+CLEANFILES+=	dhcpcd-embedded.h dhcpcd-embedded.c
+
+dhcpcd-embedded.h: dhcpcd-embedded.h.in
+	(cd ${DISTDIR}/src && sh ${DISTDIR}/src/genembedh ${.ALLSRC}) > ${.TARGET}
+
+dhcpcd-embedded.c:
+	(cd ${DISTDIR}/src && sh ${DISTDIR}/src/genembedc ${.ALLSRC}) > ${.TARGET}
+
+
+###
+
 .include <bsd.prog.mk>
