@@ -15,6 +15,7 @@ WARNS?=		0
 SRCDIR=		${DISTDIR}/src
 .PATH:		${SRCDIR}
 CFLAGS+=	-DHAVE_CONFIG_H -I${.CURDIR} -I${SRCDIR} -I${DISTDIR}
+CFLAGS+=	-I${.OBJDIR}
 SRCS=		common.c control.c dhcpcd.c duid.c eloop.c logerr.c
 SRCS+=		if.c if-options.c route.c sa.c script.c
 SRCS+=		dhcp-common.c dhcpcd-embedded.c
@@ -84,9 +85,10 @@ CLEANFILES+=	dhcpcd-embedded.h dhcpcd-embedded.c
 dhcpcd-embedded.h: dhcpcd-embedded.h.in
 	(cd ${DISTDIR}/src && sh ${DISTDIR}/src/genembedh ${.ALLSRC}) > ${.TARGET}
 
-dhcpcd-embedded.c:
+dhcpcd-embedded.c: dhcpcd-embedded.c.in
 	(cd ${DISTDIR}/src && sh ${DISTDIR}/src/genembedc ${.ALLSRC}) > ${.TARGET}
 
+if-options.c: dhcpcd-embedded.h
 
 ###
 
