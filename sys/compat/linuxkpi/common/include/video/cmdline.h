@@ -30,7 +30,7 @@
 
 #include <linux/types.h>
 
-#if defined(CONFIG_VIDEO_CMDLINE)
+#if 1 || defined(CONFIG_VIDEO_CMDLINE)
 const char *video_get_options(const char *name);
 #else
 static inline const char *

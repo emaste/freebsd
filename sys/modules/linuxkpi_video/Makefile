@@ -1,7 +1,8 @@
 .PATH:	${SRCTOP}/sys/compat/linuxkpi/common/src
 
 KMOD=	linuxkpi_video
-SRCS=	linux_hdmi.c \
+SRCS=	cmdline.c \
+	linux_hdmi.c \
 	linux_aperture.c \
 	linuxkpi_videokmod.c
 
