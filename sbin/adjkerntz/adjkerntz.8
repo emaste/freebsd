@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm adjkerntz
-.Nd adjust real-time clock (rtc) and kernel timezone offset
+.Nd adjust the kernel and real-time clock timezone and offset
 .Sh SYNOPSIS
 .Nm
 .Fl i
@@ -40,7 +40,9 @@
 The
 .Nm
 utility maintains the proper relationship between the kernel clock, which
-is always set to UTC and the real-time clock, which may be set to local time.
+is always set to UTC and the Real-Time Clock (RTC), which may be set to local
+time.
+The Real-Time Clock may also be called the CMOS Clock.
 The
 .Nm
 utility also informs the kernel about machine timezone shifts in order to
@@ -101,13 +103,13 @@ when the system leaves multi-user mode
 .Pq usually, because the system is being shut down .
 After receiving the SIGTERM,
 .Nm
-reads the UTC kernel clock and updates the real-time clock, if necessary,
+reads the UTC kernel clock and updates the RTC, if necessary,
 to ensure that it reflects the current local time zone.
 Then
 .Nm
 exits.
 .It Fl a Op Fl s
-This form is used to update the local time real-time clock and
+This form is used to update the local time RTC and kernel
 .Va machdep.adjkerntz
 kernel variable when time zone changes occur,
 e.g., when entering or leaving daylight savings time.
@@ -118,7 +120,7 @@ the previously stored time zone offset,
 and the changed time zone rule to calculate a new time zone offset.
 It stores the new offset into the
 .Va machdep.adjkerntz
-kernel variable and updates the wall real-time clock to the new local time.
+kernel variable and updates the RTC to the new local time.
 If
 .Ql adjkerntz -a
 was started at a nonexistent time
