@@ -28,8 +28,34 @@
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 
+windows_partition_exists()
+{
+	for disk in $(sysctl -n kern.disks); do
+		# Skip da* as a proxy for removable media.  We could be
+		# installing from a removable device with a Windows partition
+		# (e.g. using Ventoy) or there # may be a removable device with
+		# a Windows partition attached that is unrelated to our
+		# installation.
+		case $disk in
+		da*)
+			continue
+			;;
+		esac
+
+		if gpart show $disk | egrep -q 'ms-basic-data|ntfs'; then
+			return 0
+		fi
+	done
+	return 1
+}
+
+skiputc=
+if !windows_partition_exists; then
+	skiputc=-s
+fi
+
 # Select timezone
-chroot $BSDINSTALL_CHROOT tzsetup -s
+chroot $BSDINSTALL_CHROOT tzsetup $skiputc
 
 # Switch to target timezone
 saved_TZ="$TZ"
