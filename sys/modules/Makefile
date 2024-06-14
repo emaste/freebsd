@@ -100,7 +100,7 @@ SUBDIR=	\
 	${_dpdk_lpm4} \
 	${_dpdk_lpm6} \
 	${_dpms} \
-	drm-kmod \
+	${_drm_kmod} \
 	dummynet \
 	${_dwwdt} \
 	${_e6000sw} \
@@ -730,6 +730,7 @@ _cardbus=	cardbus
 _cbb=		cbb
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
+_drm_kmod=	drm-kmod
 _dpms=		dpms
 _em=		em
 _et=		et
