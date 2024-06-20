@@ -315,9 +315,6 @@ MACHINE_CPU = riscv
 ########## arm
 .if ${MACHINE_CPUARCH} == "arm"
 MACHINE_CPU += arm
-. if ${MACHINE_ARCH:Marmv6*} != ""
-MACHINE_CPU += armv6
-. endif
 . if ${MACHINE_ARCH:Marmv7*} != ""
 MACHINE_CPU += armv7
 . endif
