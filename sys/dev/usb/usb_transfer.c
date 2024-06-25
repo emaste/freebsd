@@ -3748,3 +3748,31 @@ usbd_xfer_get_isochronous_start_frame(struct usb_xfer *xfer, uint32_t frame_curr
 
 	return (retval);
 }
+
+int
+usb_reset_ep(struct usb_device *udev, struct usb_endpoint *ep)
+{
+	int error;
+	struct usb_device_request req;
+
+	req.bmRequestType = UT_WRITE_ENDPOINT;
+	req.bRequest = UR_CLEAR_FEATURE;
+	USETW(req.wValue, UF_ENDPOINT_HALT);
+	req.wIndex[0] = ep->edesc->bEndpointAddress;
+	req.wIndex[1] = 0;
+	USETW(req.wLength, 0);
+
+	DPRINTFN(2, "udev %04x:%04x, ep addr %02x\n",
+		 UGETW(udev->ddesc.idVendor),
+		 UGETW(udev->ddesc.idProduct), req.wIndex[0]);
+	error = usbd_do_request(udev, NULL, &req, NULL);
+	if (error == 0) {
+		usbd_clear_data_toggle(udev, ep);
+	} else {
+		error = ENXIO;
+	}
+
+	return error;
+}
+
+
