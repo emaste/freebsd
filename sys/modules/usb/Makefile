@@ -60,6 +60,7 @@ SUBDIR += ure urndis
 SUBDIR += usfs umass urio
 SUBDIR += ${_uacpi}
 SUBDIR += quirk template
+SUBDIR += uvc
 SUBDIR += ${_g_audio} ${_g_keyboard} ${_g_modem} ${_g_mouse}
 
 .if ${MK_USB_GADGET_EXAMPLES} == "yes"

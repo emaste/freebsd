@@ -113,6 +113,7 @@ DEFINE_LINUX_IOCTL_SET(kcov, KCOV);
 #ifndef COMPAT_LINUX32
 DEFINE_LINUX_IOCTL_SET(nvme, NVME);
 #endif
+DEFINE_LINUX_IOCTL_SET(uvc, UVC);
 
 #undef DEFINE_LINUX_IOCTL_SET
 
@@ -3002,6 +3003,21 @@ linux_ioctl_special(struct thread *td, struct linux_ioctl_args *args)
 	}
 
 	return (error);
+}
+
+static int
+linux_ioctl_uvc(struct thread *td, struct linux_ioctl_args *args)
+{
+	struct file *fp;
+	int error;
+
+	error = fget(td, args->fd, &cap_ioctl_rights, &fp);
+	if (error != 0)
+		return (error);
+	error = fo_ioctl(fp, args->cmd, (void *)args->arg, td->td_ucred, td);
+	fdrop(fp, td);
+
+	return error;
 }
 
 static int
