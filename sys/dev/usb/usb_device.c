@@ -48,6 +48,9 @@
 #include <sys/priv.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/pciio.h>
+
+#include <dev/pci/pcivar.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -2393,6 +2396,37 @@ usbd_get_iface(struct usb_device *udev, uint8_t iface_index)
 	return (iface);
 }
 
+void
+usbd_get_phys(struct usb_device *udev, char *phys, uint8_t len)
+{
+	struct pci_devinfo *info;
+	uint8_t no[128], tmp[16], index = 128;
+
+	if (!phys)
+		return;
+
+	info = device_get_ivars(device_get_parent(udev->bus->bdev));
+	snprintf(phys, len, "usb-%02x:%02x:%02x.%x-",
+			info->cfg.domain, info->cfg.bus,
+			info->cfg.slot, info->cfg.func);
+
+	while (udev && udev->device_index != USB_ROOT_HUB_ADDR && index) {
+		no[--index] = udev->port_no;
+		udev = (udev->parent_hub != NULL) ?
+			udev->parent_hub : udev->parent_hs_hub;
+	}
+
+	while (index < 128) {
+		snprintf(tmp, 16, "%d.", no[index]);
+		if (len <= strlen(phys) + strlen(tmp) + 1)
+			break;
+		strcat(phys, tmp);
+		index++;
+	}
+	index = strlen(phys) - 1;
+	phys[index] = '\0';
+}
+
 /*------------------------------------------------------------------------*
  *	usbd_find_descriptor
  *
@@ -2500,6 +2534,84 @@ struct usb_knowndev {
 #include "usbdevs.h"
 #include "usbdevs_data.h"
 #endif					/* USB_VERBOSE */
+
+void
+device_get_usb_vidpid(device_t dev, uint32_t *vid, uint32_t *pid)
+{
+	struct usb_attach_arg *uaa;
+	struct usb_device *udev;
+	uint8_t do_unlock;
+
+	if (dev == NULL) {
+		/* should not happen */
+		return;
+	}
+	uaa = device_get_ivars(dev);
+	if (uaa == NULL) {
+		/* can happen if called at the wrong time */
+		return;
+	}
+	udev = uaa->device;
+
+	if (udev == NULL)
+		return;
+
+	do_unlock = usbd_ctrl_lock(udev);
+
+	*vid = UGETW(udev->ddesc.idVendor);
+	*pid = UGETW(udev->ddesc.idProduct);
+
+	if (do_unlock)
+		usbd_ctrl_unlock(udev);
+}
+
+void
+device_get_usb_iproduct(device_t dev, char *iProduct, size_t size)
+{
+	struct usb_attach_arg *uaa;
+	struct usb_device *udev;
+	uint8_t do_unlock;
+
+	if (dev == NULL) {
+		/* should not happen */
+		return;
+	}
+	uaa = device_get_ivars(dev);
+	if (uaa == NULL) {
+		/* can happen if called at the wrong time */
+		return;
+	}
+	udev = uaa->device;
+
+	do_unlock = usbd_ctrl_lock(udev);
+	/* get product string */
+	usbd_req_get_string_any(udev, NULL, iProduct, size,
+				udev->ddesc.iProduct);
+	usb_trim_spaces(iProduct);
+	if (do_unlock)
+		usbd_ctrl_unlock(udev);
+
+	device_printf(dev, "%s-%d <%s>\n", __func__, __LINE__, iProduct);
+}
+
+int
+usb_device_is_UVC(struct usb_device *udev)
+{
+	struct usb_device_descriptor *udd = NULL;
+
+	if (!udev)
+		return 0;
+	udd = &udev->ddesc;
+
+	if (udd->bDeviceClass == 0xef &&
+	    udd->bDeviceSubClass == 0x02 &&
+	    udd->bDeviceProtocol == 0x01) {
+		return 1;
+	}
+
+	return 0;
+}
+
 
 void
 usb_set_device_strings(struct usb_device *udev)
