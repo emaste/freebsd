@@ -153,6 +153,37 @@ enum v4l2_field {
 	 (field) == V4L2_FIELD_INTERLACED_BT ||\
 	 (field) == V4L2_FIELD_SEQ_TB ||\
 	 (field) == V4L2_FIELD_SEQ_BT)
+#define V4L2_TYPE_IS_OUTPUT(type)                               \
+	((type) == V4L2_BUF_TYPE_VIDEO_OUTPUT                   \
+	|| (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE         \
+	|| (type) == V4L2_BUF_TYPE_VIDEO_OVERLAY               \
+	|| (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY        \
+	|| (type) == V4L2_BUF_TYPE_VBI_OUTPUT                  \
+	|| (type) == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT           \
+	|| (type) == V4L2_BUF_TYPE_SDR_OUTPUT                  \
+	|| (type) == V4L2_BUF_TYPE_META_OUTPUT)
+
+/* Current cropping area */
+#define V4L2_SEL_TGT_CROP               0x0000
+/* Default cropping area */
+#define V4L2_SEL_TGT_CROP_DEFAULT       0x0001
+/* Cropping bounds */
+#define V4L2_SEL_TGT_CROP_BOUNDS        0x0002
+/* Native frame size */
+#define V4L2_SEL_TGT_NATIVE_SIZE        0x0003
+/* Current composing area */
+#define V4L2_SEL_TGT_COMPOSE            0x0100
+/* Default composing area */
+#define V4L2_SEL_TGT_COMPOSE_DEFAULT    0x0101
+/* Composing bounds */
+#define V4L2_SEL_TGT_COMPOSE_BOUNDS     0x0102
+/* Current composing area plus all padding pixels */
+#define V4L2_SEL_TGT_COMPOSE_PADDED     0x0103
+
+/* Selection flags */
+#define V4L2_SEL_FLAG_GE                (1 << 0)
+#define V4L2_SEL_FLAG_LE                (1 << 1)
+#define V4L2_SEL_FLAG_KEEP_CONFIG       (1 << 2)
 
 enum v4l2_buf_type {
 	V4L2_BUF_TYPE_VIDEO_CAPTURE        = 1,
@@ -166,6 +197,13 @@ enum v4l2_buf_type {
 	/* Experimental */
 	V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY = 8,
 #endif
+	V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE = 9,
+	V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE  = 10,
+	V4L2_BUF_TYPE_SDR_CAPTURE          = 11,
+	V4L2_BUF_TYPE_SDR_OUTPUT           = 12,
+	V4L2_BUF_TYPE_META_CAPTURE         = 13,
+	V4L2_BUF_TYPE_META_OUTPUT          = 14,
+
 	V4L2_BUF_TYPE_PRIVATE              = 0x80,
 };
 
@@ -357,6 +395,7 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_JPEG     v4l2_fourcc('J', 'P', 'E', 'G') /* JFIF JPEG     */
 #define V4L2_PIX_FMT_DV       v4l2_fourcc('d', 'v', 's', 'd') /* 1394          */
 #define V4L2_PIX_FMT_MPEG     v4l2_fourcc('M', 'P', 'E', 'G') /* MPEG-1/2/4    */
+#define V4L2_PIX_FMT_H264     v4l2_fourcc('H', '2', '6', '4') /* H264 */
 
 /*  Vendor-specific formats   */
 #define V4L2_PIX_FMT_CPIA1    v4l2_fourcc('C', 'P', 'I', 'A') /* cpia1 YUV */
@@ -644,6 +683,15 @@ struct v4l2_crop {
 	enum v4l2_buf_type      type;
 	struct v4l2_rect        c;
 };
+
+struct v4l2_selection {
+	__u32                   type;
+	__u32                   target;
+	__u32                   flags;
+	struct v4l2_rect        r;
+	__u32                   reserved[9];
+};
+
 
 /*
  *      A N A L O G   V I D E O   S T A N D A R D
@@ -1285,6 +1333,83 @@ enum  v4l2_exposure_auto_type {
 
 #define V4L2_CID_PRIVACY			(V4L2_CID_CAMERA_CLASS_BASE+16)
 
+#define V4L2_CID_IRIS_ABSOLUTE			(V4L2_CID_CAMERA_CLASS_BASE+17)
+#define V4L2_CID_IRIS_RELATIVE			(V4L2_CID_CAMERA_CLASS_BASE+18)
+#define V4L2_CID_AUTO_EXPOSURE_BIAS		(V4L2_CID_CAMERA_CLASS_BASE+19)
+
+#define V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE	(V4L2_CID_CAMERA_CLASS_BASE+20)
+enum v4l2_auto_n_preset_white_balance {
+	V4L2_WHITE_BALANCE_MANUAL		= 0,
+	V4L2_WHITE_BALANCE_AUTO			= 1,
+	V4L2_WHITE_BALANCE_INCANDESCENT		= 2,
+	V4L2_WHITE_BALANCE_FLUORESCENT		= 3,
+	V4L2_WHITE_BALANCE_FLUORESCENT_H	= 4,
+	V4L2_WHITE_BALANCE_HORIZON		= 5,
+	V4L2_WHITE_BALANCE_DAYLIGHT		= 6,
+	V4L2_WHITE_BALANCE_FLASH		= 7,
+	V4L2_WHITE_BALANCE_CLOUDY		= 8,
+	V4L2_WHITE_BALANCE_SHADE		= 9,
+};
+#define V4L2_CID_WIDE_DYNAMIC_RANGE		(V4L2_CID_CAMERA_CLASS_BASE+21)
+#define V4L2_CID_IMAGE_STABILIZATION		(V4L2_CID_CAMERA_CLASS_BASE+22)
+
+#define V4L2_CID_ISO_SENSITIVITY		(V4L2_CID_CAMERA_CLASS_BASE+23)
+#define V4L2_CID_ISO_SENSITIVITY_AUTO		(V4L2_CID_CAMERA_CLASS_BASE+24)
+enum v4l2_iso_sensitivity_auto_type {
+	V4L2_ISO_SENSITIVITY_MANUAL		= 0,
+	V4L2_ISO_SENSITIVITY_AUTO		= 1,
+};
+
+#define V4L2_CID_EXPOSURE_METERING		(V4L2_CID_CAMERA_CLASS_BASE+25)
+enum v4l2_exposure_metering {
+	V4L2_EXPOSURE_METERING_AVERAGE		= 0,
+	V4L2_EXPOSURE_METERING_CENTER_WEIGHTED	= 1,
+	V4L2_EXPOSURE_METERING_SPOT		= 2,
+	V4L2_EXPOSURE_METERING_MATRIX		= 3,
+};
+
+#define V4L2_CID_SCENE_MODE			(V4L2_CID_CAMERA_CLASS_BASE+26)
+enum v4l2_scene_mode {
+	V4L2_SCENE_MODE_NONE			= 0,
+	V4L2_SCENE_MODE_BACKLIGHT		= 1,
+	V4L2_SCENE_MODE_BEACH_SNOW		= 2,
+	V4L2_SCENE_MODE_CANDLE_LIGHT		= 3,
+	V4L2_SCENE_MODE_DAWN_DUSK		= 4,
+	V4L2_SCENE_MODE_FALL_COLORS		= 5,
+	V4L2_SCENE_MODE_FIREWORKS		= 6,
+	V4L2_SCENE_MODE_LANDSCAPE		= 7,
+	V4L2_SCENE_MODE_NIGHT			= 8,
+	V4L2_SCENE_MODE_PARTY_INDOOR		= 9,
+	V4L2_SCENE_MODE_PORTRAIT		= 10,
+	V4L2_SCENE_MODE_SPORTS			= 11,
+	V4L2_SCENE_MODE_SUNSET			= 12,
+	V4L2_SCENE_MODE_TEXT			= 13,
+};
+
+#define V4L2_CID_3A_LOCK			(V4L2_CID_CAMERA_CLASS_BASE+27)
+#define V4L2_LOCK_EXPOSURE			(1 << 0)
+#define V4L2_LOCK_WHITE_BALANCE			(1 << 1)
+#define V4L2_LOCK_FOCUS				(1 << 2)
+
+#define V4L2_CID_AUTO_FOCUS_START		(V4L2_CID_CAMERA_CLASS_BASE+28)
+#define V4L2_CID_AUTO_FOCUS_STOP		(V4L2_CID_CAMERA_CLASS_BASE+29)
+#define V4L2_CID_AUTO_FOCUS_STATUS		(V4L2_CID_CAMERA_CLASS_BASE+30)
+#define V4L2_AUTO_FOCUS_STATUS_IDLE		(0 << 0)
+#define V4L2_AUTO_FOCUS_STATUS_BUSY		(1 << 0)
+#define V4L2_AUTO_FOCUS_STATUS_REACHED		(1 << 1)
+#define V4L2_AUTO_FOCUS_STATUS_FAILED		(1 << 2)
+
+#define V4L2_CID_AUTO_FOCUS_RANGE		(V4L2_CID_CAMERA_CLASS_BASE+31)
+enum v4l2_auto_focus_range {
+	V4L2_AUTO_FOCUS_RANGE_AUTO		= 0,
+	V4L2_AUTO_FOCUS_RANGE_NORMAL		= 1,
+	V4L2_AUTO_FOCUS_RANGE_MACRO		= 2,
+	V4L2_AUTO_FOCUS_RANGE_INFINITY		= 3,
+};
+
+#define V4L2_CID_PAN_SPEED			(V4L2_CID_CAMERA_CLASS_BASE+32)
+#define V4L2_CID_TILT_SPEED			(V4L2_CID_CAMERA_CLASS_BASE+33)
+
 /* FM Modulator class control IDs */
 #define V4L2_CID_FM_TX_CLASS_BASE		(V4L2_CTRL_CLASS_FM_TX | 0x900)
 #define V4L2_CID_FM_TX_CLASS			(V4L2_CTRL_CLASS_FM_TX | 1)
@@ -1665,6 +1790,15 @@ struct v4l2_dbg_chip_ident {
 	__u32 revision;    /* chip revision, chip specific */
 } __attribute__ ((packed));
 
+struct v4l2_exportbuffer {
+	__u32 type;
+	__u32 index;
+	__u32 plane;
+	__u32 flags;
+	__s32 fd;
+	__u32 reserved[11];
+} __attribute__ ((packed));
+
 /*
  *	I O C T L   C O D E S   F O R   V I D E O   D E V I C E S
  *
@@ -1680,6 +1814,7 @@ struct v4l2_dbg_chip_ident {
 #define VIDIOC_S_FBUF		 _IOW('V', 11, struct v4l2_framebuffer)
 #define VIDIOC_OVERLAY		 _IOW('V', 14, int)
 #define VIDIOC_QBUF		_IOWR('V', 15, struct v4l2_buffer)
+#define VIDIOC_EXPBUF		_IOWR('V', 16, struct v4l2_exportbuffer)
 #define VIDIOC_DQBUF		_IOWR('V', 17, struct v4l2_buffer)
 #define VIDIOC_STREAMON		 _IOW('V', 18, int)
 #define VIDIOC_STREAMOFF	 _IOW('V', 19, int)
