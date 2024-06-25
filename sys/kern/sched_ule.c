@@ -3055,7 +3055,8 @@ sched_bind(struct thread *td, int cpu)
 	ts = td_get_sched(td);
 	if (ts->ts_flags & TSF_BOUND)
 		sched_unbind(td);
-	KASSERT(THREAD_CAN_MIGRATE(td), ("%p must be migratable", td));
+	KASSERT(THREAD_CAN_MIGRATE(td), ("%s: td %p must be migratable",
+	    __func__, td));
 	ts->ts_flags |= TSF_BOUND;
 	sched_pin();
 	if (PCPU_GET(cpuid) == cpu)
