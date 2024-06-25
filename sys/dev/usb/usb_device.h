@@ -346,5 +346,6 @@ void	uhub_tt_buffer_reset_async_locked(struct usb_device *, struct usb_endpoint 
 #endif
 
 uint8_t uhub_count_active_host_ports(struct usb_device *, enum usb_dev_speed);
+int    usb_device_is_UVC(struct usb_device *udev);
 
 #endif					/* _USB_DEVICE_H_ */
