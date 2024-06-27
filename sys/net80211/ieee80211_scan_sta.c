@@ -1389,7 +1389,7 @@ sta_roam_check(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 			 * XXX force immediate switch on scan complete
 			 */
 			if (!IEEE80211_IS_CHAN_DTURBO(ic->ic_curchan) &&
-			    ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) ||
+			    ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) != 0 ||
 			     ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle)))
 				ieee80211_bg_scan(vap, 0);
 			return;
