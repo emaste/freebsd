@@ -1337,15 +1337,17 @@ contbgscan(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 
+	if ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) != 0)
+		return (0);
+
 	return ((ic->ic_flags_ext & IEEE80211_FEXT_BGSCAN) &&
 	    (ic->ic_flags & IEEE80211_F_CSAPENDING) == 0 &&
-	    !(vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) &&
 	    vap->iv_state == IEEE80211_S_RUN &&		/* XXX? */
 	    ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
 }
 
 /*
- * Return non-zero if a backgrond scan may be started:
+ * Return non-zero if a background scan may be started:
  * o bg scanning is administratively enabled
  * o no channel switch is pending
  * o we are not boosted on a dynamic turbo channel
@@ -1357,14 +1359,16 @@ startbgscan(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 
+	if ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) != 0)
+		return (0);
+
 	return ((vap->iv_flags & IEEE80211_F_BGSCAN) &&
 	    (ic->ic_flags & IEEE80211_F_CSAPENDING) == 0 &&
 #ifdef IEEE80211_SUPPORT_SUPERG
 	    !IEEE80211_IS_CHAN_DTURBO(ic->ic_curchan) &&
 #endif
 	    ieee80211_time_after(ticks, ic->ic_lastscan + vap->iv_bgscanintvl) &&
-	    ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) ||
-	     ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle)));
+	    ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
 }
 
 #ifdef	notyet
