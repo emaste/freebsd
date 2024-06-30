@@ -40,6 +40,7 @@ ${pcfile}: ${pcfile}.in
 		s,@includedir@,${INCLUDEDIR},g ;' ${.ALLSRC} > ${.TARGET}
 .endfor
 CLEANFILES+=	${PCFILES}
+SYMLINKS+=	libusb-1.0.pc ${LIBDATADIR}/pkgconfig/libusb.pc
 
 #
 # Cross platform support
