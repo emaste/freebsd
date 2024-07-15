@@ -106,7 +106,7 @@ bl_reset(bl_t b, bool locked)
 	int serrno = errno;
 	if (!locked)
 		BL_LOCK(b);
-	close(b->b_fd);
+	close(b->b_fd); // ASS
 	errno = serrno;
 	b->b_fd = -1;
 	b->b_connected = -1;
@@ -146,11 +146,13 @@ bl_init(bl_t b, bool srv)
 #define SOCK_NOSIGPIPE 0
 #endif
 
-	BL_LOCK(b);
+	BL_LOCK(b); // ASS?
 
 	if (b->b_fd == -1) {
+		// ASS
 		b->b_fd = socket(PF_LOCAL,
 		    SOCK_DGRAM|SOCK_CLOEXEC|SOCK_NONBLOCK|SOCK_NOSIGPIPE, 0);
+		// XXX UNSAFE
 		if (b->b_fd == -1) {
 			bl_log(b->b_fun, LOG_ERR, "%s: socket failed (%s)",
 			    __func__, strerror(errno));
@@ -158,17 +160,20 @@ bl_init(bl_t b, bool srv)
 			return -1;
 		}
 #if SOCK_CLOEXEC == 0
+		// ASS
 		fcntl(b->b_fd, F_SETFD, FD_CLOEXEC);
 #endif
-#if SOCK_NONBLOCK == 0
+#if SOCK_NONBLOCK == 0 
+		// ASS
 		fcntl(b->b_fd, F_SETFL, fcntl(b->b_fd, F_GETFL) | O_NONBLOCK);
 #endif
 #if SOCK_NOSIGPIPE == 0
 #ifdef SO_NOSIGPIPE
 		int o = 1;
+		// ASS
 		setsockopt(b->b_fd, SOL_SOCKET, SO_NOSIGPIPE, &o, sizeof(o));
 #else
-		signal(SIGPIPE, SIG_IGN);
+		signal(SIGPIPE, SIG_IGN); // ASS
 #endif
 #endif
 	}
@@ -183,9 +188,11 @@ bl_init(bl_t b, bool srv)
 	 * that no other server is listening to the socket. If we succeed
 	 * to connect and we are a server, someone else owns it.
 	 */
+	// ASS
 	rv = connect(b->b_fd, (const void *)sun, (socklen_t)sizeof(*sun));
 	if (rv == 0) {
 		if (srv) {
+			/// XXX UNSAFE
 			bl_log(b->b_fun, LOG_ERR,
 			    "%s: another daemon is handling `%s'",
 			    __func__, sun->sun_path);
@@ -199,6 +206,7 @@ bl_init(bl_t b, bool srv)
 			 * and only log once.
 			 */
 			if (b->b_connected != 1) {
+				// XXX UNSAFE
 				bl_log(b->b_fun, LOG_DEBUG,
 				    "%s: connect failed for `%s' (%s)",
 				    __func__, sun->sun_path, strerror(errno));
@@ -207,18 +215,22 @@ bl_init(bl_t b, bool srv)
 			BL_UNLOCK(b);
 			return -1;
 		}
+		// XXX UNSAFE
 		bl_log(b->b_fun, LOG_DEBUG, "Connected to blacklist server",
 		    __func__);
 	}
 
 	if (srv) {
+		// XXX UNSAFE
 		(void)unlink(sun->sun_path);
-		om = umask(0);
+		om = umask(0); // ASS
+		// ASS
 		rv = bind(b->b_fd, (const void *)sun, (socklen_t)sizeof(*sun));
 		serrno = errno;
-		(void)umask(om);
+		(void)umask(om); // ASS
 		errno = serrno;
 		if (rv == -1) {
+			// XXX UNSAFE
 			bl_log(b->b_fun, LOG_ERR,
 			    "%s: bind failed for `%s' (%s)",
 			    __func__, sun->sun_path, strerror(errno));
@@ -257,6 +269,7 @@ bl_init(bl_t b, bool srv)
 #endif
 
 #ifdef CRED_LEVEL
+	// ASS
 	if (setsockopt(b->b_fd, CRED_LEVEL, CRED_NAME,
 	    &one, (socklen_t)sizeof(one)) == -1) {
 		bl_log(b->b_fun, LOG_ERR, "%s: setsockopt %s "
@@ -315,7 +328,7 @@ bl_getsock(bl_t b, struct sockaddr_storage *ss, const struct sockaddr *sa,
 {
 	uint8_t family;
 
-	memset(ss, 0, sizeof(*ss));
+	memset(ss, 0, sizeof(*ss)); // ASS
 
 	switch (slen) {
 	case 0:
@@ -327,15 +340,17 @@ bl_getsock(bl_t b, struct sockaddr_storage *ss, const struct sockaddr *sa,
 		family = AF_INET6;
 		break;
 	default:
+		// XXX UNSAFE
 		bl_log(b->b_fun, LOG_ERR, "%s: invalid socket len %u (%s)",
 		    __func__, (unsigned)slen, ctx);
 		errno = EINVAL;
 		return -1;
 	}
 
-	memcpy(ss, sa, slen);
+	memcpy(ss, sa, slen); // ASS
 
 	if (ss->ss_family != family) {
+		// XXX UNSAFE
 		bl_log(b->b_fun, LOG_INFO,
 		    "%s: correcting socket family %d to %d (%s)",
 		    __func__, ss->ss_family, family, ctx);
@@ -344,6 +359,7 @@ bl_getsock(bl_t b, struct sockaddr_storage *ss, const struct sockaddr *sa,
 
 #ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
 	if (ss->ss_len != slen) {
+		// XXX UNSAFE
 		bl_log(b->b_fun, LOG_INFO,
 		    "%s: correcting socket len %u to %u (%s)",
 		    __func__, ss->ss_len, (unsigned)slen, ctx);
@@ -371,7 +387,7 @@ bl_send(bl_t b, bl_type_t e, int pfd, const struct sockaddr *sa,
 	size_t ctxlen, tried;
 #define NTRIES	5
 
-	ctxlen = strlen(ctx);
+	ctxlen = strlen(ctx); // ASS
 	if (ctxlen > 128)
 		ctxlen = 128;
 
@@ -386,7 +402,7 @@ bl_send(bl_t b, bl_type_t e, int pfd, const struct sockaddr *sa,
 
 
 	ub.bl.bl_salen = slen;
-	memcpy(ub.bl.bl_data, ctx, ctxlen);
+	memcpy(ub.bl.bl_data, ctx, ctxlen); // ASS
 
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
@@ -402,14 +418,14 @@ bl_send(bl_t b, bl_type_t e, int pfd, const struct sockaddr *sa,
 	cmsg->cmsg_level = SOL_SOCKET;
 	cmsg->cmsg_type = SCM_RIGHTS;
 
-	memcpy(CMSG_DATA(cmsg), &pfd, sizeof(pfd));
+	memcpy(CMSG_DATA(cmsg), &pfd, sizeof(pfd)); // ASS
 
 	tried = 0;
 again:
 	if (bl_init(b, false) == -1)
 		return -1;
 
-	if ((sendmsg(b->b_fd, &msg, 0) == -1) && tried++ < NTRIES) {
+	if ((sendmsg(b->b_fd, &msg, 0) == -1) && tried++ < NTRIES) { // ASS
 		bl_reset(b, false);
 		goto again;
 	}
