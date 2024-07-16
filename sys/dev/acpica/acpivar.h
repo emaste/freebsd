@@ -58,12 +58,21 @@ struct acpi_softc {
 
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;
-    int			acpi_power_button_sx;
-    int			acpi_sleep_button_sx;
-    int			acpi_lid_switch_sx;
-
-    int			acpi_standby_sx;
-    int			acpi_suspend_sx;
+    struct {
+	    int		sx;
+    } acpi_power_button;
+    struct {
+	    int		sx;
+    } acpi_sleep_button;
+    struct {
+	    int		sx;
+    } acpi_lid_switch;
+    struct {
+	    int		sx;
+    } acpi_standby;
+    struct {
+	    int		sx;
+    } acpi_suspend;
 
     int			acpi_sleep_delay;
     int			acpi_s4bios;
