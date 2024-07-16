@@ -215,3 +215,9 @@ acpi_OverrideInterruptLevel(UINT32 InterruptNumber)
 	InterruptOverride = InterruptNumber;
 	return_ACPI_STATUS (AE_OK);
 }
+
+UINT32
+acpi_GetSciInterrupt(void)
+{
+	return InterruptOverride ?: AcpiGbl_FADT.SciInterrupt;
+}
