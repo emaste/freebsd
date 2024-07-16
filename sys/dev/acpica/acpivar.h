@@ -53,6 +53,7 @@ enum sleep_type {
 	SUSPEND   = ACPI_STATE_S3,
 	HIBERNATE = ACPI_STATE_S4,
 	POWEROFF  = ACPI_STATE_S5,
+	SUSPEND_TO_IDLE
 };
 
 struct apm_clone_data;
@@ -62,24 +63,28 @@ struct acpi_softc {
 
     int			acpi_enabled;
     enum sleep_type	acpi_sstate;
-    int			acpi_sleep_disabled;
 
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;
     struct {
 	    int		sx;
+	    int		saved_sx;
     } acpi_power_button;
     struct {
 	    int		sx;
+	    int		saved_sx;
     } acpi_sleep_button;
     struct {
 	    int		sx;
+	    int		saved_sx;
     } acpi_lid_switch;
     struct {
 	    int		sx;
+	    int		saved_sx;
     } acpi_standby;
     struct {
 	    int		sx;
+	    int		saved_sx;
     } acpi_suspend;
 
     int			acpi_sleep_delay;
@@ -87,6 +92,12 @@ struct acpi_softc {
     int			acpi_do_disable;
     int			acpi_verbose;
     int			acpi_handle_reboot;
+#define ACPI_SLEEP_DISABLED (0) /* S3, S4 */
+#define ACPI_POWER_DISABLED (1) /* S0, S5 */
+    struct {
+	int		flags;
+	int		saved_flags;
+    } acpi_repressed_states;
 
     vm_offset_t		acpi_wakeaddr;
     vm_paddr_t		acpi_wakephys;
@@ -427,6 +438,7 @@ ACPI_STATUS	acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid,
 		    int revision, int count, uint32_t *caps_in,
 		    uint32_t *caps_out, bool query);
 ACPI_STATUS	acpi_OverrideInterruptLevel(UINT32 InterruptNumber);
+UINT32 		acpi_GetSciInterrupt(void);
 ACPI_STATUS	acpi_SetIntrModel(int model);
 int		acpi_ReqSleepState(struct acpi_softc *sc,
 		    enum sleep_type stype);
@@ -434,6 +446,7 @@ int		acpi_AckSleepState(struct apm_clone_data *clone, int error);
 ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 int		acpi_wake_set_enable(device_t dev, int enable);
 int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
+BOOLEAN		acpi_PowerTransitionIsEnabled(void);
 ACPI_STATUS	acpi_Startup(void);
 void		acpi_UserNotify(const char *subsystem, ACPI_HANDLE h,
 		    uint8_t notify);
