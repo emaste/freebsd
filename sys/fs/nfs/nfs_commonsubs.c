@@ -708,8 +708,8 @@ nfsm_mbufuio(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 			uiop->uio_resid -= xfer;
 		}
 		if (uiop->uio_iov->iov_len <= siz) {
-			uiop->uio_iovcnt--;
 			uiop->uio_iov++;
+			uiop->uio_iovcnt--;
 		} else {
 			uiop->uio_iov->iov_base = (void *)
 				((char *)uiop->uio_iov->iov_base + uiosiz);
