@@ -810,8 +810,8 @@ nfs_directio_write(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		uiop->uio_offset += size;
 		uiop->uio_resid -= size;
 		if (uiop->uio_iov->iov_len <= size) {
-			uiop->uio_iovcnt--;
 			uiop->uio_iov++;
+			uiop->uio_iovcnt--;
 		} else {
 			uiop->uio_iov->iov_base =
 				(char *)uiop->uio_iov->iov_base + size;
