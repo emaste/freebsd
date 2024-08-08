@@ -390,8 +390,8 @@ again:
 		panic("ureadc");
 	iov = uio->uio_iov;
 	if (iov->iov_len == 0) {
-		uio->uio_iovcnt--;
 		uio->uio_iov++;
+		uio->uio_iovcnt--;
 		goto again;
 	}
 	switch (uio->uio_segflg) {
@@ -463,6 +463,7 @@ copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop)
 		}
 		uio->uio_resid += iov->iov_len;
 		iov++;
+		// XXX?
 	}
 	*uiop = uio;
 	return (0);
