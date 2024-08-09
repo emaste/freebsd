@@ -1339,17 +1339,13 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
 #endif
 	if (V_connect_inaddr_wild && !CK_STAILQ_EMPTY(&V_in_ifaddrhead)) {
 		/*
-		 * If the destination address is INADDR_ANY,
-		 * use the primary local address.
+		 * Destination address INADDR_ANY is not allowed.
 		 * If the supplied address is INADDR_BROADCAST,
 		 * and the primary interface supports broadcast,
 		 * choose the broadcast address for that interface.
 		 */
 		if (faddr.s_addr == INADDR_ANY) {
-			faddr =
-			    IA_SIN(CK_STAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
-			if ((error = prison_get_ip4(cred, &faddr)) != 0)
-				return (error);
+			return (EADDRNOTAVAIL);
 		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST) {
 			if (CK_STAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
 			    IFF_BROADCAST)
