@@ -2897,26 +2897,22 @@ _dtrace_tools= cddl/lib/libctf cddl/lib/libspl cddl/usr.bin/ctfconvert \
 
 .if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 # If we're given an XAS, don't build binutils.
-.if ${XAS:M/*} == ""
-_elftctools=	lib/libelftc \
-		lib/libpe \
-		usr.bin/elfctl \
-		usr.bin/elfdump \
-		usr.bin/objcopy \
-		usr.bin/nm \
-		usr.bin/size \
-		usr.bin/strings
-# These are not required by the build, but can be useful for developers who
-# cross-build on a FreeBSD 10 host:
-_elftctools+=	usr.bin/addr2line
-.elif ${TARGET_ARCH} != ${MACHINE_ARCH}
 # If cross-building with an external binutils we still need to build strip for
 # the target (for at least crunchide).
+.if ${XAS:M/*} == "" || ${TARGET_ARCH} != ${MACHINE_ARCH}
 _elftctools=	lib/libelftc \
 		lib/libpe \
 		usr.bin/elfctl \
 		usr.bin/elfdump \
 		usr.bin/objcopy
+.endif
+.if ${XAS:M/*} == ""
+_elftctools+=	usr.bin/nm \
+		usr.bin/size \
+		usr.bin/strings
+# These are not required by the build, but can be useful for developers who
+# cross-build on a FreeBSD 10 host:
+_elftctools+=	usr.bin/addr2line
 .endif
 .endif
 
