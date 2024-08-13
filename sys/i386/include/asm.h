@@ -121,10 +121,10 @@
 #define RCSID(x)	.text; .asciz x
 
 #undef __FBSDID
-#if !defined(STRIP_FBSDID)
+#if defined(__EMBED_FBSDID)
 #define __FBSDID(s)	.ident s
 #else
 #define __FBSDID(s)	/* nothing */
-#endif /* not STRIP_FBSDID */
+#endif /* __EMBED_FBSDID */
 
 #endif /* !_MACHINE_ASM_H_ */
