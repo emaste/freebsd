@@ -20,10 +20,9 @@ LIBC_ARCH=${MACHINE_CPUARCH}
 
 CFLAGS+=-D_FORTIFY_SOURCE_read=_read
 
-# All library objects contain FreeBSD revision strings by default; they may be
-# excluded as a space-saving measure.  To produce a library that does
-# not contain these strings, add -DSTRIP_FBSDID (see <sys/cdefs.h>) to CFLAGS
-# below.  Note: there are no IDs for syscall stubs whose sources are generated.
+# Library objects can have FreeBSD revision strings ($FreeBSD$) embedded by
+# adding -D__EMBED_FBSDID (see <sys/cdefs.h>) to CFLAGS below.
+# Note: there are no IDs for syscall stubs whose sources are generated.
 # To include legacy CSRG SCCS ID strings, remove -DNO__SCCSID from CFLAGS.
 # To include RCS ID strings from other BSD projects, remove -DNO__RCSID from CFLAGS.
 CFLAGS+=-DNO__SCCSID -DNO__RCSID
