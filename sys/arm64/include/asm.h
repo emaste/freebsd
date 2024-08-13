@@ -32,7 +32,7 @@
 #define	_MACHINE_ASM_H_
 
 #undef __FBSDID
-#if !defined(lint) && !defined(STRIP_FBSDID)
+#if !defined(lint) && defined(__EMBED_FBSDID)
 #define	__FBSDID(s)     .ident s
 #else
 #define	__FBSDID(s)     /* nothing */
