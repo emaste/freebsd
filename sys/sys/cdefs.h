@@ -437,7 +437,7 @@
  * Usage:
  */
 #ifndef	__FBSDID
-#if !defined(STRIP_FBSDID)
+#if defined(__EMBED_FBSDID)
 #define	__FBSDID(s)	__IDSTRING(__CONCAT(__rcsid_,__LINE__),s)
 #else
 #define	__FBSDID(s)	struct __hack
