@@ -36,11 +36,11 @@
 #define	_MACHINE_ASM_H_
 
 #undef __FBSDID
-#if !defined(lint) && !defined(STRIP_FBSDID)
+#if !defined(lint) && defined(__EMBED_FBSDID)
 #define	__FBSDID(s)	.ident s
 #else
 #define	__FBSDID(s)	/* nothing */
-#endif /* not lint and not STRIP_FBSDID */
+#endif /* not lint and __EMBED_FBSDID */
 
 #define	_C_LABEL(x)	x
 
