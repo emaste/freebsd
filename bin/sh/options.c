@@ -128,6 +128,7 @@ procargs(int argc, char **argv)
 void
 optschanged(void)
 {
+//fprintf(stderr, "%s:%d %s\n", __FILE__, __LINE__, __func__);
 	setinteractive();
 #ifndef NO_HISTORY
 	histedit();
@@ -253,6 +254,7 @@ minus_o(char *name, int val)
 	const unsigned char *on;
 	size_t len;
 
+//fprintf(stderr, "%s:%d %s\n", __FILE__, __LINE__, __func__);
 	if (name == NULL) {
 		if (val) {
 			/* "Pretty" output. */
