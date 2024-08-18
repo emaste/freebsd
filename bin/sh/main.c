@@ -248,6 +248,7 @@ read_profile(const char *name)
 	const char *expandedname;
 	int oflags = O_RDONLY | O_CLOEXEC;
 
+//fprintf(stderr, "%s:%d %s %s\n", __FILE__, __LINE__, __func__, name);
 	if (verifyflag)
 		oflags |= O_VERIFY;
 
@@ -262,6 +263,7 @@ read_profile(const char *name)
 		return;
 	cmdloop(0);
 	popfile();
+	optschanged();
 }
 
 
