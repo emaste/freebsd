@@ -146,6 +146,7 @@ void
 histedit(void)
 {
 
+//fprintf(stderr, "%s:%d %s\n", __FILE__, __LINE__, __func__);
 #define editing (Eflag || Vflag)
 
 	if (iflag) {
@@ -200,6 +201,7 @@ bad:
 			INTON;
 		}
 		if (el) {
+//fprintf(stderr, "el_set stuff Vflag=%d Eflag=%d\n", Vflag, Eflag);
 			if (Vflag)
 				el_set(el, EL_EDITOR, "vi");
 			else if (Eflag) {
