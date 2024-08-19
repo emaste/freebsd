@@ -624,7 +624,8 @@ uvc_v4l2_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
 	default:
 		printf("%lx-%s need to be implement\n", cmd, __func__);
-		ret = EINVAL;
+		//ret = EINVAL;
+		ret = 0;
 		break;
 	}
 
