@@ -228,7 +228,17 @@ parse__escape(const wchar_t **ptr)
 		}
 	} else if (*p == '^') {
 		p++;
-		c = (*p == '?') ? '\177' : (*p & 0237);
+		switch (*p) {
+		case '?':
+			c = '\177';
+			break;
+		case '[':
+			c = '\033';
+			break;
+		default:
+			c = *p & 0237;
+			break;
+		}
 	} else
 		c = *p;
 	*ptr = ++p;
