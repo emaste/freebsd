@@ -399,6 +399,7 @@ shiftcmd(int argc, char **argv)
 int
 setcmd(int argc, char **argv)
 {
+//fprintf(stderr, "%s:%d %s\n", __FILE__, __LINE__, __func__);
 	if (argc == 1)
 		return showvarscmd(argc, argv);
 	INTOFF;
