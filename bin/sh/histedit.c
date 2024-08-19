@@ -543,6 +543,8 @@ str_to_event(const char *str, int last)
 int
 bindcmd(int argc, char **argv)
 {
+//fprintf(stderr, "%s:%d %s argc=%d %s\n", __FILE__, __LINE__, __func__, argc,
+//    argc > 1 ? argv[1] : "<argc <= 1>");
 	int ret;
 	FILE *old;
 	FILE *out;
