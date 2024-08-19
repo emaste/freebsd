@@ -571,8 +571,8 @@ bindcmd(int argc, char **argv)
 	    memchr("ve", argv[1][1], 2) != NULL) {
 		Vflag = argv[1][1] == 'v';
 		Eflag = !Vflag;
-		histedit();
 	}
+	histedit();
 
 	INTON;
 
