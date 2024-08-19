@@ -147,6 +147,7 @@ evalstring(const char *s, int flags)
 	int flags_exit;
 	int any;
 
+//fprintf(stderr, "%s <%s>\n", __func__, s);
 	flags_exit = flags & EV_EXIT;
 	flags &= ~EV_EXIT;
 	any = 0;
@@ -199,6 +200,7 @@ evaltree(union node *n, int flags)
 		displayhist = 1;	/* show history substitutions done with fc */
 #endif
 		TRACE(("evaltree(%p: %d) called\n", (void *)n, n->type));
+//fprintf(stderr, "%s:%d %s %u\n", __FILE__, __LINE__, __func__, n->type);
 		switch (n->type) {
 		case NSEMI:
 			evaltree(n->nbinary.ch1, flags & ~EV_EXIT);
@@ -845,6 +847,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	/* Add one slot at the beginning for tryexec(). */
 	appendarglist(&arglist, nullstr);
 	for (argp = cmd->ncmd.args ; argp ; argp = argp->narg.next) {
+//fprintf(stderr, "%s cmd <%s>\n", __func__, argp->narg.text);
 		if (varflag && isassignment(argp->narg.text)) {
 			expandarg(argp, varflag == 1 ? &varlist : &arglist,
 			    EXP_VARTILDE);
@@ -857,6 +860,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	expredir(cmd->ncmd.redirect);
 	argc = arglist.count - 2;
 	argv = &arglist.args[1];
+//fprintf(stderr, "%s:%d %s argc=%d\n", __FILE__, __LINE__, __func__, argc);
 
 	argv[argc] = NULL;
 	lastarg = NULL;
