@@ -97,9 +97,11 @@ main(int argc, char *argv[])
 	char *shinit;
 
 	(void) setlocale(LC_ALL, "");
+//fprintf(stderr, "main\n");
 	initcharset();
 	state = 0;
 	if (setjmp(main_handler.loc)) {
+//fprintf(stderr, "main state=%d\n", state);
 		if (state == 0 || iflag == 0 || ! rootshell ||
 		    exception == EXEXIT)
 			exitshell(exitstatus);
@@ -134,6 +136,8 @@ main(int argc, char *argv[])
 	INTON;
 	if (iflag)
 		chkmail(1);
+//fprintf(stderr, "%s:%d %s %s state=%d\n", __FILE__, __LINE__, __func__,
+//    argc > 1 ? argv[0] : "", state);
 	if (argv[0] && argv[0][0] == '-') {
 		state = 1;
 		read_profile("/etc/profile");
@@ -260,7 +264,9 @@ read_profile(const char *name)
 	INTON;
 	if (fd < 0)
 		return;
+//fprintf(stderr, "%s:%d %s cmdloop(0)\n", __FILE__, __LINE__, __func__);
 	cmdloop(0);
+//fprintf(stderr, "%s:%d %s cmdloop(0) done\n", __FILE__, __LINE__, __func__);
 	popfile();
 	optschanged();
 }
