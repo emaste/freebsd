@@ -3626,6 +3626,9 @@ killproc(struct proc *p, const char *why)
 }
 
 /*
+		case ECAPMODE:
+			coreinfo = " (no core dump - in capability mode)";
+			break;
  * Send queued SIGCHLD to parent when child process's state
  * is changed.
  */
