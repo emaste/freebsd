@@ -3693,6 +3693,9 @@ sigexit(struct thread *td, int sig)
 		case EFBIG:
 			coreinfo = " (no core dump - too large)";
 			break;
+		case ECAPMODE:
+			coreinfo = " (no core dump - in capability mode)";
+			break;
 		default:
 			coreinfo = " (no core dump - other error)";
 			break;
