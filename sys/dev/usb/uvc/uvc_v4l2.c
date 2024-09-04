@@ -154,6 +154,25 @@ uvc_v4l2_g_selection(struct uvc_drv_video *v, void *addr)
 	p->type = old_type;
 	return ret;
 }
+
+static int
+uvc_v4l2_enumstd(struct v4l2_standard *std)
+{
+	std->id = V4L2_STD_UNKNOWN;
+
+	std->framelines = (std->id & V4L2_STD_525_60) ? 525 : 625;
+	if (std->id & V4L2_STD_525_60) {
+		std->frameperiod.numerator = 1001;
+		std->frameperiod.denominator = 30000;
+	} else {
+		std->frameperiod.numerator = 1;
+		std->frameperiod.denominator = 25;
+	}
+	strncpy(std->name, "UVC Camera", sizeof(std->name) - 1);
+
+	return 0;
+}
+
 static int
 uvc_v4l2_cropcap(struct uvc_drv_video *v, void *addr)
 {
@@ -322,6 +341,17 @@ uvc_v4l2_queryctrl(struct uvc_drv_video *v, struct v4l2_queryctrl *qc)
 }
 
 static int
+uvc_v4l2_querymenu(struct uvc_drv_video *v, struct v4l2_querymenu *qm)
+{
+	int ret = EINVAL;
+
+	if (qm == NULL)
+		return ret;
+
+	ret = uvc_query_v4l2_menu(v, qm);
+	return ret;
+}
+static int
 uvc_v4l2_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct uvc_v4l2_cdev_priv *priv;
@@ -465,10 +495,11 @@ uvc_v4l2_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case VIDIOC_G_INPUT:
+		printf("unsupport ioctl VIDIOC_G_INPUT.\n");
 		*(int *)data = 0;
 		break;
 	case VIDIOC_ENUMSTD:
-		DPRINTF("unsupport ioctl VIDIOC_ENUMSTD\n");
+		printf("unsupport ioctl VIDIOC_ENUMSTD\n");
 		ret = ENOTTY;
 		break;
 
@@ -477,13 +508,20 @@ uvc_v4l2_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		ret = uvc_v4l2_queryctrl(v, (struct v4l2_queryctrl *)data);
 		break;
 
+	case VIDIOC_QUERYMENU:
+		DPRINTF("VIDIOC_QUERYMENU.\n");
+		ret = uvc_v4l2_querymenu(v, (struct v4l2_querymenu *)data);
+		break;
+
 	case VIDIOC_G_CTRL:
-		DPRINTF("unsupport ioctl VIDIOC_G_CTRL\n");
+		printf("unsupport ioctl VIDIOC_G_CTRL.\n");
 		ret = EINVAL;
 		break;
 	case VIDIOC_G_STD:
+		printf("unsupport ioctl VIDIOC_G_STD.\n");
 		ret = ENOTTY;
 		break;
+
 	case VIDIOC_CROPCAP:
 		ret = uvc_v4l2_cropcap(v, data);
 		break;
@@ -573,7 +611,9 @@ uvc_v4l2_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case VIDIOC_EXPBUF:
-		return ENOTTY;
+		printf("unsupport ioctl VIDIOC_EXPBUF.\n");
+		ret = ENOTTY;
+		break;
 
 	case VIDIOC_QUERYBUF:
 		DPRINTF("VIDIOC_QUERYBUF\n");
@@ -610,7 +650,8 @@ uvc_v4l2_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		return ret;
 
 	case UVCIOC_CTRL_MAP:
-		ret = 6;
+		printf("unsupport ioctl VIDIOC_EXPBUF.\n");
+		ret = ENXIO;
 		break;
 
 	case UVCIOC_CTRL_QUERY:
@@ -620,6 +661,10 @@ uvc_v4l2_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (qry.size > 64)
 			return ENXIO;
 		ret = uvc_drv_xu_ctrl_query(v, &qry);
+		break;
+
+	case VIDIOC_LOG_STATUS:
+		ret = ENXIO; /* UVC can't support VIDIOC_LOG_STATUS */
 		break;
 
 	default:
