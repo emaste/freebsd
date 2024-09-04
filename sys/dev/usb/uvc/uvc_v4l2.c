@@ -664,7 +664,7 @@ uvc_v4l2_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case VIDIOC_LOG_STATUS:
-		ret = ENXIO; /* UVC can't support VIDIOC_LOG_STATUS */
+		ret = 0; /* UVC can't support VIDIOC_LOG_STATUS */
 		break;
 
 	default:
