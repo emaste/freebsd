@@ -650,7 +650,7 @@ uvc_v4l2_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		return ret;
 
 	case UVCIOC_CTRL_MAP:
-		printf("unsupport ioctl VIDIOC_EXPBUF.\n");
+		printf("unsupport ioctl UVCIOC_CTRL_MAP.\n");
 		ret = ENXIO;
 		break;
 
