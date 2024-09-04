@@ -745,4 +745,6 @@ int uvc_ctrl_init_device(struct uvc_softc *sc, struct uvc_drv_ctrl *ctrls);
 void uvc_ctrl_cleanup_mappings(struct uvc_control *ctrl);
 int uvc_query_v4l2_ctrl(struct uvc_drv_video *video,
 			struct v4l2_queryctrl *v4l2_ctrl);
+int uvc_query_v4l2_menu(struct uvc_drv_video *video,
+			struct v4l2_querymenu *qm);
 #endif /* end _DEV_USB_UVC_DRV_H */
