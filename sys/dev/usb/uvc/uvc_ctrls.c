@@ -749,11 +749,46 @@ __uvc_query_v4l2_ctrl(struct uvc_drv_video *video,
 		      struct uvc_control_mapping *mapping,
 		      struct v4l2_queryctrl *v4l2_ctrl)
 {
+	int i = 0;
+	struct uvc_menu_info *menu = NULL;
+
 	memset(v4l2_ctrl, 0, sizeof(*v4l2_ctrl));
 	v4l2_ctrl->id = mapping->id;
 	v4l2_ctrl->type = mapping->v4l2_type;
 	strlcpy(v4l2_ctrl->name, mapping->name, sizeof(v4l2_ctrl->name));
 	v4l2_ctrl->flags = 0;
+
+	switch (mapping->v4l2_type) {
+	case V4L2_CTRL_TYPE_MENU:
+		v4l2_ctrl->minimum = 0;
+		v4l2_ctrl->maximum = mapping->menu_count - 1;
+		v4l2_ctrl->step = 1;
+
+		menu = mapping->menu_info;
+		for (i = 0; i < mapping->menu_count; ++i, ++menu) {
+			if (menu->value == v4l2_ctrl->default_value) {
+				v4l2_ctrl->default_value = i;
+				break;
+			}
+		}
+
+		return 0;
+
+	case V4L2_CTRL_TYPE_BOOLEAN:
+		v4l2_ctrl->minimum = 0;
+		v4l2_ctrl->maximum = 1;
+		v4l2_ctrl->step = 1;
+		return 0;
+
+	case V4L2_CTRL_TYPE_BUTTON:
+		v4l2_ctrl->minimum = 0;
+		v4l2_ctrl->maximum = 0;
+		v4l2_ctrl->step = 0;
+		return 0;
+
+	default:
+		break;
+	}
 
 	/*todo*/
 	DPRINTF("WARNING __TO_BE_IMPLEMENT__ other par %s\n", __func__);
@@ -906,10 +941,10 @@ __uvc_ctrl_add_mapping(struct uvc_control *ctrl,
 		}
 	}
 	/*todo*/
-	//if (map->get == NULL)
-	//	map->get = uvc_get_le_value;
-	//if (map->set == NULL)
-	//	map->set = uvc_set_le_value;
+	if (map->get == NULL)
+		printf("UVC CTRL MAP GET is not implemented.\n");
+	if (map->set == NULL)
+		printf("UVC CTRL MAP SET is not implemented.\n");
 
 	STAILQ_INSERT_TAIL(&ctrl->info.mappings, map, link);
 
@@ -1038,6 +1073,35 @@ uvc_query_v4l2_ctrl(struct uvc_drv_video *video,
 	}
 
 	ret = __uvc_query_v4l2_ctrl(video, ctrl, mapping, v4l2_ctrl);
+done:
+	mtx_unlock(&video->ctrl->mtx);
+	return ret;
+}
+
+int
+uvc_query_v4l2_menu(struct uvc_drv_video *video,
+		    struct v4l2_querymenu *qm)
+{
+	struct uvc_control *ctrl;
+	struct uvc_control_mapping *mapping;
+	int ret = 0;
+	int id = qm->id;
+	int index = qm->index;
+
+	memset(qm, 0, sizeof(*qm));
+	qm->id = id;
+	qm->index = index;
+
+	mtx_lock(&video->ctrl->mtx);
+
+	ctrl = uvc_find_control(video->ctrl, qm->id, &mapping);
+	if (ctrl == NULL || mapping->v4l2_type != V4L2_CTRL_TYPE_MENU) {
+		ret = EINVAL;
+		goto done;
+	}
+
+	strlcpy(qm->name, mapping->name, sizeof(qm->name));
+
 done:
 	mtx_unlock(&video->ctrl->mtx);
 	return ret;
