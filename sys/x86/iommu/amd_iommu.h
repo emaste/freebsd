@@ -33,6 +33,8 @@
 
 #include <dev/iommu/iommu.h>
 
+#define	AMDIOMMU_DEV_REPORTED	0x00000001
+
 struct amdiommu_unit;
 
 struct amdiommu_domain {

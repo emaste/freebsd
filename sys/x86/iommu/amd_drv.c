@@ -818,13 +818,59 @@ amdiommu_find_unit_scan_0x10(ACPI_IVRS_HARDWARE1 *ivrs, void *arg)
 	return (res);
 }
 
+static void
+amdiommu_dev_prop_dtr(device_t dev, const char *name, void *val, void *dtr_ctx)
+{
+	free(val, M_DEVBUF);
+}
+
+static int *
+amdiommu_dev_fetch_flagsp(struct amdiommu_unit *unit, device_t dev)
+{
+	int *flagsp, error;
+
+	bus_topo_assert();
+	error = device_get_prop(dev, device_get_nameunit(unit->iommu.dev),
+	    (void **)&flagsp);
+	if (error == ENOENT) {
+		flagsp = malloc(sizeof(int), M_DEVBUF, M_WAITOK | M_ZERO);
+		device_set_prop(dev, device_get_nameunit(unit->iommu.dev),
+		    flagsp, amdiommu_dev_prop_dtr, unit);
+	}
+	return (flagsp);
+}
+
+static int
+amdiommu_get_dev_prop_flags(struct amdiommu_unit *unit, device_t dev)
+{
+	int *flagsp, flags;
+
+	bus_topo_lock();
+	flagsp = amdiommu_dev_fetch_flagsp(unit, dev);
+	flags = *flagsp;
+	bus_topo_unlock();
+	return (flags);
+}
+
+static void
+amdiommu_set_dev_prop_flags(struct amdiommu_unit *unit, device_t dev,
+    int flag)
+{
+	int *flagsp;
+
+	bus_topo_lock();
+	flagsp = amdiommu_dev_fetch_flagsp(unit, dev);
+	*flagsp |= flag;
+	bus_topo_unlock();
+}
+
 int
 amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
     uint8_t *dtep, uint32_t *edtep, bool verbose)
 {
 	struct ivhd_find_unit ifu;
 	struct amdiommu_unit *unit;
-	int error;
+	int error, flags;
 	bool res;
 
 	if (device_get_devclass(device_get_parent(dev)) !=
@@ -869,9 +915,14 @@ amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
 	if (edtep != NULL)
 		*edtep = ifu.edte;
 	if (verbose) {
-		device_printf(dev, "amdiommu%d "
-		    "initiator rid %#06x dte %#x edte %#x\n",
-		    ifu.unit_id, ifu.rid_real, ifu.dte, ifu.edte);
+		flags = amdiommu_get_dev_prop_flags(unit, dev);
+		if ((flags & AMDIOMMU_DEV_REPORTED) == 0) {
+			amdiommu_set_dev_prop_flags(unit, dev,
+			    AMDIOMMU_DEV_REPORTED);
+			device_printf(dev, "amdiommu%d "
+			    "initiator rid %#06x dte %#x edte %#x\n",
+			    ifu.unit_id, ifu.rid_real, ifu.dte, ifu.edte);
+		}
 	}
 	return (0);
 }
