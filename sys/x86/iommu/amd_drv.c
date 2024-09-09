@@ -540,12 +540,6 @@ errout1:
 }
 
 static int
-amdiommu_remap_intr(device_t dev, device_t child, u_int irq)
-{
-	return (0);
-}
-
-static int
 amdiommu_detach(device_t dev)
 {
 	return (EBUSY);
@@ -571,7 +565,6 @@ static device_method_t amdiommu_methods[] = {
 	DEVMETHOD(device_detach, amdiommu_detach),
 	DEVMETHOD(device_suspend, amdiommu_suspend),
 	DEVMETHOD(device_resume, amdiommu_resume),
-	DEVMETHOD(bus_remap_intr, amdiommu_remap_intr),
 	DEVMETHOD_END
 };
 
@@ -737,9 +730,17 @@ amdiommu_find_unit_scan_ivrs(ACPI_IVRS_DE_HEADER *d, size_t tlen,
 			len = sizeof(*dh) + dh->UidLength;
 			/* XXXKIB */
 		} else {
-			printf("AMDIOMMU: unknown IVRS device entry type %d\n",
+			printf("amdiommu: unknown IVRS device entry type %#x\n",
 			    d->Type);
-			return (false);
+			if (d->Type <= 63)
+				len = sizeof(ACPI_IVRS_DEVICE4);
+			else if (d->Type <= 127)
+				len = sizeof(ACPI_IVRS_DEVICE8A);
+			else {
+				printf("amdiommu: abort, cannot "
+				    "advance iterator\n");
+				return (false);
+			}
 		}
 	}
 	return (false);
@@ -784,13 +785,59 @@ amdiommu_find_unit_scan_0x10(ACPI_IVRS_HARDWARE1 *ivrs, void *arg)
 	return (res);
 }
 
+static void
+amdiommu_dev_prop_dtr(device_t dev, const char *name, void *val, void *dtr_ctx)
+{
+	free(val, M_DEVBUF);
+}
+
+static int *
+amdiommu_dev_fetch_flagsp(struct amdiommu_unit *unit, device_t dev)
+{
+	int *flagsp, error;
+
+	bus_topo_assert();
+	error = device_get_prop(dev, device_get_nameunit(unit->iommu.dev),
+	    (void **)&flagsp);
+	if (error == ENOENT) {
+		flagsp = malloc(sizeof(int), M_DEVBUF, M_WAITOK | M_ZERO);
+		device_set_prop(dev, device_get_nameunit(unit->iommu.dev),
+		    flagsp, amdiommu_dev_prop_dtr, unit);
+	}
+	return (flagsp);
+}
+
+static int
+amdiommu_get_dev_prop_flags(struct amdiommu_unit *unit, device_t dev)
+{
+	int *flagsp, flags;
+
+	bus_topo_lock();
+	flagsp = amdiommu_dev_fetch_flagsp(unit, dev);
+	flags = *flagsp;
+	bus_topo_unlock();
+	return (flags);
+}
+
+static void
+amdiommu_set_dev_prop_flags(struct amdiommu_unit *unit, device_t dev,
+    int flag)
+{
+	int *flagsp;
+
+	bus_topo_lock();
+	flagsp = amdiommu_dev_fetch_flagsp(unit, dev);
+	*flagsp |= flag;
+	bus_topo_unlock();
+}
+
 int
 amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
     uint8_t *dtep, uint32_t *edtep, bool verbose)
 {
 	struct ivhd_find_unit ifu;
 	struct amdiommu_unit *unit;
-	int error;
+	int error, flags;
 	bool res;
 
 	if (device_get_devclass(device_get_parent(dev)) !=
@@ -832,9 +879,14 @@ amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
 	if (edtep != NULL)
 		*edtep = ifu.edte;
 	if (verbose) {
-		device_printf(dev, "AMDIOMMU unit %d "
-		    "initiator rid %#06x dte %#x edte %#x\n",
-		    ifu.unit_id, ifu.rid_real, ifu.dte, ifu.edte);
+		flags = amdiommu_get_dev_prop_flags(unit, dev);
+		if ((flags & AMDIOMMU_DEV_REPORTED) == 0) {
+			amdiommu_set_dev_prop_flags(unit, dev,
+			    AMDIOMMU_DEV_REPORTED);
+			device_printf(dev, "amdiommu%d "
+			    "initiator rid %#06x dte %#x edte %#x\n",
+			    ifu.unit_id, ifu.rid_real, ifu.dte, ifu.edte);
+		}
 	}
 	return (0);
 }
@@ -873,9 +925,9 @@ amdiommu_find_unit_for_ioapic(int apic_id, struct amdiommu_unit **unitp,
 	if (edtep != NULL)
 		*edtep = ifu.edte;
 	if (verbose) {
-		printf("AMDIOMMU IOAPIC %d unit %d "
+		printf("amdiommu%d IOAPIC %d "
 		    "initiator rid %#06x dte %#x edte %#x\n",
-		    apic_id, ifu.unit_id, ifu.rid_real, ifu.dte, ifu.edte);
+		    ifu.unit_id, apic_id, ifu.rid_real, ifu.dte, ifu.edte);
 	}
 	return (0);
 }
@@ -914,9 +966,9 @@ amdiommu_find_unit_for_hpet(int hpet_no, struct amdiommu_unit **unitp,
 	if (edtep != NULL)
 		*edtep = ifu.edte;
 	if (verbose) {
-		printf("AMDIOMMU HPET no %d unit %d "
+		printf("amdiommu%d HPET no %d "
 		    "initiator rid %#06x dte %#x edte %#x\n",
-		    hpet_no, ifu.unit_id, ifu.rid_real, ifu.dte, ifu.edte);
+		    ifu.unit_id, hpet_no, ifu.rid_real, ifu.dte, ifu.edte);
 	}
 	return (0);
 }
@@ -934,7 +986,7 @@ amdiommu_find_method(device_t dev, bool verbose)
 	if (error != 0) {
 		if (verbose)
 			device_printf(dev,
-			    "Cannot find AMD IOMMU unit, error %d\n",
+			    "cannot find amdiommu unit, error %d\n",
 			    error);
 		return (NULL);
 	}
