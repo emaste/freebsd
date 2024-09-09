@@ -7468,7 +7468,7 @@ ctl_report_supported_opcodes(struct ctl_scsiio *ctsio)
 		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
 		break;
 	case RSO_OPTIONS_OC_ASA:
-		if ((ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) != 0 &&
+		if ((ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) == 0 ||
 		    service_action >= 32) {
 			goto invalid_options;
 		}
