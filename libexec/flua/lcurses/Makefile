@@ -6,7 +6,6 @@ LCURSESSRC?=	${SRCTOP}/contrib/lua/lcurses/ext
 
 SHLIB_NAME=	curses_c.so
 WARNS?=	2
-LIBDIR=	/usr/lib/flua
 
 SRCS=	curses.c
 
