@@ -354,9 +354,20 @@ amdiommu_setup_intr(struct amdiommu_unit *sc)
 		return (ENXIO);
 	}
 
-	sc->irq_cmdev_rid = 1 + (pci_read_config(sc->iommu.dev,
-	    sc->seccap_reg + PCIR_AMDIOMMU_MISC0, 4) &
-	    PCIM_AMDIOMMU_MISC0_MSINUM_MASK);
+	/*
+	 * XXXKIB Spec states that MISC0.MsiNum must be zero for IOMMU
+	 * using MSI interrupts.  But at least one BIOS programmed '2'
+	 * there, making driver use wrong rid and causing
+	 * command/event interrupt ignored as stray.  Try to fix it
+	 * with dirty force by assuming MsiNum is zero for MSI.
+	 */
+	sc->irq_cmdev_rid = 1;
+	if (msix_count > 0) {
+		sc->irq_cmdev_rid += pci_read_config(sc->iommu.dev,
+		    sc->seccap_reg + PCIR_AMDIOMMU_MISC0, 4) &
+		    PCIM_AMDIOMMU_MISC0_MSINUM_MASK;
+	}
+
 	sc->irq_cmdev = bus_alloc_resource_any(sc->iommu.dev, SYS_RES_IRQ,
 	    &sc->irq_cmdev_rid, RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_cmdev == NULL) {
@@ -373,7 +384,7 @@ amdiommu_setup_intr(struct amdiommu_unit *sc)
 		return (ENXIO);
 	}
 	bus_describe_intr(sc->iommu.dev, sc->irq_cmdev, sc->irq_cmdev_cookie,
-	    "amdiommu%d cmdev", sc->iommu.unit);
+	    "cmdev");
 
 	if (x2apic_mode) {
 		AMDIOMMU_LOCK(sc);
@@ -514,6 +525,22 @@ amdiommu_attach(device_t dev)
 	error = amdiommu_init_irt(sc);
 	if (error != 0)
 		goto errout8;
+
+	/*
+	 * Unlike DMAR, AMD IOMMU does not process command queue
+	 * unless IOMMU is enabled.  But since non-present devtab
+	 * entry makes IOMMU ignore transactions from corresponding
+	 * initiator, de-facto IOMMU operations are disabled for the
+	 * DMA and intr remapping.
+	 */
+	AMDIOMMU_LOCK(sc);
+	sc->hw_ctrl |= AMDIOMMU_CTRL_EN;
+	amdiommu_write8(sc, AMDIOMMU_CTRL, sc->hw_ctrl);
+	if (bootverbose) {
+		printf("amdiommu%d: enabled translation\n",
+		    AMD2IOMMU(sc)->unit);
+	}
+	AMDIOMMU_UNLOCK(sc);
 
 	TAILQ_INSERT_TAIL(&amdiommu_units, sc, unit_next);
 	return (0);
