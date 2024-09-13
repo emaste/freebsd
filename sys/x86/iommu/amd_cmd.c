@@ -189,8 +189,11 @@ amdiommu_cmd_emit_wait_descr(struct iommu_unit *iommu, uint32_t seq,
 	}
 	if (fence)
 		c.f = 1;
-	if (intr)
+	if (intr) {
 		c.i = 1;
+		amdiommu_write8(unit, AMDIOMMU_CMDEV_STATUS,
+		    AMDIOMMU_CMDEVS_COMWAITINT);
+	}
 	amdiommu_cmd_emit(unit, (struct amdiommu_cmd_generic *)&c);
 }
 
@@ -221,6 +224,18 @@ amdiommu_qi_invalidate_emit(struct iommu_domain *adomain, iommu_gaddr_t base,
 	iommu_qi_emit_wait_seq(AMD2IOMMU(unit), pseq, emit_wait);
 }
 
+static void
+amdiommu_qi_invalidate_wait_sync(struct iommu_unit *iommu)
+{
+	struct iommu_qi_genseq gseq;
+
+	amdiommu_cmd_ensure(iommu, 1);
+	iommu_qi_emit_wait_seq(iommu, &gseq, true);
+	IOMMU2AMD(iommu)->x86c.inv_seq_waiters++;
+	amdiommu_cmd_advance_tail(iommu);
+	iommu_qi_wait_for_seq(iommu, &gseq, true);
+}
+
 void
 amdiommu_qi_invalidate_ctx_locked(struct amdiommu_ctx *ctx)
 {
@@ -230,28 +245,23 @@ amdiommu_qi_invalidate_ctx_locked(struct amdiommu_ctx *ctx)
 	c.op = AMDIOMMU_CMD_INVALIDATE_DEVTAB_ENTRY;
 	c.devid = ctx->context.rid;
 	amdiommu_cmd_emit(CTX2AMD(ctx), (struct amdiommu_cmd_generic *)&c);
+
+	amdiommu_qi_invalidate_wait_sync(AMD2IOMMU(CTX2AMD(ctx)));
 }
 
 void
 amdiommu_qi_invalidate_ir_locked(struct amdiommu_unit *unit, uint16_t devid)
 {
-	struct iommu_unit *iommu;
-	struct iommu_qi_genseq gseq;
 	struct amdiommu_cmd_invalidate_interrupt_table c;
 
 	AMDIOMMU_ASSERT_LOCKED(unit);
-	iommu = AMD2IOMMU(unit);
 
 	bzero(&c, sizeof(c));
 	c.op = AMDIOMMU_CMD_INVALIDATE_INTERRUPT_TABLE;
 	c.devid = devid;
 	amdiommu_cmd_emit(unit, (struct amdiommu_cmd_generic *)&c);
 
-	amdiommu_cmd_ensure(iommu, 1);
-	iommu_qi_emit_wait_seq(iommu, &gseq, true);
-	unit->x86c.inv_seq_waiters++;
-	amdiommu_cmd_advance_tail(iommu);
-	iommu_qi_wait_for_seq(iommu, &gseq, true);
+	amdiommu_qi_invalidate_wait_sync(AMD2IOMMU(unit));
 }
 
 static void
@@ -286,8 +296,8 @@ amdiommu_qi_task(void *arg, int pending __unused)
 
 	if (unit->x86c.inv_seq_waiters > 0) {
 		/*
-		 * Acquire the DMAR lock so that wakeup() is called only after
-		 * the waiter is sleeping.
+		 * Acquire the IOMMU lock so that wakeup() is called
+		 * only after the waiter is sleeping.
 		 */
 		AMDIOMMU_LOCK(unit);
 		wakeup(&unit->x86c.inv_seq_waiters);

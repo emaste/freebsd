@@ -509,7 +509,6 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 	struct amdiommu_domain *domain, *domain1;
 	struct amdiommu_ctx *ctx, *ctx1;
 	int bus, slot, func;
-	bool enable;
 
 	if (dev != NULL) {
 		bus = pci_get_bus(dev);
@@ -520,7 +519,6 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 		slot = PCI_RID2SLOT(rid);
 		func = PCI_RID2FUNC(rid);
 	}
-	enable = false;
 	AMDIOMMU_LOCK(unit);
 	KASSERT(!iommu_is_buswide_ctx(AMD2IOMMU(unit), bus) ||
 	    (slot == 0 && func == 0),
@@ -566,13 +564,6 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 			ctx->context.tag->owner = dev;
 			iommu_device_tag_init(CTX2IOCTX(ctx), dev);
 
-			/*
-			 * This is the first activated context for the
-			 * IOMMU unit.  Enable the translation after
-			 * everything is set up.
-			 */
-			if (LIST_EMPTY(&unit->domains))
-				enable = true;
 			LIST_INSERT_HEAD(&unit->domains, domain, link);
 			dte_entry_init(ctx, false, bus);
 			if (dev != NULL) {
@@ -598,17 +589,8 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 	}
 
 	amdiommu_qi_invalidate_ctx_locked(ctx);
-
-	if (enable && (unit->hw_ctrl & AMDIOMMU_CTRL_EN) == 0) {
-		unit->hw_ctrl |= AMDIOMMU_CTRL_EN;
-		amdiommu_write8(unit, AMDIOMMU_CTRL, unit->hw_ctrl);
-		if (bootverbose) {
-			printf("amdiommu%d: enabled translation\n",
-			    AMD2IOMMU(unit)->unit);
-		}
-	}
-
 	AMDIOMMU_UNLOCK(unit);
+
 	return (ctx);
 }
 
