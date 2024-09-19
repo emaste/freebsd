@@ -115,6 +115,7 @@ emulate_inout_port(struct vcpu *vcpu, struct vm_exit *vmexit, bool *retu)
 
 	mask = vie_size2mask(vmexit->u.inout.bytes);
 
+	val = 0;
 	if (!vmexit->u.inout.in) {
 		val = vmexit->u.inout.eax & mask;
 	}
