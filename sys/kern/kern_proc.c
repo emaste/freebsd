@@ -2493,7 +2493,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 				vn_fullpath(vp, &fullpath, &freepath);
 				cred = curthread->td_ucred;
 				vn_lock(vp, LK_SHARED | LK_RETRY);
-				if (VOP_GETATTR(vp, &va, cred) == 0) {
+				if (VOP_GETATTR(vp, 0, &va, cred) == 0) {
 					kve->kve_fileid = va.va_fileid;
 					/* truncate */
 					kve->kve_fsid = va.va_fsid;
@@ -2746,7 +2746,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
 				cred = curthread->td_ucred;
 				vn_lock(vp, LK_SHARED | LK_RETRY);
-				if (VOP_GETATTR(vp, &va, cred) == 0) {
+				if (VOP_GETATTR(vp, 0, &va, cred) == 0) {
 					kve->kve_vn_fileid = va.va_fileid;
 					kve->kve_vn_fsid = va.va_fsid;
 					kve->kve_vn_fsid_freebsd11 =

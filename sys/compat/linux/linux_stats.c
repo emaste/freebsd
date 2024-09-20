@@ -106,7 +106,7 @@ linux_kern_statat(struct thread *td, int flag, int fd, const char *path,
 			error = linux_kern_fstat(td, fd, sbp);
 		return (error);
 	}
-	error = VOP_STAT(nd.ni_vp, sbp, td->td_ucred, NOCRED);
+	error = VOP_STAT(nd.ni_vp, sbp, 0, td->td_ucred, NOCRED);
 	if (error == 0)
 		translate_vnhook_major_minor(nd.ni_vp, sbp);
 	NDFREE_PNBUF(&nd);

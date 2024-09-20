@@ -1377,7 +1377,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 			if (vp != NULL) {
 				vn_fullpath(vp, &name, &freename);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
-				VOP_GETATTR(vp, &vat, td->td_ucred);
+				VOP_GETATTR(vp, 0, &vat, td->td_ucred);
 				ino = vat.va_fileid;
 				vput(vp);
 			} else if (SV_PROC_ABI(p) == SV_ABI_LINUX) {

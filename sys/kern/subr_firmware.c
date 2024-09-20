@@ -302,7 +302,7 @@ try_binary_file(const char *imagename, uint32_t flags)
 	NDFREE_PNBUF(&nd);
 	if (nd.ni_vp->v_type != VREG)
 		goto err2;
-	error = VOP_GETATTR(nd.ni_vp, &vattr, cred);
+	error = VOP_GETATTR(nd.ni_vp, 0, &vattr, cred);
 	if (error)
 		goto err2;
 

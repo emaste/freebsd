@@ -283,7 +283,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 		if ((uerror == ENOENT || uerror == EJUSTRETURN) &&
 		    (cnp->cn_flags & ISWHITEOUT))
 			iswhiteout = true;
-		else if (VOP_GETATTR(udvp, &va, cnp->cn_cred) == 0 &&
+		else if (VOP_GETATTR(udvp, 0, &va, cnp->cn_cred) == 0 &&
 		    (va.va_flags & OPAQUE))
 			iswhiteout = true;
 
@@ -1024,7 +1024,7 @@ unionfs_getattr(struct vop_getattr_args *ap)
 	td = curthread;
 
 	if (uvp != NULLVP) {
-		if ((error = VOP_GETATTR(uvp, ap->a_vap, ap->a_cred)) == 0)
+		if ((error = VOP_GETATTR(uvp, 0, ap->a_vap, ap->a_cred)) == 0)
 			ap->a_vap->va_fsid =
 			    ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
 
@@ -1036,7 +1036,7 @@ unionfs_getattr(struct vop_getattr_args *ap)
 		return (error);
 	}
 
-	error = VOP_GETATTR(lvp, ap->a_vap, ap->a_cred);
+	error = VOP_GETATTR(lvp, 0, ap->a_vap, ap->a_cred);
 
 	if (error == 0 && (ump->um_uppermp->mnt_flag & MNT_RDONLY) == 0) {
 		/* correct the attr toward shadow file/dir. */
@@ -1626,7 +1626,7 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 	if (udvp != NULLVP) {
 		/* check opaque */
 		if (!(cnp->cn_flags & ISWHITEOUT)) {
-			error = VOP_GETATTR(udvp, &va, cnp->cn_cred);
+			error = VOP_GETATTR(udvp, 0, &va, cnp->cn_cred);
 			if (error != 0)
 				goto unionfs_mkdir_cleanup;
 			if ((va.va_flags & OPAQUE) != 0)
@@ -1863,7 +1863,7 @@ unionfs_readdir(struct vop_readdir_args *ap)
 
 	/* check opaque */
 	if (uvp != NULLVP && lvp != NULLVP) {
-		if ((error = VOP_GETATTR(uvp, &va, ap->a_cred)) != 0)
+		if ((error = VOP_GETATTR(uvp, 0, &va, ap->a_cred)) != 0)
 			goto unionfs_readdir_exit;
 		if (va.va_flags & OPAQUE)
 			lvp = NULLVP;

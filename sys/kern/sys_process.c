@@ -554,7 +554,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 			fullpath = NULL;
 			vn_fullpath(vp, &fullpath, &freepath);
 			vn_lock(vp, LK_SHARED | LK_RETRY);
-			if (VOP_GETATTR(vp, &vattr, td->td_ucred) == 0) {
+			if (VOP_GETATTR(vp, 0, &vattr, td->td_ucred) == 0) {
 				pve->pve_fileid = vattr.va_fileid;
 				pve->pve_fsid = vattr.va_fsid;
 			}

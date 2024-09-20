@@ -444,7 +444,7 @@ nfsvno_getattr(struct vnode *vp, struct nfsvattr *nvap,
 			gotattr = 1;
 	}
 
-	error = VOP_GETATTR(vp, &nvap->na_vattr, nd->nd_cred);
+	error = VOP_GETATTR(vp, 0, &nvap->na_vattr, nd->nd_cred);
 	if (lockedit != 0)
 		NFSVOPUNLOCK(vp);
 
@@ -568,7 +568,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 		if (cred->cr_uid == 0 && (override & NFSACCCHK_ALLOWROOT))
 			error = 0;
 		else if (override & NFSACCCHK_ALLOWOWNER) {
-			getret = VOP_GETATTR(vp, &vattr, cred);
+			getret = VOP_GETATTR(vp, 0, &vattr, cred);
 			if (getret == 0 && cred->cr_uid == vattr.va_uid)
 				error = 0;
 		}
@@ -3212,7 +3212,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 				    (mask & ~07777) != 0 || vp == NULL)
 					nd->nd_repstat = NFSERR_INVAL;
 				else if (moderet == 0)
-					moderet = VOP_GETATTR(vp, &va,
+					moderet = VOP_GETATTR(vp, 0, &va,
 					    nd->nd_cred);
 				if (moderet == 0)
 					nvap->na_mode = (mode & mask) |
@@ -4367,7 +4367,7 @@ nfsrv_dscreate(struct vnode *dvp, struct vattr *vap, struct vattr *nvap,
 		/* Set extattrs for the DS on the MDS file. */
 		if (error == 0) {
 			if (dsa != NULL) {
-				error = VOP_GETATTR(nvp, &va, tcred);
+				error = VOP_GETATTR(nvp, 0, &va, tcred);
 				if (error == 0) {
 					dsa->dsa_filerev = va.va_filerev;
 					dsa->dsa_size = va.va_size;
@@ -4492,7 +4492,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 
 	error = nfsvno_getfh(vp, &fh, p);
 	if (error == 0)
-		error = VOP_GETATTR(vp, &va, cred);
+		error = VOP_GETATTR(vp, 0, &va, cred);
 	if (error == 0) {
 		/* Set the attributes for "vp" to Setattr the DS vp. */
 		vauid = va.va_uid;
@@ -4650,7 +4650,7 @@ nfsrv_pnfsremovesetup(struct vnode *vp, NFSPROC_T *p, struct vnode **dvpp,
 
 	/* Check to see if this is the last hard link. */
 	tcred = newnfs_getcred();
-	error = VOP_GETATTR(vp, &va, tcred);
+	error = VOP_GETATTR(vp, 0, &va, tcred);
 	NFSFREECRED(tcred);
 	if (error != 0) {
 		printf("pNFS: nfsrv_pnfsremovesetup getattr=%d\n", error);
@@ -6944,7 +6944,7 @@ nfsvno_updateds(struct vnode *vp, struct ucred *cred, NFSPROC_T *p)
 	int ret;
 	u_short tmode;
 
-	ret = VOP_GETATTR(vp, &nva.na_vattr, cred);
+	ret = VOP_GETATTR(vp, 0, &nva.na_vattr, cred);
 	if (ret == 0) {
 		tmode = nva.na_mode;
 		NFSVNO_ATTRINIT(&nva);

@@ -124,7 +124,7 @@ exec_shell_imgact(struct image_params *imgp)
 	 * valid -- the actual file might be much shorter than the page.
 	 * So find out the file size.
 	 */
-	error = VOP_GETATTR(imgp->vp, &vattr, imgp->proc->p_ucred);
+	error = VOP_GETATTR(imgp->vp, 0, &vattr, imgp->proc->p_ucred);
 	if (error)
 		return (error);
 

@@ -663,7 +663,7 @@ nfs_open(struct vop_open_args *ap)
 		if (vp->v_type == VDIR)
 			np->n_direofoffset = 0;
 		NFSUNLOCKNODE(np);
-		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
+		error = VOP_GETATTR(vp, 0, &vattr, ap->a_cred);
 		if (error) {
 			if (NFS_ISV4(vp))
 				(void) nfsrpc_close(vp, 0, ap->a_td);
@@ -675,7 +675,7 @@ nfs_open(struct vop_open_args *ap)
 			np->n_change = vattr.va_filerev;
 	} else {
 		NFSUNLOCKNODE(np);
-		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
+		error = VOP_GETATTR(vp, 0, &vattr, ap->a_cred);
 		if (error) {
 			if (NFS_ISV4(vp))
 				(void) nfsrpc_close(vp, 0, ap->a_td);
@@ -1276,7 +1276,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		}
 		if (nfscl_nodeleg(newvp, 0) == 0 ||
 		    ((u_int)(ticks - ncticks) < (nmp->nm_nametimeo * hz) &&
-		    VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
+		    VOP_GETATTR(newvp, 0, &vattr, cnp->cn_cred) == 0 &&
 		    timespeccmp(&vattr.va_ctime, &nctime, ==))) {
 			NFSINCRGLOBAL(nfsstatsv1.lookupcache_hits);
 			return (0);
@@ -1300,7 +1300,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * seconds.
 		 */
 		if ((u_int)(ticks - ncticks) < (nmp->nm_negnametimeo * hz) &&
-		    VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
+		    VOP_GETATTR(dvp, 0, &vattr, cnp->cn_cred) == 0 &&
 		    timespeccmp(&vattr.va_mtime, &nctime, ==)) {
 			NFSINCRGLOBAL(nfsstatsv1.lookupcache_hits);
 			return (ENOENT);
@@ -1659,7 +1659,7 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		rdev = 0xffffffff;
 	else
 		return (EOPNOTSUPP);
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)))
+	if ((error = VOP_GETATTR(dvp, 0, &vattr, cnp->cn_cred)))
 		return (error);
 	error = nfsrpc_mknod(dvp, cnp->cn_nameptr, cnp->cn_namelen, vap,
 	    rdev, vap->va_type, cnp->cn_cred, curthread, &dnfsva,
@@ -1759,7 +1759,7 @@ nfs_create(struct vop_create_args *ap)
 	if (vap->va_type == VSOCK)
 		return (nfs_mknodrpc(dvp, ap->a_vpp, cnp, vap));
 
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)))
+	if ((error = VOP_GETATTR(dvp, 0, &vattr, cnp->cn_cred)))
 		return (error);
 	if (vap->va_vaflags & VA_EXCLUSIVE)
 		fmode |= O_EXCL;
@@ -1875,7 +1875,7 @@ nfs_remove(struct vop_remove_args *ap)
 	if (vp->v_type == VDIR)
 		error = EPERM;
 	else if (vrefcnt(vp) == 1 || (np->n_sillyrename &&
-	    VOP_GETATTR(vp, &vattr, cnp->cn_cred) == 0 &&
+	    VOP_GETATTR(vp, 0, &vattr, cnp->cn_cred) == 0 &&
 	    vattr.va_nlink > 1)) {
 		/*
 		 * Purge the name cache so that the chance of a lookup for
@@ -2302,7 +2302,7 @@ nfs_mkdir(struct vop_mkdir_args *ap)
 	struct nfsvattr nfsva, dnfsva;
 	int error = 0, attrflag, dattrflag, ret;
 
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)) != 0)
+	if ((error = VOP_GETATTR(dvp, 0, &vattr, cnp->cn_cred)) != 0)
 		return (error);
 	vap->va_type = VDIR;
 	error = nfsrpc_mkdir(dvp, cnp->cn_nameptr, cnp->cn_namelen,
@@ -2435,7 +2435,7 @@ nfs_readdir(struct vop_readdir_args *ap)
 	if (np->n_direofoffset > 0 && uio->uio_offset >= np->n_direofoffset &&
 	    (np->n_flag & NMODIFIED) == 0) {
 		NFSUNLOCKNODE(np);
-		if (VOP_GETATTR(vp, &vattr, ap->a_cred) == 0) {
+		if (VOP_GETATTR(vp, 0, &vattr, ap->a_cred) == 0) {
 			NFSLOCKNODE(np);
 			if ((NFS_ISV4(vp) && np->n_change == vattr.va_filerev) ||
 			    !NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
@@ -3361,14 +3361,14 @@ nfs_advlock(struct vop_advlock_args *ap)
 			if ((np->n_flag & NMODIFIED) == 0) {
 				np->n_attrstamp = 0;
 				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-				ret = VOP_GETATTR(vp, &va, cred);
+				ret = VOP_GETATTR(vp, 0, &va, cred);
 			}
 			if ((np->n_flag & NMODIFIED) || ret ||
 			    np->n_change != va.va_filerev) {
 				(void) ncl_vinvalbuf(vp, V_SAVE, td, 1);
 				np->n_attrstamp = 0;
 				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-				ret = VOP_GETATTR(vp, &va, cred);
+				ret = VOP_GETATTR(vp, 0, &va, cred);
 				if (!ret) {
 					np->n_mtime = va.va_mtime;
 					np->n_change = va.va_filerev;
@@ -3462,7 +3462,7 @@ nfsspec_access(struct vop_access_args *ap)
 		}
 	}
 	vap = &vattr;
-	error = VOP_GETATTR(vp, vap, cred);
+	error = VOP_GETATTR(vp, 0, vap, cred);
 	if (error)
 		goto out;
 	error = vaccess(vp->v_type, vap->va_mode, vap->va_uid, vap->va_gid,
@@ -3917,7 +3917,7 @@ relock:
 	must_commit = false;
 	if (error == 0) {
 		vap = &VTONFS(invp)->n_vattr.na_vattr;
-		error = VOP_GETATTR(invp, vap, ap->a_incred);
+		error = VOP_GETATTR(invp, 0, vap, ap->a_incred);
 		if (error == 0) {
 			/*
 			 * Clip "len" at va_size so that RFC compliant servers

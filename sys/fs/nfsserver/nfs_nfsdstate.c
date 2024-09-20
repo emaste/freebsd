@@ -8509,7 +8509,7 @@ tryagain2:
 			nfsrv_zeropnfsdat = malloc(PNFSDS_COPYSIZ, M_TEMP,
 			    M_WAITOK | M_ZERO);
 		rdpos = wrpos = 0;
-		ret = VOP_GETATTR(fvp, &va, cred);
+		ret = VOP_GETATTR(fvp, 0, &va, cred);
 		aresid = 0;
 		while (ret == 0 && aresid == 0) {
 			ret = vn_rdwr(UIO_READ, fvp, dat, PNFSDS_COPYSIZ,
@@ -8554,7 +8554,7 @@ tryagain2:
 
 		/* Set the DS data file's modify time that of the MDS file. */
 		if (ret == 0)
-			ret = VOP_GETATTR(vp, &va, cred);
+			ret = VOP_GETATTR(vp, 0, &va, cred);
 		if (ret == 0) {
 			mtime = va.va_mtime;
 			VATTR_NULL(&va);
@@ -8597,7 +8597,7 @@ nfsrv_createdsfile(vnode_t vp, fhandle_t *fhp, struct pnfsdsfile *pf,
 	int error;
 
 	/* Make data file name based on FH. */
-	error = VOP_GETATTR(vp, &va, cred);
+	error = VOP_GETATTR(vp, 0, &va, cred);
 	if (error == 0) {
 		/* Set the attributes for "vp" to Setattr the DS vp. */
 		VATTR_NULL(&nva);

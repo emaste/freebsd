@@ -874,7 +874,7 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 	    __func__, vp);
 
 	/* Get source metadata */
-	error = VOP_GETATTR(vp, &va, td->td_ucred);
+	error = VOP_GETATTR(vp, 0, &va, td->td_ucred);
 	if (error != 0) {
 		return (error);
 	}
@@ -952,7 +952,7 @@ tarfs_mount(struct mount *mp)
 		return (EINVAL);
 
 	vn_lock(mp->mnt_vnodecovered, LK_SHARED | LK_RETRY);
-	error = VOP_GETATTR(mp->mnt_vnodecovered, &va, mp->mnt_cred);
+	error = VOP_GETATTR(mp->mnt_vnodecovered, 0, &va, mp->mnt_cred);
 	VOP_UNLOCK(mp->mnt_vnodecovered);
 	if (error)
 		return (error);

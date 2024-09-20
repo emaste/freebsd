@@ -287,7 +287,7 @@ tarfs_zgetattr(struct vop_getattr_args *ap)
 	VATTR_NULL(vap);
 	error = vn_lock(tmp->vp, LK_SHARED);
 	if (error == 0) {
-		error = VOP_GETATTR(tmp->vp, &va, ap->a_cred);
+		error = VOP_GETATTR(tmp->vp, 0, &va, ap->a_cred);
 		VOP_UNLOCK(tmp->vp);
 		if (error == 0) {
 			vap->va_type = VREG;

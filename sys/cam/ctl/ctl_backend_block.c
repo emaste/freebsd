@@ -860,7 +860,7 @@ ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun, const char *attrname)
 		return (val);
 	vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
 	if (strcmp(attrname, "blocksused") == 0) {
-		error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
+		error = VOP_GETATTR(be_lun->vn, 0, &vattr, curthread->td_ucred);
 		if (error == 0)
 			val = vattr.va_bytes / be_lun->cbe_lun.blocksize;
 	}
@@ -2231,7 +2231,7 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	be_lun->unmap = ctl_be_block_unmap_file;
 	cbe_lun->flags &= ~CTL_LUN_FLAG_UNMAP;
 
-	error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
+	error = VOP_GETATTR(be_lun->vn, 0, &vattr, curthread->td_ucred);
 	if (error != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error calling VOP_GETATTR() for file %s",
