@@ -86,6 +86,8 @@ amdiommu_enable_qi_intr(struct iommu_unit *iommu)
 	AMDIOMMU_ASSERT_LOCKED(unit);
 	unit->hw_ctrl |= AMDIOMMU_CTRL_COMWINT_EN;
 	amdiommu_write8(unit, AMDIOMMU_CTRL, unit->hw_ctrl);
+	amdiommu_write8(unit, AMDIOMMU_CMDEV_STATUS,
+	    AMDIOMMU_CMDEVS_COMWAITINT);
 }
 
 static void
@@ -189,11 +191,8 @@ amdiommu_cmd_emit_wait_descr(struct iommu_unit *iommu, uint32_t seq,
 	}
 	if (fence)
 		c.f = 1;
-	if (intr) {
+	if (intr)
 		c.i = 1;
-		amdiommu_write8(unit, AMDIOMMU_CMDEV_STATUS,
-		    AMDIOMMU_CMDEVS_COMWAITINT);
-	}
 	amdiommu_cmd_emit(unit, (struct amdiommu_cmd_generic *)&c);
 }
 
@@ -268,41 +267,14 @@ static void
 amdiommu_qi_task(void *arg, int pending __unused)
 {
 	struct amdiommu_unit *unit;
-	uint64_t cmdevs;
 
 	unit = IOMMU2AMD(arg);
 	iommu_qi_drain_tlb_flush(AMD2IOMMU(unit));
 
-	/*
-	 * Request an interrupt on the completion of the next invalidation
-	 * wait descriptor with the I field set.
-	 */
 	AMDIOMMU_LOCK(unit);
-	cmdevs = amdiommu_read8(unit, AMDIOMMU_CMDEV_STATUS);
-	if ((cmdevs & AMDIOMMU_CMDEVS_COMWAITINT) != 0) {
-		amdiommu_write8(unit, AMDIOMMU_CMDEV_STATUS,
-		    AMDIOMMU_CMDEVS_COMWAITINT);
-		AMDIOMMU_UNLOCK(unit);
-
-		/*
-		 * Drain a second time in case the IOMMU processes an entry
-		 * after the first call and before clearing ComWaitStatus.
-		 * Otherwise, such entries will linger until a later entry
-		 * that requests an interrupt is processed.
-		 */
-		iommu_qi_drain_tlb_flush(AMD2IOMMU(unit));
-	} else
-		AMDIOMMU_UNLOCK(unit);
-
-	if (unit->x86c.inv_seq_waiters > 0) {
-		/*
-		 * Acquire the IOMMU lock so that wakeup() is called
-		 * only after the waiter is sleeping.
-		 */
-		AMDIOMMU_LOCK(unit);
+	if (unit->x86c.inv_seq_waiters > 0)
 		wakeup(&unit->x86c.inv_seq_waiters);
-		AMDIOMMU_UNLOCK(unit);
-	}
+	AMDIOMMU_UNLOCK(unit);
 }
 
 int

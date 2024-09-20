@@ -388,6 +388,8 @@ amdiommu_free_ctx_locked(struct amdiommu_unit *unit, struct amdiommu_ctx *ctx)
 
 	domain = CTX2DOM(ctx);
 	amdiommu_qi_invalidate_ctx_locked(ctx);
+	// XXXKIB invalidate intr
+	// XXXKIB invalidate page tables
 	iommu_qi_invalidate_sync(DOM2IODOM(domain), 0, ~0ull, true);
 
 	if (unit->irte_enabled)
