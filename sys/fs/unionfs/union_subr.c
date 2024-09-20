@@ -697,7 +697,7 @@ unionfs_create_uppervattr(struct unionfs_mount *ump, struct vnode *lvp,
 	struct vattr	lva;
 	int		error;
 
-	if ((error = VOP_GETATTR(lvp, &lva, cred)))
+	if ((error = VOP_GETATTR(lvp, 0, &lva, cred)))
 		return (error);
 
 	unionfs_create_uppervattr_core(ump, &lva, uva, td);
@@ -934,7 +934,7 @@ unionfs_mkshadowdir(struct vnode *dvp, struct vnode *vp,
 	memset(&nd.ni_cnd, 0, sizeof(struct componentname));
 	NDPREINIT(&nd);
 
-	if ((error = VOP_GETATTR(lvp, &lva, cnp->cn_cred)))
+	if ((error = VOP_GETATTR(lvp, 0, &lva, cnp->cn_cred)))
 		goto unionfs_mkshadowdir_finish;
 
 	vref(udvp);
@@ -1293,7 +1293,7 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	fmode = FFLAGS(O_WRONLY | O_CREAT | O_TRUNC | O_EXCL);
 	error = 0;
 
-	if ((error = VOP_GETATTR(lvp, &lva, cred)) != 0)
+	if ((error = VOP_GETATTR(lvp, 0, &lva, cred)) != 0)
 		return (error);
 	unionfs_create_uppervattr_core(ump, &lva, uvap, td);
 
@@ -1582,7 +1582,7 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 	ASSERT_VOP_LOCKED(lvp, __func__);
 	ASSERT_VOP_ELOCKED(uvp, __func__);
 
-	if ((error = VOP_GETATTR(uvp, &va, cred)) != 0)
+	if ((error = VOP_GETATTR(uvp, 0, &va, cred)) != 0)
 		return (error);
 	if (va.va_flags & OPAQUE)
 		return (0);
@@ -1595,7 +1595,7 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 		return (error);
 	if ((error = VOP_OPEN(lvp, FREAD, cred, td, NULL)) != 0)
 		return (error);
-	if ((error = VOP_GETATTR(lvp, &va, cred)) != 0)
+	if ((error = VOP_GETATTR(lvp, 0, &va, cred)) != 0)
 		return (error);
 
 	dirbuflen = max(DEV_BSIZE, GENERIC_MAXDIRSIZ);

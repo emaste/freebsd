@@ -1968,7 +1968,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 			NDFREE_PNBUF(&nd);
 			type = nd.ni_vp->v_type;
 			if (vap)
-				VOP_GETATTR(nd.ni_vp, vap, td->td_ucred);
+				VOP_GETATTR(nd.ni_vp, 0, vap, td->td_ucred);
 			VOP_UNLOCK(nd.ni_vp);
 			vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
 			if (type == VREG)
@@ -2020,7 +2020,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	if (nd.ni_vp->v_type != VREG)
 		goto bad;
 	best = cp = NULL;
-	error = VOP_GETATTR(nd.ni_vp, &vattr, cred);
+	error = VOP_GETATTR(nd.ni_vp, 0, &vattr, cred);
 	if (error)
 		goto bad;
 	/*

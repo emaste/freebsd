@@ -1696,7 +1696,7 @@ vn_statfile(struct file *fp, struct stat *sb, struct ucred *active_cred)
 	int error;
 
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	error = VOP_STAT(vp, sb, active_cred, fp->f_cred);
+	error = VOP_STAT(vp, sb, 0, active_cred, fp->f_cred);
 	VOP_UNLOCK(vp);
 
 	return (error);
@@ -2814,7 +2814,7 @@ vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 	va.va_fsid = VNOVAL;
 	va.va_rdev = NODEV;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	error = VOP_GETATTR(vp, &va, curthread->td_ucred);
+	error = VOP_GETATTR(vp, 0, &va, curthread->td_ucred);
 	VOP_UNLOCK(vp);
 	if (error != 0)
 		return (error);
@@ -3361,7 +3361,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		goto out;
 	if (VOP_PATHCONF(invp, _PC_MIN_HOLE_SIZE, &holein) != 0)
 		holein = 0;
-	error = VOP_GETATTR(invp, &inva, incred);
+	error = VOP_GETATTR(invp, 0, &inva, incred);
 	if (error == 0 && inva.va_size > OFF_MAX)
 		error = EFBIG;
 	VOP_UNLOCK(invp);
@@ -4017,7 +4017,7 @@ vn_dir_check_empty(struct vnode *vp)
 	ASSERT_VOP_LOCKED(vp, "vfs_emptydir");
 	VNPASS(vp->v_type == VDIR, vp);
 
-	error = VOP_GETATTR(vp, &va, td->td_ucred);
+	error = VOP_GETATTR(vp, 0, &va, td->td_ucred);
 	if (error != 0)
 		return (error);
 

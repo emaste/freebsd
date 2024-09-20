@@ -2541,7 +2541,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		if (vp != NULL) {
 			vn_fullpath(vp, &fullpath, &freepath);
 			vn_lock(vp, LK_SHARED | LK_RETRY);
-			if (VOP_GETATTR(vp, &va, curthread->td_ucred) == 0) {
+			if (VOP_GETATTR(vp, 0, &va, curthread->td_ucred) == 0) {
 				kvo->kvo_vn_fileid = va.va_fileid;
 				kvo->kvo_vn_fsid = va.va_fsid;
 				kvo->kvo_vn_fsid_freebsd11 = va.va_fsid;

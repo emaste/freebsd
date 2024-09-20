@@ -95,7 +95,7 @@ autofs_getattr(struct vop_getattr_args *ap)
 			return (error);
 
 		if (newvp != NULL) {
-			error = VOP_GETATTR(newvp, ap->a_vap,
+			error = VOP_GETATTR(newvp, 0, ap->a_vap,
 			    ap->a_cred);
 			vput(newvp);
 			return (error);
