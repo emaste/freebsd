@@ -619,6 +619,7 @@ typedef void vop_getpages_iodone_t(void *, vm_page_t *, int, int);
 #define	COPY_FILE_RANGE_TIMEO1SEC	0x01000000	/* Return after 1sec. */
 
 /* VOP_STAT()/VOP_GETATTR() flags */
+#define	VN_GETATTR_NOAUTOMOUNT	0x00000001
 
 /*
  * Public vnode manipulation functions.
