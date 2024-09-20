@@ -737,8 +737,8 @@ uvc_drv_enum_v4l2_frameintervals(struct uvc_drv_video *v,
 	struct v4l2_frmivalenum *itv)
 {
 	struct uvc_data_format *loop, *fmt = NULL;
-	struct uvc_data_frame *loopf, *frm = NULL;
-	int i;
+	struct uvc_data_frame *frm = NULL;
+	int i, index, nintervals;
 
 	for (i = 0; i < v->data->nfmt; i++) {
 		loop = v->data->fmt + i;
@@ -751,23 +751,25 @@ uvc_drv_enum_v4l2_frameintervals(struct uvc_drv_video *v,
 	if (fmt == NULL)
 		return EINVAL;
 
+	index = itv->index;
 	for (i = 0; i < fmt->nfrm; i++) {
-		loopf = fmt->frm + i;
-		if (loopf->width == itv->width &&
-			loopf->height == itv->height) {
-			frm = loopf;
-			break;
+		if (fmt->frm[i].width == itv->width &&
+		    fmt->frm[i].height == itv->height) {
+			frm = &fmt->frm[i];
+			nintervals = frm->interval_type ? frm->interval_type : 1;
+			if (index < nintervals)
+				break;
+			index -= nintervals;
 		}
 	}
 
-	if (frm == NULL)
+	if (i == fmt->nfrm) {
 		return EINVAL;
+	}
 
 	if (frm->interval_type) {
-		if (itv->index >= frm->interval_type)
-			return EINVAL;
 		itv->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-		itv->x.discrete.numerator = frm->interval[itv->index].val;
+		itv->x.discrete.numerator = frm->interval[index].val;
 		itv->x.discrete.denominator = 10000000;
 		uvc_simple_frac(&itv->x.discrete.numerator,
 			&itv->x.discrete.denominator, 8, 333);
