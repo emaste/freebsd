@@ -506,6 +506,8 @@ linux_to_bsd_stat_flags(int linux_flags, int *out_flags)
 		flags |= AT_SYMLINK_NOFOLLOW;
 	if (linux_flags & LINUX_AT_EMPTY_PATH)
 		flags |= AT_EMPTY_PATH;
+//	if (linux_flags & LINUX_AT_NO_AUTOMOUNT)
+//		flags |= AT_NO_AUTOMOUNT;
 	*out_flags = flags;
 	return (true);
 }
