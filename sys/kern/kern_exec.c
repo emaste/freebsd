@@ -1836,7 +1836,7 @@ exec_check_permissions(struct image_params *imgp)
 	td = curthread;
 
 	/* Get file attributes */
-	error = VOP_GETATTR(vp, attr, td->td_ucred);
+	error = VOP_GETATTR(vp, 0, attr, td->td_ucred);
 	if (error)
 		return (error);
 

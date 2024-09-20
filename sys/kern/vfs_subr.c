@@ -4203,7 +4203,7 @@ loop:
 				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				return (error);
 			}
-			error = VOP_GETATTR(vp, &vattr, td->td_ucred);
+			error = VOP_GETATTR(vp, 0, &vattr, td->td_ucred);
 			VI_LOCK(vp);
 
 			if ((vp->v_type == VNON ||
@@ -7329,7 +7329,7 @@ vn_getsize_locked(struct vnode *vp, off_t *size, struct ucred *cred)
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, __func__);
-	error = VOP_GETATTR(vp, &vattr, cred);
+	error = VOP_GETATTR(vp, 0, &vattr, cred);
 	if (__predict_true(error == 0)) {
 		if (vattr.va_size <= OFF_MAX)
 			*size = vattr.va_size;

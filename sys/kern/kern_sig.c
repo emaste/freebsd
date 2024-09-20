@@ -3890,7 +3890,7 @@ corefile_open_last(struct thread *td, char *name, int indexpos,
 			break;
 		}
 
-		error = VOP_GETATTR(vp, &vattr, td->td_ucred);
+		error = VOP_GETATTR(vp, 0, &vattr, td->td_ucred);
 		if (error != 0) {
 			vnode_close_locked(td, vp);
 			break;
@@ -4129,7 +4129,7 @@ coredump(struct thread *td)
 	 * Don't dump to non-regular files or files with links.
 	 * Do not dump into system files. Effective user must own the corefile.
 	 */
-	if (vp->v_type != VREG || VOP_GETATTR(vp, &vattr, cred) != 0 ||
+	if (vp->v_type != VREG || VOP_GETATTR(vp, 0, &vattr, cred) != 0 ||
 	    vattr.va_nlink != 1 || (vp->v_vflag & VV_SYSTEM) != 0 ||
 	    vattr.va_uid != cred->cr_uid) {
 		VOP_UNLOCK(vp);

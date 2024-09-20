@@ -2522,7 +2522,7 @@ vfs_report_lockf(struct mount *mp, struct sbuf *sb)
 		if (gerror == 0 && vn_lock(vp, LK_SHARED) == 0) {
 			error = prison_canseemount(ucred, vp->v_mount);
 			if (error == 0)
-				error = VOP_STAT(vp, &stt, ucred, NOCRED);
+				error = VOP_STAT(vp, &stt, 0, ucred, NOCRED);
 			VOP_UNLOCK(vp);
 			if (error == 0) {
 				klf->kl.kl_file_fsid = stt.st_dev;

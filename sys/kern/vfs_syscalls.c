@@ -1625,7 +1625,7 @@ can_hardlink(struct vnode *vp, struct ucred *cred)
 	if (!hardlink_check_uid && !hardlink_check_gid)
 		return (0);
 
-	error = VOP_GETATTR(vp, &va, cred);
+	error = VOP_GETATTR(vp, 0, &va, cred);
 	if (error != 0)
 		return (error);
 
@@ -1997,7 +1997,7 @@ restart:
 	if (vp->v_type == VDIR && oldinum == 0) {
 		error = EPERM;		/* POSIX */
 	} else if (oldinum != 0 &&
-	    ((error = VOP_STAT(vp, &sb, td->td_ucred, NOCRED)) == 0) &&
+	    ((error = VOP_STAT(vp, &sb, 0, td->td_ucred, NOCRED)) == 0) &&
 	    sb.st_ino != oldinum) {
 		error = EIDRM;	/* Identifier removed */
 	} else if (fp != NULL && fp->f_vnode != vp) {
@@ -2515,7 +2515,7 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
 			error = kern_fstat(td, fd, sbp);
 		return (error);
 	}
-	error = VOP_STAT(nd.ni_vp, sbp, td->td_ucred, NOCRED);
+	error = VOP_STAT(nd.ni_vp, sbp, 0, td->td_ucred, NOCRED);
 	NDFREE_PNBUF(&nd);
 	vput(nd.ni_vp);
 #ifdef __STAT_TIME_T_EXT
@@ -3264,7 +3264,7 @@ setutimes(struct thread *td, struct vnode *vp, const struct timespec *ts,
 	if ((error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH)) != 0)
 		return (error);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	if (numtimes < 3 && VOP_GETATTR(vp, &vattr, td->td_ucred) == 0 &&
+	if (numtimes < 3 && VOP_GETATTR(vp, 0, &vattr, td->td_ucred) == 0 &&
 	    timespeccmp(&ts[1], &vattr.va_birthtime, < ))
 		setbirthtime = true;
 	VATTR_NULL(&vattr);
@@ -4344,7 +4344,7 @@ sys_revoke(struct thread *td, struct revoke_args *uap)
 	if (error != 0)
 		goto out;
 #endif
-	error = VOP_GETATTR(vp, &vattr, td->td_ucred);
+	error = VOP_GETATTR(vp, 0, &vattr, td->td_ucred);
 	if (error != 0)
 		goto out;
 	if (td->td_ucred->cr_uid != vattr.va_uid) {
@@ -4736,7 +4736,7 @@ kern_fhstat(struct thread *td, struct fhandle fh, struct stat *sb)
 	vfs_unbusy(mp);
 	if (error != 0)
 		return (error);
-	error = VOP_STAT(vp, sb, td->td_ucred, NOCRED);
+	error = VOP_STAT(vp, sb, 0, td->td_ucred, NOCRED);
 	vput(vp);
 	return (error);
 }

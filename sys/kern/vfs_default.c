@@ -291,7 +291,7 @@ dirent_exists(struct vnode *vp, const char *dirname, struct thread *td)
 	ASSERT_VOP_LOCKED(vp, "vnode not locked");
 	KASSERT(vp->v_type == VDIR, ("vp %p is not a directory", vp));
 
-	error = VOP_GETATTR(vp, &va, td->td_ucred);
+	error = VOP_GETATTR(vp, 0, &va, td->td_ucred);
 	if (error != 0)
 		return (error);
 
@@ -385,7 +385,7 @@ vop_stdadvlock(struct vop_advlock_args *ap)
 		 * only required for the SEEK_END case.
 		 */
 		vn_lock(vp, LK_SHARED | LK_RETRY);
-		error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
+		error = VOP_GETATTR(vp, 0, &vattr, curthread->td_ucred);
 		VOP_UNLOCK(vp);
 		if (error)
 			return (error);
@@ -406,7 +406,7 @@ vop_stdadvlockasync(struct vop_advlockasync_args *ap)
 	if (ap->a_fl->l_whence == SEEK_END) {
 		/* The size argument is only needed for SEEK_END. */
 		vn_lock(vp, LK_SHARED | LK_RETRY);
-		error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
+		error = VOP_GETATTR(vp, 0, &vattr, curthread->td_ucred);
 		VOP_UNLOCK(vp);
 		if (error)
 			return (error);
@@ -697,7 +697,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 	if (vp->v_type != VDIR)
 		return (ENOENT);
 
-	error = VOP_GETATTR(vp, &va, cred);
+	error = VOP_GETATTR(vp, 0, &va, cred);
 	if (error)
 		return (error);
 
@@ -828,7 +828,7 @@ vop_stdallocate(struct vop_allocate_args *ap)
 	len = *ap->a_len;
 	offset = *ap->a_offset;
 
-	error = VOP_GETATTR(vp, vap, ap->a_cred);
+	error = VOP_GETATTR(vp, 0, vap, ap->a_cred);
 	if (error != 0)
 		goto out;
 	fsize = vap->va_size;
@@ -1004,7 +1004,7 @@ vop_stddeallocate(struct vop_deallocate_args *ap)
 	offset = *ap->a_offset;
 	cred = ap->a_cred;
 
-	error = VOP_GETATTR(vp, &va, cred);
+	error = VOP_GETATTR(vp, 0, &va, cred);
 	if (error)
 		return (error);
 
@@ -1319,7 +1319,7 @@ vop_stdioctl(struct vop_ioctl_args *ap)
 		if (error != 0)
 			return (EBADF);
 		if (vp->v_type == VREG)
-			error = VOP_GETATTR(vp, &va, ap->a_cred);
+			error = VOP_GETATTR(vp, 0, &va, ap->a_cred);
 		else
 			error = ENOTTY;
 		if (error == 0) {
@@ -1513,7 +1513,7 @@ vop_stdstat(struct vop_stat_args *a)
 	vap->va_rdev = NODEV;
 	vap->va_filerev = 0;
 
-	error = VOP_GETATTR(vp, vap, a->a_active_cred);
+	error = VOP_GETATTR(vp, a->a_flags, vap, a->a_active_cred);
 	if (error)
 		goto out;
 

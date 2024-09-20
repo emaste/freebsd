@@ -1450,7 +1450,7 @@ mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 		error = EINVAL;
 		goto bad;
 	}
-	error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred);
+	error = VOP_GETATTR(nd.ni_vp, 0, &vattr, td->td_ucred);
 	if (error != 0)
 		goto bad;
 	if ((mdr->md_options & MD_MUSTDEALLOC) != 0) {

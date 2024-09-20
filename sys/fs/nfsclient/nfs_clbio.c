@@ -383,7 +383,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 		}
 		np->n_attrstamp = 0;
 		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-		error = VOP_GETATTR(vp, &vattr, cred);
+		error = VOP_GETATTR(vp, 0, &vattr, cred);
 		if (error)
 			goto out;
 		NFSLOCKNODE(np);
@@ -391,7 +391,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 		NFSUNLOCKNODE(np);
 	} else {
 		NFSUNLOCKNODE(np);
-		error = VOP_GETATTR(vp, &vattr, cred);
+		error = VOP_GETATTR(vp, 0, &vattr, cred);
 		if (error)
 			goto out;
 		NFSLOCKNODE(np);
@@ -921,7 +921,7 @@ ncl_write(struct vop_write_args *ap)
 		if (!NFSHASNFSV4(nmp) || NFSHASPNFS(nmp)) {
 			np->n_attrstamp = 0;
 			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-			error = VOP_GETATTR(vp, &vattr, cred);
+			error = VOP_GETATTR(vp, 0, &vattr, cred);
 			if (error)
 				return (error);
 		}

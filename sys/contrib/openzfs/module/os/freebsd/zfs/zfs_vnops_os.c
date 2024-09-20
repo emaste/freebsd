@@ -5303,7 +5303,7 @@ zfs_getextattr_dir(struct vop_getextattr_args *ap, const char *attrname)
 	NDFREE_PNBUF(&nd);
 
 	if (ap->a_size != NULL) {
-		error = VOP_GETATTR(vp, &va, ap->a_cred);
+		error = VOP_GETATTR(vp, 0, &va, ap->a_cred);
 		if (error == 0)
 			*ap->a_size = (size_t)va.va_size;
 	} else if (ap->a_uio != NULL)

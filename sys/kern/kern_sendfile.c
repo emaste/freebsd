@@ -869,7 +869,7 @@ retry_space:
 				nobj_size = obj->un_pager.vnp.vnp_size;
 				VM_OBJECT_RUNLOCK(obj);
 			} else {
-				error = VOP_GETATTR(vp, &va, td->td_ucred);
+				error = VOP_GETATTR(vp, 0, &va, td->td_ucred);
 				if (error != 0) {
 					VOP_UNLOCK(vp);
 					goto done;
