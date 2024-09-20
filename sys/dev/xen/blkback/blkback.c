@@ -2381,7 +2381,7 @@ xbb_open_dev(struct xbb_softc *xbb)
 	if (xbb->backend.dev.csw == NULL)
 		panic("Unable to retrieve device switch");
 
-	error = VOP_GETATTR(xbb->vn, &vattr, NOCRED);
+	error = VOP_GETATTR(xbb->vn, 0, &vattr, NOCRED);
 	if (error) {
 		xenbus_dev_fatal(xbb->dev, error, "error getting "
 				 "vnode attributes for device %s",
@@ -2437,7 +2437,7 @@ xbb_open_file(struct xbb_softc *xbb)
 	file_data = &xbb->backend.file;
 	xbb->device_type = XBB_TYPE_FILE;
 	xbb->dispatch_io = xbb_dispatch_file;
-	error = VOP_GETATTR(xbb->vn, &vattr, curthread->td_ucred);
+	error = VOP_GETATTR(xbb->vn, 0, &vattr, curthread->td_ucred);
 	if (error != 0) {
 		xenbus_dev_fatal(xbb->dev, error,
 				 "error calling VOP_GETATTR()"

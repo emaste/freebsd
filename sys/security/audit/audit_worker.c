@@ -498,7 +498,7 @@ audit_rotate_vnode(struct ucred *cred, struct vnode *vp)
 
 	if (vp != NULL) {
 		vn_lock(vp, LK_SHARED | LK_RETRY);
-		if (VOP_GETATTR(vp, &vattr, cred) != 0)
+		if (VOP_GETATTR(vp, 0, &vattr, cred) != 0)
 			vattr.va_size = 0;
 		VOP_UNLOCK(vp);
 	} else {
