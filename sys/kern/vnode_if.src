@@ -187,6 +187,7 @@ vop_accessx {
 vop_stat {
 	IN struct vnode *vp;
 	OUT struct stat *sb;
+	IN int flags;
 	IN struct ucred *active_cred;
 	IN struct ucred *file_cred;
 };
@@ -196,6 +197,7 @@ vop_stat {
 
 vop_getattr {
 	IN struct vnode *vp;
+	IN int flags;
 	OUT struct vattr *vap;
 	IN struct ucred *cred;
 };

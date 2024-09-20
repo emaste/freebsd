@@ -316,7 +316,7 @@ p9fs_lookup(struct vop_lookup_args *ap)
 		vp = *vpp;
 		/* Check if the entry in cache is stale or not */
 		if ((p9fs_node_cmp(vp, &newfid->qid) == 0) &&
-		    ((error = VOP_GETATTR(vp, &vattr, cnp->cn_cred)) == 0)) {
+		    ((error = VOP_GETATTR(vp, 0, &vattr, cnp->cn_cred)) == 0)) {
 			goto out;
 		}
 		/*
@@ -333,7 +333,7 @@ p9fs_lookup(struct vop_lookup_args *ap)
 	} else if (error == ENOENT) {
 		if (VN_IS_DOOMED(dvp))
 			goto out;
-		if (VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0) {
+		if (VOP_GETATTR(dvp, 0, &vattr, cnp->cn_cred) == 0) {
 			error = ENOENT;
 			goto out;
 		}
@@ -804,7 +804,7 @@ p9fs_access(struct vop_access_args *ap)
 	P9_DEBUG(VOPS, "%s: vp %p\n", __func__, vp);
 
 	/* make sure getattr is working correctly and is defined.*/
-	error = VOP_GETATTR(vp, &vap, cred);
+	error = VOP_GETATTR(vp, 0, &vap, cred);
 	if (error != 0)
 		return (error);
 

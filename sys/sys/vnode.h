@@ -618,6 +618,8 @@ typedef void vop_getpages_iodone_t(void *, vm_page_t *, int, int);
 #define	COPY_FILE_RANGE_KFLAGS		0xff000000
 #define	COPY_FILE_RANGE_TIMEO1SEC	0x01000000	/* Return after 1sec. */
 
+/* VOP_STAT()/VOP_GETATTR() flags */
+
 /*
  * Public vnode manipulation functions.
  */
@@ -1008,7 +1010,7 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 									\
 	osize = ooffset = noffset = 0;					\
 	if (!VN_KNLIST_EMPTY((ap)->a_vp)) {				\
-		error = VOP_GETATTR((ap)->a_vp, &va, (ap)->a_cred);	\
+		error = VOP_GETATTR((ap)->a_vp, 0, &va, (ap)->a_cred);	\
 		if (error)						\
 			return (error);					\
 		ooffset = (ap)->a_uio->uio_offset;			\

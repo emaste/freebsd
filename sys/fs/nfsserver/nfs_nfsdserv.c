@@ -322,7 +322,7 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 					if ((nd->nd_repstat =
 					     NFSVOPLOCK(tvp, LK_SHARED)) == 0) {
 						nd->nd_repstat = VOP_GETATTR(
-						    tvp, &va, nd->nd_cred);
+						    tvp, 0, &va, nd->nd_cred);
 						vput(tvp);
 					} else
 						vrele(tvp);

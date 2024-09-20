@@ -152,7 +152,7 @@ unionfs_domount(struct mount *mp)
 		ufile = udir;
 
 	vn_lock(mp->mnt_vnodecovered, LK_SHARED | LK_RETRY);
-	error = VOP_GETATTR(mp->mnt_vnodecovered, &va, mp->mnt_cred);
+	error = VOP_GETATTR(mp->mnt_vnodecovered, 0, &va, mp->mnt_cred);
 	if (!error) {
 		if (udir == 0)
 			udir = va.va_mode;

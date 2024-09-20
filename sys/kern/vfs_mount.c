@@ -1139,7 +1139,7 @@ vfs_domount_first(
 	 * If the user is not root, ensure that they own the directory
 	 * onto which we are attempting to mount.
 	 */
-	error = VOP_GETATTR(vp, &va, td->td_ucred);
+	error = VOP_GETATTR(vp, 0, &va, td->td_ucred);
 	if (error == 0 && va.va_uid != td->td_ucred->cr_uid)
 		error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN);
 	if (error == 0)

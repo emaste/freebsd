@@ -1173,7 +1173,7 @@ mqfs_access(struct vop_access_args *ap)
 	struct vattr vattr;
 	int error;
 
-	error = VOP_GETATTR(vp, &vattr, ap->a_cred);
+	error = VOP_GETATTR(vp, 0, &vattr, ap->a_cred);
 	if (error)
 		return (error);
 	error = vaccess(vp->v_type, vattr.va_mode, vattr.va_uid, vattr.va_gid,
