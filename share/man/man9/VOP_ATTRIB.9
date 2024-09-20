@@ -106,6 +106,19 @@ may be used to clear all the values, and should generally be used to reset
 the contents of
 .Fa *vap
 prior to setting specific values.
+The
+.Fa flags
+argument, taken by
+.Fn VOP_GETATTR
+and
+.Fn VOP_STAT ,
+is or-ed from the following bits:
+.Bl -tag -width VN_GETATTR_NOAUTOMOUNT
+.It Va VN_GETATTR_NOAUTOMOUNT
+Do not auto-mount the vnode if it is from
+.Xr autofs 4 .
+Report the vnode attributes from the autofs layer instead.
+.El
 .Sh LOCKS
 Both
 .Fn VOP_GETATTR
