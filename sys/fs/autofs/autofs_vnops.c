@@ -89,7 +89,8 @@ autofs_getattr(struct vop_getattr_args *ap)
 	 * otherwise.
 	 */
 	if (autofs_mount_on_stat && autofs_cached(anp, NULL, 0) == false &&
-	    autofs_ignore_thread(curthread) == false) {
+	    autofs_ignore_thread(curthread) == false &&
+	    (ap->a_flags & VN_GETATTR_NOAUTOMOUNT) == 0) {
 		error = autofs_trigger_vn(vp, "", 0, &newvp);
 		if (error != 0)
 			return (error);
@@ -247,7 +248,9 @@ autofs_lookup(struct vop_lookup_args *ap)
 	}
 
 	if (autofs_cached(anp, cnp->cn_nameptr, cnp->cn_namelen) == false &&
-	    autofs_ignore_thread(curthread) == false) {
+	    autofs_ignore_thread(curthread) &&
+	    ((cnp->cn_flags & ISLASTCN) == 0 ||
+	    (cnp->cn_flags & NOAUTOMOUNT) != 0)) {
 		error = autofs_trigger_vn(dvp,
 		    cnp->cn_nameptr, cnp->cn_namelen, &newvp);
 		if (error != 0)

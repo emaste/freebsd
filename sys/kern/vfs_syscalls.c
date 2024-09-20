@@ -113,7 +113,7 @@ at2cnpflags(u_int at_flags, u_int mask)
 	uint64_t res;
 
 	MPASS((at_flags & (AT_SYMLINK_FOLLOW | AT_SYMLINK_NOFOLLOW)) !=
-	    (AT_SYMLINK_FOLLOW | AT_SYMLINK_NOFOLLOW));
+	    (AT_SYMLINK_FOLLOW | AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT));
 
 	res = 0;
 	at_flags &= mask;
@@ -128,6 +128,8 @@ at2cnpflags(u_int at_flags, u_int mask)
 	}
 	if ((mask & AT_EMPTY_PATH) != 0 && (at_flags & AT_EMPTY_PATH) != 0)
 		res |= EMPTYPATH;
+	if ((mask & AT_NO_AUTOMOUNT) != 0 && (at_flags & AT_NO_AUTOMOUNT) != 0)
+		res |= NOAUTOMOUNT;
 	return (res);
 }
 
@@ -2459,15 +2461,16 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
     enum uio_seg pathseg, struct stat *sbp)
 {
 	struct nameidata nd;
-	int error;
+	int error, statflag;
 
 	if ((flag & ~(AT_SYMLINK_NOFOLLOW | AT_RESOLVE_BENEATH |
-	    AT_EMPTY_PATH)) != 0)
+	    AT_EMPTY_PATH | AT_NO_AUTOMOUNT)) != 0)
 		return (EINVAL);
 
 	NDINIT_ATRIGHTS(&nd, LOOKUP, at2cnpflags(flag, AT_RESOLVE_BENEATH |
-	    AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH) | LOCKSHARED | LOCKLEAF |
-	    AUDITVNODE1, pathseg, path, fd, &cap_fstat_rights);
+	    AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH | AT_NO_AUTOMOUNT) |
+	    LOCKSHARED | LOCKLEAF | AUDITVNODE1, pathseg, path, fd,
+	    &cap_fstat_rights);
 
 	if ((error = namei(&nd)) != 0) {
 		if (error == ENOTDIR &&
@@ -2475,7 +2478,11 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
 			error = kern_fstat(td, fd, sbp);
 		return (error);
 	}
-	error = VOP_STAT(nd.ni_vp, sbp, 0, td->td_ucred, NOCRED);
+
+	statflag = 0;
+	if ((flag & AT_NO_AUTOMOUNT) != 0)
+		statflag = VN_GETATTR_NOAUTOMOUNT;
+	error = VOP_STAT(nd.ni_vp, sbp, statflag, td->td_ucred, NOCRED);
 	NDFREE_PNBUF(&nd);
 	vput(nd.ni_vp);
 #ifdef __STAT_TIME_T_EXT
