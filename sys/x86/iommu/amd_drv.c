@@ -290,8 +290,12 @@ amdiommu_cmd_event_intr(void *arg)
 
 	unit = arg;
 	status = amdiommu_read8(unit, AMDIOMMU_CMDEV_STATUS);
-	if ((status & AMDIOMMU_CMDEVS_COMWAITINT) != 0)
-		taskqueue_enqueue(unit->x86c.qi_taskqueue, &unit->x86c.qi_task);
+	if ((status & AMDIOMMU_CMDEVS_COMWAITINT) != 0) {
+		amdiommu_write8(unit, AMDIOMMU_CMDEV_STATUS,
+		    AMDIOMMU_CMDEVS_COMWAITINT);
+		taskqueue_enqueue(unit->x86c.qi_taskqueue,
+		    &unit->x86c.qi_task);
+	}
 	if ((status & (AMDIOMMU_CMDEVS_EVLOGINT |
 	    AMDIOMMU_CMDEVS_EVOVRFLW)) != 0)
 		amdiommu_event_intr(unit, status);
