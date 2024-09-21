@@ -978,6 +978,7 @@ main(int argc, char **argv)
 		sprintf(path_wall_cmos_clock, "%s/%s", chrootenv,
 		    _PATH_WALL_CMOS_CLOCK);
 	}
+	// XXX support copy/symlink mode
 	/* Symlink target is the same regardless of chroot */
 	strcpy(path_zoneinfo, _PATH_ZONEINFO);
 
