@@ -213,9 +213,7 @@ SUBDIR+=		gh-bc
 SUBDIR.${MK_OPENSSL}+=	bc
 SUBDIR.${MK_OPENSSL}+=	dc
 .endif
-.if ${MK_GNU_DIFF} == "no"
 SUBDIR+=		diff3
-.endif
 SUBDIR.${MK_GOT}+=	got
 SUBDIR.${MK_HESIOD}+=	hesinfo
 SUBDIR.${MK_ICONV}+=	iconv
