@@ -623,9 +623,9 @@ uvc_v4l2_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	default:
-		device_printf(dev, "v4l2 ioctl %lx not implemented", cmd);
-		ret = EINVAL;
-		//ret = 0;
+		printf("%lx-%s need to be implement\n", cmd, __func__);
+		//ret = EINVAL;
+		ret = 0;
 		break;
 	}
 
