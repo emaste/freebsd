@@ -96,7 +96,7 @@ struct amdiommu_unit {
 	struct task	event_task;
 	struct taskqueue *event_taskqueue;
 
-	bool		irte_enabled;
+	int		irte_enabled;	/* int for sysctl type */
 	bool		irte_x2apic;
 	u_int		irte_nentries;
 };
@@ -222,8 +222,14 @@ struct amdiommu_domain *amdiommu_find_domain(struct amdiommu_unit *unit,
     u_int busno, uint16_t rid);
 
 void amdiommu_qi_invalidate_ctx_locked(struct amdiommu_ctx *ctx);
+void amdiommu_qi_invalidate_ctx_locked_nowait(struct amdiommu_ctx *ctx);
 void amdiommu_qi_invalidate_ir_locked(struct amdiommu_unit *unit,
     uint16_t devid);
+void amdiommu_qi_invalidate_ir_locked_nowait(struct amdiommu_unit *unit,
+    uint16_t devid);
+void amdiommu_qi_invalidate_all_pages_locked_nowait(
+    struct amdiommu_domain *domain);
+void amdiommu_qi_invalidate_wait_sync(struct iommu_unit *iommu);
 
 int amdiommu_domain_alloc_pgtbl(struct amdiommu_domain *domain);
 void amdiommu_domain_free_pgtbl(struct amdiommu_domain *domain);
