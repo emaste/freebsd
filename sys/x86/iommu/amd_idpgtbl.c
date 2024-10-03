@@ -68,9 +68,10 @@
 
 static void amdiommu_unmap_clear_pte(struct amdiommu_domain *domain,
     iommu_gaddr_t base, int lvl, int flags, iommu_pte_t *pte,
-    struct sf_buf **sf, bool free_sf);
+    struct sf_buf **sf, struct iommu_map_entry *entry, bool free_sf);
 static int amdiommu_unmap_buf_locked(struct amdiommu_domain *domain,
-    iommu_gaddr_t base, iommu_gaddr_t size, int flags);
+    iommu_gaddr_t base, iommu_gaddr_t size, int flags,
+    struct iommu_map_entry *entry);
 
 int
 amdiommu_domain_alloc_pgtbl(struct amdiommu_domain *domain)
@@ -160,7 +161,7 @@ retry:
 				    ("loosing root page %p", domain));
 				vm_page_unwire_noq(m);
 				iommu_pgfree(domain->pgtbl_obj, m->pindex,
-				    flags);
+				    flags, NULL);
 				return (NULL);
 			}
 			ptep->pte = VM_PAGE_TO_PHYS(m) |  AMDIOMMU_PTE_IR |
@@ -179,7 +180,8 @@ retry:
 
 static int
 amdiommu_map_buf_locked(struct amdiommu_domain *domain, iommu_gaddr_t base,
-    iommu_gaddr_t size, vm_page_t *ma, uint64_t pflags, int flags)
+    iommu_gaddr_t size, vm_page_t *ma, uint64_t pflags, int flags,
+    struct iommu_map_entry *entry)
 {
 	iommu_pte_t *pte;
 	struct sf_buf *sf;
@@ -207,7 +209,7 @@ amdiommu_map_buf_locked(struct amdiommu_domain *domain, iommu_gaddr_t base,
 			if (sf != NULL)
 				iommu_unmap_pgtbl(sf);
 			amdiommu_unmap_buf_locked(domain, base1, base - base1,
-			    flags);
+			    flags, entry);
 			return (ENOMEM);
 		}
 		/* next level 0, no superpages */
@@ -220,13 +222,16 @@ amdiommu_map_buf_locked(struct amdiommu_domain *domain, iommu_gaddr_t base,
 }
 
 static int
-amdiommu_map_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
-    iommu_gaddr_t size, vm_page_t *ma, uint64_t eflags, int flags)
+amdiommu_map_buf(struct iommu_domain *iodom, struct iommu_map_entry *entry,
+    vm_page_t *ma, uint64_t eflags, int flags)
 {
 	struct amdiommu_domain *domain;
 	uint64_t pflags;
+	iommu_gaddr_t base, size;
 	int error;
 
+	base = entry->start;
+	size = entry->end - entry->start;
 	pflags = ((eflags & IOMMU_MAP_ENTRY_READ) != 0 ? AMDIOMMU_PTE_IR : 0) |
 	    ((eflags & IOMMU_MAP_ENTRY_WRITE) != 0 ? AMDIOMMU_PTE_IW : 0) |
 	    ((eflags & IOMMU_MAP_ENTRY_SNOOP) != 0 ? AMDIOMMU_PTE_FC : 0);
@@ -261,14 +266,17 @@ amdiommu_map_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
 	KASSERT((flags & ~IOMMU_PGF_WAITOK) == 0, ("invalid flags %x", flags));
 
 	AMDIOMMU_DOMAIN_PGLOCK(domain);
-	error = amdiommu_map_buf_locked(domain, base, size, ma, pflags, flags);
+	error = amdiommu_map_buf_locked(domain, base, size, ma, pflags,
+	    flags, entry);
 	AMDIOMMU_DOMAIN_PGUNLOCK(domain);
+	iommu_qi_invalidate_sync(iodom, base, size,
+	    (flags & IOMMU_PGF_WAITOK) != 0);	/* XXXKIB seems to be needed */
 	return (error);
 }
 
 static void
 amdiommu_free_pgtbl_pde(struct amdiommu_domain *domain, iommu_gaddr_t base,
-    int lvl, int flags)
+    int lvl, int flags, struct iommu_map_entry *entry)
 {
 	struct sf_buf *sf;
 	iommu_pte_t *pde;
@@ -276,12 +284,14 @@ amdiommu_free_pgtbl_pde(struct amdiommu_domain *domain, iommu_gaddr_t base,
 
 	sf = NULL;
 	pde = amdiommu_pgtbl_map_pte(domain, base, lvl, flags, &idx, &sf);
-	amdiommu_unmap_clear_pte(domain, base, lvl, flags, pde, &sf, true);
+	amdiommu_unmap_clear_pte(domain, base, lvl, flags, pde, &sf, entry,
+	    true);
 }
 
 static void
 amdiommu_unmap_clear_pte(struct amdiommu_domain *domain, iommu_gaddr_t base,
-    int lvl, int flags, iommu_pte_t *pte, struct sf_buf **sf, bool free_sf)
+    int lvl, int flags, iommu_pte_t *pte, struct sf_buf **sf,
+    struct iommu_map_entry *entry, bool free_sf)
 {
 	vm_page_t m;
 
@@ -299,13 +309,13 @@ amdiommu_unmap_clear_pte(struct amdiommu_domain *domain, iommu_gaddr_t base,
 	KASSERT(m->pindex != 0,
 	    ("lost reference (idx) on root pg domain %p base %jx lvl %d",
 	    domain, (uintmax_t)base, lvl));
-	iommu_pgfree(domain->pgtbl_obj, m->pindex, flags);
-	amdiommu_free_pgtbl_pde(domain, base, lvl - 1, flags);
+	iommu_pgfree(domain->pgtbl_obj, m->pindex, flags, entry);
+	amdiommu_free_pgtbl_pde(domain, base, lvl - 1, flags, entry);
 }
 
 static int
 amdiommu_unmap_buf_locked(struct amdiommu_domain *domain, iommu_gaddr_t base,
-    iommu_gaddr_t size, int flags)
+    iommu_gaddr_t size, int flags, struct iommu_map_entry *entry)
 {
 	iommu_pte_t *pte;
 	struct sf_buf *sf;
@@ -345,7 +355,7 @@ amdiommu_unmap_buf_locked(struct amdiommu_domain *domain, iommu_gaddr_t base,
 		    ("sleeping or page missed %p %jx %d 0x%x",
 		    domain, (uintmax_t)base, domain->pglvl - 1, flags));
 		amdiommu_unmap_clear_pte(domain, base, domain->pglvl - 1,
-		    flags, pte, &sf, false);
+		    flags, pte, &sf, entry, false);
 		KASSERT(size >= pg_sz,
 		    ("unmapping loop overflow %p %jx %jx %jx", domain,
 		    (uintmax_t)base, (uintmax_t)size, (uintmax_t)pg_sz));
@@ -356,8 +366,8 @@ amdiommu_unmap_buf_locked(struct amdiommu_domain *domain, iommu_gaddr_t base,
 }
 
 static int
-amdiommu_unmap_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
-    iommu_gaddr_t size, int flags)
+amdiommu_unmap_buf(struct iommu_domain *iodom, struct iommu_map_entry *entry,
+    int flags)
 {
 	struct amdiommu_domain *domain;
 	int error;
@@ -365,7 +375,8 @@ amdiommu_unmap_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
 	domain = IODOM2DOM(iodom);
 
 	AMDIOMMU_DOMAIN_PGLOCK(domain);
-	error = amdiommu_unmap_buf_locked(domain, base, size, flags);
+	error = amdiommu_unmap_buf_locked(domain, entry->start,
+	    entry->end - entry->start, flags, entry);
 	AMDIOMMU_DOMAIN_PGUNLOCK(domain);
 	return (error);
 }

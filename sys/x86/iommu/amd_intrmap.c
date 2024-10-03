@@ -349,6 +349,11 @@ amdiommu_init_irt(struct amdiommu_unit *unit)
 {
 	int enabled, nentries;
 
+	SYSCTL_ADD_INT(&unit->iommu.sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(unit->iommu.dev)),
+	    OID_AUTO, "ir", CTLFLAG_RD, &unit->irte_enabled, 0,
+	    "Interrupt remapping ops enabled");
+
 	enabled = 1;
 	TUNABLE_INT_FETCH("hw.iommu.ir", &enabled);
 

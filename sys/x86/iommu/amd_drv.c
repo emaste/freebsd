@@ -468,6 +468,7 @@ amdiommu_attach(device_t dev)
 	mtx_init(&sc->iommu.lock, "amdihw", NULL, MTX_DEF);
 	sc->domids = new_unrhdr(0, 0xffff, &sc->iommu.lock);
 	LIST_INIT(&sc->domains);
+	sysctl_ctx_init(&sc->iommu.sysctl_ctx);
 
 	sc->mmio_sz = ((sc->efr & AMDIOMMU_EFR_PC_SUP) != 0 ? 512 : 16) *
 	    1024;
@@ -564,6 +565,7 @@ errout3:
 errout2:
 	bus_delete_resource(dev, SYS_RES_MEMORY, sc->mmio_rid);
 errout1:
+	sysctl_ctx_free(&sc->iommu.sysctl_ctx);
 	delete_unrhdr(sc->domids);
 	mtx_destroy(&sc->iommu.lock);
 
@@ -1062,3 +1064,86 @@ x86_iommu_set_amd(void *arg __unused)
 }
 
 SYSINIT(x86_iommu, SI_SUB_TUNABLES, SI_ORDER_ANY, x86_iommu_set_amd, NULL);
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#include <ddb/db_lex.h>
+
+static void
+amdiommu_print_one(struct amdiommu_unit *unit, bool show_domains,
+    bool show_mappings, bool show_cmdq)
+{
+	struct amdiommu_cmd_generic *cp;
+	u_int cmd_head, cmd_tail, ci;
+
+	cmd_head = amdiommu_read4(unit, AMDIOMMU_CMDBUF_HEAD);
+	cmd_tail = amdiommu_read4(unit, AMDIOMMU_CMDBUF_TAIL);
+	db_printf("amdiommu%d at %p, mmio at %#jx/sz %#jx\n",
+	    unit->iommu.unit, unit, (uintmax_t)unit->mmio_base,
+	    (uintmax_t)unit->mmio_sz);
+	db_printf("  hw ctrl %#018jx cmdevst %#018jx\n",
+	    (uintmax_t)amdiommu_read8(unit, AMDIOMMU_CTRL),
+	    (uintmax_t)amdiommu_read8(unit, AMDIOMMU_CMDEV_STATUS));
+	db_printf("  devtbl at %p\n", unit->dev_tbl);
+	db_printf("  hwseq at %p phys %#jx val %#jx\n",
+	    &unit->x86c.inv_waitd_seq_hw,
+	    pmap_kextract((vm_offset_t)&unit->x86c.inv_waitd_seq_hw),
+	    unit->x86c.inv_waitd_seq_hw);
+	db_printf("  invq at %p base %#jx hw head/tail %#x/%#x\n",
+	    unit->x86c.inv_queue,
+	    (uintmax_t)amdiommu_read8(unit, AMDIOMMU_CMDBUF_BASE),
+	    cmd_head, cmd_tail);
+
+	if (show_cmdq) {
+		db_printf("  cmd q:\n");
+		for (ci = cmd_head; ci != cmd_tail;) {
+			cp = (struct amdiommu_cmd_generic *)(unit->
+			    x86c.inv_queue + ci);
+			db_printf(
+		    "    idx %#x op %#x %#010x %#010x %#010x %#010x\n",
+			    ci >> AMDIOMMU_CMD_SZ_SHIFT, cp->op,
+		    	    cp->w0, cp->ww1, cp->w2, cp->w3);
+
+			ci += AMDIOMMU_CMD_SZ;
+			if (ci == unit->x86c.inv_queue_size)
+				ci = 0;
+		}
+	}
+}
+
+DB_SHOW_COMMAND(amdiommu, db_amdiommu_print)
+{
+	struct amdiommu_unit *unit;
+	bool show_domains, show_mappings, show_cmdq;
+
+	show_domains = strchr(modif, 'd') != NULL;
+	show_mappings = strchr(modif, 'm') != NULL;
+	show_cmdq = strchr(modif, 'q') != NULL;
+	if (!have_addr) {
+		db_printf("usage: show amdiommu [/d] [/m] index\n");
+		return;
+	}
+	if ((vm_offset_t)addr < 10000)
+		unit = amdiommu_unit_by_id((u_int)addr);
+	else
+		unit = (struct amdiommu_unit *)addr;
+	amdiommu_print_one(unit, show_domains, show_mappings, show_cmdq);
+}
+
+DB_SHOW_ALL_COMMAND(amdiommus, db_show_all_amdiommus)
+{
+	struct amdiommu_unit *unit;
+	bool show_domains, show_mappings, show_cmdq;
+
+	show_domains = strchr(modif, 'd') != NULL;
+	show_mappings = strchr(modif, 'm') != NULL;
+	show_cmdq = strchr(modif, 'm') != NULL;
+
+	TAILQ_FOREACH(unit, &amdiommu_units, unit_next) {
+		amdiommu_print_one(unit, show_domains, show_mappings,
+		    show_cmdq);
+		if (db_pager_quit)
+			break;
+	}
+}
+#endif

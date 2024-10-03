@@ -223,7 +223,31 @@ amdiommu_qi_invalidate_emit(struct iommu_domain *adomain, iommu_gaddr_t base,
 	iommu_qi_emit_wait_seq(AMD2IOMMU(unit), pseq, emit_wait);
 }
 
-static void
+void
+amdiommu_qi_invalidate_all_pages_locked_nowait(struct amdiommu_domain *domain)
+{
+	struct amdiommu_unit *unit;
+	struct amdiommu_cmd_invalidate_iommu_pages c;
+
+	unit = domain->unit;
+	AMDIOMMU_ASSERT_LOCKED(unit);
+	bzero(&c, sizeof(c));
+	c.op = AMDIOMMU_CMD_INVALIDATE_IOMMU_PAGES;
+	c.domainid = domain->domain;
+
+	/*
+	 * The magic specified in the note for INVALIDATE_IOMMU_PAGES
+	 * description.
+	 */
+	c.s = 1;
+	c.pde = 1;
+	c.address = 0x7ffffffffffff;
+
+	amdiommu_cmd_ensure(AMD2IOMMU(unit), 1);
+	amdiommu_cmd_emit(unit, (struct amdiommu_cmd_generic *)&c);
+}
+
+void
 amdiommu_qi_invalidate_wait_sync(struct iommu_unit *iommu)
 {
 	struct iommu_qi_genseq gseq;
@@ -236,30 +260,44 @@ amdiommu_qi_invalidate_wait_sync(struct iommu_unit *iommu)
 }
 
 void
-amdiommu_qi_invalidate_ctx_locked(struct amdiommu_ctx *ctx)
+amdiommu_qi_invalidate_ctx_locked_nowait(struct amdiommu_ctx *ctx)
 {
 	struct amdiommu_cmd_invalidate_devtab_entry c;
 
+	amdiommu_cmd_ensure(AMD2IOMMU(CTX2AMD(ctx)), 1);
 	bzero(&c, sizeof(c));
 	c.op = AMDIOMMU_CMD_INVALIDATE_DEVTAB_ENTRY;
 	c.devid = ctx->context.rid;
 	amdiommu_cmd_emit(CTX2AMD(ctx), (struct amdiommu_cmd_generic *)&c);
+}
 
+
+void
+amdiommu_qi_invalidate_ctx_locked(struct amdiommu_ctx *ctx)
+{
+	amdiommu_qi_invalidate_ctx_locked_nowait(ctx);
 	amdiommu_qi_invalidate_wait_sync(AMD2IOMMU(CTX2AMD(ctx)));
 }
 
 void
-amdiommu_qi_invalidate_ir_locked(struct amdiommu_unit *unit, uint16_t devid)
+amdiommu_qi_invalidate_ir_locked_nowait(struct amdiommu_unit *unit,
+    uint16_t devid)
 {
 	struct amdiommu_cmd_invalidate_interrupt_table c;
 
 	AMDIOMMU_ASSERT_LOCKED(unit);
 
+	amdiommu_cmd_ensure(AMD2IOMMU(unit), 1);
 	bzero(&c, sizeof(c));
 	c.op = AMDIOMMU_CMD_INVALIDATE_INTERRUPT_TABLE;
 	c.devid = devid;
 	amdiommu_cmd_emit(unit, (struct amdiommu_cmd_generic *)&c);
+}
 
+void
+amdiommu_qi_invalidate_ir_locked(struct amdiommu_unit *unit, uint16_t devid)
+{
+	amdiommu_qi_invalidate_ir_locked_nowait(unit, devid);
 	amdiommu_qi_invalidate_wait_sync(AMD2IOMMU(unit));
 }
 
@@ -296,7 +334,7 @@ amdiommu_init_cmd(struct amdiommu_unit *unit)
 	 * See the description of the ComLen encoding for Command
 	 * buffer Base Address Register.
 	 */
-	qi_sz = ilog2(unit->x86c.inv_queue_size / PAGE_SIZE) + 7;
+	qi_sz = ilog2(unit->x86c.inv_queue_size / PAGE_SIZE) + 8;
 	rv |= qi_sz << AMDIOMMU_CMDBUF_BASE_SZSHIFT;
 
 	AMDIOMMU_LOCK(unit);

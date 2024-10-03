@@ -128,8 +128,8 @@ amdiommu_domain_unload(struct iommu_domain *iodom,
 	TAILQ_FOREACH_SAFE(entry, entries, dmamap_link, entry1) {
 		KASSERT((entry->flags & IOMMU_MAP_ENTRY_MAP) != 0,
 		    ("not mapped entry %p %p", domain, entry));
-		error = iodom->ops->unmap(iodom, entry->start, entry->end -
-		    entry->start, cansleep ? IOMMU_PGF_WAITOK : 0);
+		error = iodom->ops->unmap(iodom, entry,
+		    cansleep ? IOMMU_PGF_WAITOK : 0);
 		KASSERT(error == 0, ("unmap %p error %d", domain, error));
 	}
 	if (TAILQ_EMPTY(entries))
@@ -387,10 +387,10 @@ amdiommu_free_ctx_locked(struct amdiommu_unit *unit, struct amdiommu_ctx *ctx)
 	memset(dtep, 0, sizeof(*dtep));
 
 	domain = CTX2DOM(ctx);
-	amdiommu_qi_invalidate_ctx_locked(ctx);
-	// XXXKIB invalidate intr
-	// XXXKIB invalidate page tables
-	iommu_qi_invalidate_sync(DOM2IODOM(domain), 0, ~0ull, true);
+	amdiommu_qi_invalidate_ctx_locked_nowait(ctx);
+	amdiommu_qi_invalidate_ir_locked_nowait(unit, ctx->context.rid);
+	amdiommu_qi_invalidate_all_pages_locked_nowait(domain);
+	amdiommu_qi_invalidate_wait_sync(AMD2IOMMU(CTX2AMD(ctx)));
 
 	if (unit->irte_enabled)
 		amdiommu_ctx_fini_irte(ctx);
@@ -568,6 +568,7 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 
 			LIST_INSERT_HEAD(&unit->domains, domain, link);
 			dte_entry_init(ctx, false, bus);
+			amdiommu_qi_invalidate_ctx_locked(ctx);
 			if (dev != NULL) {
 				device_printf(dev,
 			    "amdiommu%d pci%d:%d:%d:%d rid %x domain %d "
@@ -589,8 +590,6 @@ amdiommu_get_ctx_for_dev(struct amdiommu_unit *unit, device_t dev, uint16_t rid,
 			ctx->context.tag->owner = dev;
 		ctx->refs++; /* tag referenced us */
 	}
-
-	amdiommu_qi_invalidate_ctx_locked(ctx);
 	AMDIOMMU_UNLOCK(unit);
 
 	return (ctx);
