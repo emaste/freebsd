@@ -177,6 +177,18 @@ epoll_to_kevent(struct thread *td, int fd, struct epoll_event *l_event,
 		++(*nkevents);
 	}
 
+	/*
+	 * XXX Linux epoll_ctl documents EPOLLEXCLUSIVE's behaviour as "one or
+	 * more of the epoll file descriptors will receive an event."  Just
+	 * ignore EPOLLEXCLUSIVE as a naive but perhaps conforming
+	 * implementation.
+	 */
+        if (levents & LINUX_EPOLLEXCLUSIVE) {
+		LINUX_CTR1(linux_epollexclusive,
+		    "thread(%d) ignoring EPOLLEXCLUSIVE", td->td_tid);
+		levents &= ~LINUX_EPOLLEXCLUSIVE;
+	}
+
 	if ((levents & ~(LINUX_EPOLL_EVSUP)) != 0) {
 		p = td->td_proc;
 
