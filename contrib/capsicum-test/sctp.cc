@@ -180,6 +180,7 @@ TEST(Sctp, Socket) {
         EXPECT_OK(rc2);
         int peeled = std::max(rc1, rc2);
         if (peeled > 0) {
+// Verified this fails on kernel without my proposed change
 #ifdef CAP_FROM_PEELOFF
           // Peeled off FD should have same rights as original socket.
           cap_rights_t rights;
