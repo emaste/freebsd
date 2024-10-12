@@ -908,6 +908,7 @@ amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
 		return (ENXIO);
 	}
 	*unitp = unit;
+	iommu_device_set_iommu_prop(dev, unit->iommu.dev);
 	if (ridp != NULL)
 		*ridp = ifu.rid_real;
 	if (dtep != NULL)
@@ -933,6 +934,7 @@ amdiommu_find_unit_for_ioapic(int apic_id, struct amdiommu_unit **unitp,
 {
 	struct ivhd_find_unit ifu;
 	struct amdiommu_unit *unit;
+	device_t apic_dev;
 	bool res;
 
 	bzero(&ifu, sizeof(ifu));
@@ -950,6 +952,9 @@ amdiommu_find_unit_for_ioapic(int apic_id, struct amdiommu_unit **unitp,
 	}
 
 	unit = amdiommu_unit_by_id(ifu.unit_id);
+	apic_dev = ioapic_get_dev(apic_id);
+	if (apic_dev != NULL)
+		iommu_device_set_iommu_prop(apic_dev, unit->iommu.dev);
 	if (unit == NULL) {
 		if (verbose)
 			printf("amdiommu cannot find unit id %d\n",
@@ -1002,6 +1007,7 @@ amdiommu_find_unit_for_hpet(device_t hpet, struct amdiommu_unit **unitp,
 		return (ENXIO);
 	}
 	*unitp = unit;
+	iommu_device_set_iommu_prop(hpet, unit->iommu.dev);
 	if (ridp != NULL)
 		*ridp = ifu.rid_real;
 	if (dtep != NULL)
