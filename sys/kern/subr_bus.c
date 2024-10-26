@@ -272,6 +272,7 @@ enum {
 	DEVICE_SYSCTL_PNPINFO,
 	DEVICE_SYSCTL_PARENT,
 	DEVICE_SYSCTL_IOMMU,
+	DEVICE_SYSCTL_DOMAIN,
 };
 
 static int
@@ -339,11 +340,32 @@ out:
 	return (error);
 }
 
+static int
+device_sysctl_handler_int(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t)arg1;
+	int domain, error;
+
+	bus_topo_lock();
+	switch (arg2) {
+	case DEVICE_SYSCTL_DOMAIN:
+		error = bus_get_domain(dev, &domain);
+		if (error != 0)
+			domain = -1;
+		error = sysctl_handle_int(oidp, &domain, 0, req);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	bus_topo_unlock();
+	return (error);
+}
+
 static void
 device_sysctl_init(device_t dev)
 {
 	devclass_t dc = dev->devclass;
-	int domain;
 
 	if (dev->sysctl_tree != NULL)
 		return;
@@ -382,10 +404,11 @@ device_sysctl_init(device_t dev)
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    dev, DEVICE_SYSCTL_IOMMU, device_sysctl_handler, "A",
 	    "iommu unit handling the device requests");
-	if (bus_get_domain(dev, &domain) == 0)
-		SYSCTL_ADD_INT(&dev->sysctl_ctx,
-		    SYSCTL_CHILDREN(dev->sysctl_tree), OID_AUTO, "%domain",
-		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, domain, "NUMA domain");
+	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
+	    OID_AUTO, "%domain",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    dev, DEVICE_SYSCTL_DOMAIN, device_sysctl_handler_int, "I",
+	    "NUMA domain");
 }
 
 static void
