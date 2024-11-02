@@ -827,8 +827,15 @@ vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 	case VTB_MARK_MOVE:
 	case VTB_MARK_EXTEND:
 		vtbuf_flush_mark(vb); /* Clean old mark. */
-		vb->vb_mark_end.tp_col = col;
-		vb->vb_mark_end.tp_row = vtbuf_wth(vb, row);
+		if (row < vtbuf_htw(vb, vb->vb_mark_start.tp_row) ||
+		    (row == vtbuf_htw(vb, vb->vb_mark_start.tp_row) &&
+		    col < vb->vb_mark_start.tp_col)) {
+			vb->vb_mark_start.tp_col = col;
+			vb->vb_mark_start.tp_row = vtbuf_wth(vb, row);
+		} else {
+			vb->vb_mark_end.tp_col = col;
+			vb->vb_mark_end.tp_row = vtbuf_wth(vb, row);
+		}
 		break;
 	case VTB_MARK_START:
 		vtbuf_flush_mark(vb); /* Clean old mark. */
