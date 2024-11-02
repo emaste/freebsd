@@ -271,8 +271,6 @@ main(int argc, char **argv)
 		usleep(10000);
 	}
 
-	/* wait for audio to go out */
-	usleep(50000);
 	close(f);
 
 	return (0);
