@@ -1106,12 +1106,12 @@ IDS_check_params () {
 check_pkgbase()
 {
 	# Packaged base requires that pkg is bootstrapped.
-	if ! pkg -r ${BASEDIR} -N >/dev/null 2>/dev/null; then
+	if ! pkg-static -r ${BASEDIR} -N >/dev/null 2>/dev/null; then
 		return 1
 	fi
 	# uname(1) is used by pkg to determine ABI, so it should exist.
 	# If it comes from a package then this system uses packaged base.
-	if ! pkg -r ${BASEDIR} which /usr/bin/uname >/dev/null; then
+	if ! pkg-static -r ${BASEDIR} which /usr/bin/uname >/dev/null; then
 		return 1
 	fi
 	return 0
