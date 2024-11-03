@@ -79,9 +79,9 @@
 #define	USE_CROM 0
 #endif
 
-int verbose = 0;
-int tc_set = 0;
-int poll_hz = DCONS_POLL_HZ;
+static int verbose = 0;
+static int tc_set = 0;
+static int poll_hz = DCONS_POLL_HZ;
 static u_char abreak[3] = {13 /* CR */, 126 /* ~ */, 2 /* ^B */};
 
 #define IS_CONSOLE(p)	((p)->port == DCONS_CON)
@@ -188,7 +188,7 @@ dconschat_suspend(struct dcons_state *dc, struct dcons_port *p)
 }
 
 static void
-dconschat_sigchld(int s)
+dconschat_sigchld(int s __unused)
 {
 	struct kevent kev;
 	struct dcons_port *p;
@@ -332,7 +332,7 @@ out:
 #endif
 
 static void
-dconschat_ready(struct dcons_state *dc, int ready, char *reason)
+dconschat_ready(struct dcons_state *dc, int ready, const char *reason)
 {
 	static char oldreason[64] = "";
 	int old;
@@ -562,7 +562,7 @@ dconschat_write_dcons(struct dcons_state *dc, int port, char *buf, int blen)
 	ch->pos = ptr & DCONS_POS_MASK;
 
 	while(blen > 0) {
-		wlen = MIN(blen, ch->size - ch->pos);
+		wlen = MIN(blen, (int)(ch->size - ch->pos));
 		wlen = MIN(wlen, MAX_XFER);
 		len = dwrite(dc, buf, wlen, ch->buf + ch->pos);
 		if (len < 0) {
@@ -615,7 +615,7 @@ dconschat_write_socket(int fd, char *buf, int len)
 }
 
 static void
-dconschat_init_socket(struct dcons_state *dc, int port, char *host, int sport)
+dconschat_init_socket(struct dcons_state *dc, int port, const char *host, int sport)
 {
 	struct addrinfo hints, *res;
 	int on = 1, error;
@@ -738,7 +738,7 @@ dconschat_read_filter(struct dcons_state *dc, struct dcons_port *p,
     u_char *sp, int slen, u_char *dp, int *dlen)
 {
 	int skip;
-	char *buf;
+	const char *buf;
 
 	while (slen > 0) {
 		skip = 0;
@@ -888,7 +888,8 @@ dconschat_proc_socket(struct dcons_state *dc)
 	for (i = 0; i < n; i ++) {
 		e = &elist[i];
 		p = (struct dcons_port *)e->udata;
-		if (e->ident == p->s) {
+		/* XXX p or p->s? */
+		if (e->ident == (uintptr_t)p->s) {
 			dconschat_accept_socket(dc, p);
 		} else {
 			dconschat_read_socket(dc, p);
@@ -995,6 +996,7 @@ main(int argc, char **argv)
 	int i, ch, error;
 	int unit=0, wildcard=0;
 	int port[DCONS_NPORT];
+	uint32_t v;
 
 	bzero(&sc, sizeof(sc));
 	dc = &sc;
@@ -1031,8 +1033,10 @@ main(int argc, char **argv)
 			if (eui64_hostton(optarg, &target) != 0 &&
 			    eui64_aton(optarg, &target) != 0)
 				errx(1, "invalid target: %s", optarg);
-			eui.hi = ntohl(*(u_int32_t*)&(target.octet[0]));
-			eui.lo = ntohl(*(u_int32_t*)&(target.octet[4]));
+			memcpy(&v, &(target.octet[0]), sizeof(v));
+			eui.hi = ntohl(v);
+			memcpy(&v, &(target.octet[4]), sizeof(v));
+			eui.lo = ntohl(v);
 			dc->type = TYPE_FW;
 			break;
 		case 'u':
@@ -1104,7 +1108,9 @@ found:
 		break;
 	case TYPE_KVM:
 	{
-		struct nlist nl[] = {{"dcons_buf"}, {""}};
+	//{ .n_name = "_tty_nin",
+	 // .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
+		struct nlist nl[] = {{.n_name = "dcons_buf"}, {.n_name = NULL}};
 		void *dcons_buf;
 
 		dc->kd = kvm_open(system, core, NULL,
