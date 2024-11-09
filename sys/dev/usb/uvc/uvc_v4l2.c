@@ -194,6 +194,7 @@ uvc_v4l2_cropcap(struct uvc_drv_video *v, void *addr)
 
 	ret = uvc_drv_get_pixelaspect();
 	//515 is ENOIOCTLCMD in linux
+	// XXX actually gets returned?
 	if (ret && ret != ENOTTY && ret != 515)
 		return ret;
 	if (V4L2_TYPE_IS_OUTPUT(p->type))
@@ -219,6 +220,12 @@ uvc_v4l2_cropcap(struct uvc_drv_video *v, void *addr)
 	return 0;
 }
 
+// GPL copy of v4l2_simplify_fraction?
+// It seems denominator is always 100000000
+// Presumably values will map to common frame rates, perhaps we can just
+// have a set of ifs?
+// 29.97  = 30 * 1000 / 1001
+// yes: see NetBSD uvideo_get_framerate
 void
 uvc_simple_frac(uint32_t *numerator, uint32_t *denominator,
 	uint32_t n_terms, uint32_t threshold)
