@@ -1,6 +1,5 @@
 /*
- *
- * Copyright (c) 2024 Dell Inc.. All rights reserved.
+ * Copyright (c) 2024 Dell Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -87,6 +86,7 @@
 static void uvc_writefile(char *path, void *data, int len);
 #endif
 
+// only used in one place
 static void
 uvc_buf_fill_v4l2(struct v4l2_buffer *buf, uint32_t index, uint32_t size,
 	uint32_t len)
@@ -109,6 +109,7 @@ uvc_buf_queue_mmap(struct uvc_buf_queue *bq,
 	if (bq->mem)
 		*paddr = vtophys((uint8_t *)bq->mem + offset);
 	mtx_unlock(&bq->mtx);
+	// what ensures bq->mem is still valid after mtx_unlock?
 }
 
 static void
@@ -159,6 +160,7 @@ uvc_buf_check_length(struct uvc_drv_video *v, struct uvc_buf *buf,
 	 * temply, we will figure out why it behaves this weird here
 	 */
 
+	// XXX style
 	if (vbuf->length == 0) {
 		return 1;
 	}
