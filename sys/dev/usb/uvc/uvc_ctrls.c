@@ -65,8 +65,6 @@
 #define UVC_CTRL_DATA_DEF	5
 #define UVC_CTRL_DATA_LAST	6
 
-#define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
-
 /* ------------------------------------------------------------------------
  * Controls
  */
@@ -493,7 +491,7 @@ static const struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.v4l2_type	= V4L2_CTRL_TYPE_MENU,
 		.data_type	= UVC_CTRL_DATA_TYPE_ENUM,
 		.menu_info	= power_line_frequency_controls,
-		.menu_count	= ARRAY_SIZE(power_line_frequency_controls),
+		.menu_count	= nitems(power_line_frequency_controls),
 	},
 	{
 		.id		= V4L2_CID_HUE_AUTO,
@@ -516,7 +514,7 @@ static const struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.v4l2_type	= V4L2_CTRL_TYPE_MENU,
 		.data_type	= UVC_CTRL_DATA_TYPE_BITMASK,
 		.menu_info	= exposure_auto_controls,
-		.menu_count	= ARRAY_SIZE(exposure_auto_controls),
+		.menu_count	= nitems(exposure_auto_controls),
 		.slave_ids	= { V4L2_CID_EXPOSURE_ABSOLUTE, },
 	},
 	{
@@ -960,10 +958,10 @@ uvc_ctrl_init_ctrl(struct uvc_softc *sc, struct uvc_drv_ctrl *ctrls,
 		   struct uvc_control *ctrl)
 {
 	const struct uvc_control_info *info = uvc_ctrls;
-	const struct uvc_control_info *iend = info + ARRAY_SIZE(uvc_ctrls);
+	const struct uvc_control_info *iend = info + nitems(uvc_ctrls);
 	const struct uvc_control_mapping *mapping = uvc_ctrl_mappings;
 	const struct uvc_control_mapping *mend =
-				mapping + ARRAY_SIZE(uvc_ctrl_mappings);
+				mapping + nitems(uvc_ctrl_mappings);
 
 	/*like linux does*/
 	if (UVC_ENTITY_TYPE(ctrl->entity) == UDESCSUB_VC_EXTENSION_UNIT)
