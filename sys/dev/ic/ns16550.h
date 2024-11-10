@@ -111,9 +111,9 @@
 #define	com_lsr		5	/* line status register (R/W) */
 #define	REG_LSR		com_lsr
 #define	LSR_RCV_FIFO	0x80
-#define	LSR_TEMT	0x40
+#define	LSR_TEMT	0x40	/* Transmitter Empty */
 #define	LSR_TSRE	LSR_TEMT
-#define	LSR_THRE	0x20
+#define	LSR_THRE	0x20	/* Transmitter Holding Register Empty */
 #define	LSR_TXRDY	LSR_THRE
 #define	LSR_BI		0x10
 #define	LSR_FE		0x08
