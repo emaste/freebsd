@@ -99,7 +99,7 @@ SYSCTL_BOOL(_net_inet_ip, OID_AUTO, broadcast_lowest, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(broadcast_lowest), 0,
 	"Treat lowest address on a subnet (host 0) as broadcast");
 
-VNET_DEFINE(bool, ip_allow_net240) = false;
+VNET_DEFINE(bool, ip_allow_net240) = true;
 #define	V_ip_allow_net240		VNET(ip_allow_net240)
 SYSCTL_BOOL(_net_inet_ip, OID_AUTO, allow_net240,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_allow_net240), 0,
