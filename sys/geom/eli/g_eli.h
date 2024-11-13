@@ -689,7 +689,7 @@ int g_eli_read_metadata(struct g_class *mp, struct g_provider *pp,
 struct g_geom *g_eli_create(struct gctl_req *req, struct g_class *mp,
     struct g_provider *bpp, const struct g_eli_metadata *md,
     const u_char *mkey, int nkey);
-int g_eli_destroy(struct g_eli_softc *sc, boolean_t force);
+int g_eli_destroy(struct g_eli_softc *sc, bool force);
 
 int g_eli_access(struct g_provider *pp, int dr, int dw, int de);
 void g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb);
