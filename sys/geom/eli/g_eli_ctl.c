@@ -236,7 +236,7 @@ g_eli_ctl_detach(struct gctl_req *req, struct g_class *mp)
 			sc->sc_flags |= G_ELI_FLAG_RW_DETACH;
 			sc->sc_geom->access = g_eli_access;
 		} else {
-			error = g_eli_destroy(sc, *force ? TRUE : FALSE);
+			error = g_eli_destroy(sc, *force ? true : false);
 			if (error != 0) {
 				gctl_error(req,
 				    "Cannot destroy device %s (error=%d).",
@@ -1096,7 +1096,7 @@ g_eli_kill_one(struct g_eli_softc *sc)
 	}
 	if (error == 0)
 		G_ELI_DEBUG(0, "%s has been killed.", pp->name);
-	g_eli_destroy(sc, TRUE);
+	g_eli_destroy(sc, true);
 	return (error);
 }
 
