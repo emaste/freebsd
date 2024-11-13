@@ -707,7 +707,7 @@ again:
 				 */
 				if (wr->w_active) {
 					g_eli_freesession(wr);
-					wr->w_active = FALSE;
+					wr->w_active = false;
 				}
 				wakeup(&sc->sc_workers);
 				msleep(sc, &sc->sc_queue_mtx, PRIBIO,
@@ -718,7 +718,7 @@ again:
 					KASSERT(error == 0,
 					    ("g_eli_newsession() failed on resume (error=%d)",
 					    error));
-					wr->w_active = TRUE;
+					wr->w_active = true;
 				}
 				goto again;
 			}
@@ -1095,7 +1095,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		wr = malloc(sizeof(*wr), M_ELI, M_WAITOK | M_ZERO);
 		wr->w_softc = sc;
 		wr->w_number = i;
-		wr->w_active = TRUE;
+		wr->w_active = true;
 
 		error = g_eli_newsession(wr);
 		if (error != 0) {
