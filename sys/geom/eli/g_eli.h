@@ -173,7 +173,7 @@ struct g_eli_worker {
 	void			*w_first_key;
 	u_int			 w_number;
 	crypto_session_t	 w_sid;
-	boolean_t		 w_active;
+	bool			 w_active;
 	LIST_ENTRY(g_eli_worker) w_next;
 };
 
