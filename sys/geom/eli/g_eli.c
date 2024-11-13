@@ -374,7 +374,7 @@ g_eli_orphan(struct g_consumer *cp)
 	sc = cp->geom->softc;
 	if (sc == NULL)
 		return;
-	g_eli_destroy(sc, TRUE);
+	g_eli_destroy(sc, true);
 }
 
 static void
@@ -831,7 +831,7 @@ g_eli_last_close(void *arg, int flags __unused)
 	g_topology_assert();
 	gp = arg;
 	strlcpy(gpname, gp->name, sizeof(gpname));
-	error = g_eli_destroy(gp->softc, TRUE);
+	error = g_eli_destroy(gp->softc, true);
 	KASSERT(error == 0, ("Cannot detach %s on last close (error=%d).",
 	    gpname, error));
 	G_ELI_DEBUG(0, "Detached %s on last close.", gpname);
@@ -1192,7 +1192,7 @@ failed:
 }
 
 int
-g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
+g_eli_destroy(struct g_eli_softc *sc, bool force)
 {
 	struct g_geom *gp;
 	struct g_provider *pp;
@@ -1246,7 +1246,7 @@ g_eli_destroy_geom(struct gctl_req *req __unused,
 	struct g_eli_softc *sc;
 
 	sc = gp->softc;
-	return (g_eli_destroy(sc, FALSE));
+	return (g_eli_destroy(sc, false));
 }
 
 static int
@@ -1605,7 +1605,7 @@ g_eli_shutdown_pre_sync(void *arg, int howto)
 			sc->sc_flags |= G_ELI_FLAG_RW_DETACH;
 			gp->access = g_eli_access;
 		} else {
-			(void) g_eli_destroy(sc, TRUE);
+			(void) g_eli_destroy(sc, true);
 		}
 	}
 	g_topology_unlock();
