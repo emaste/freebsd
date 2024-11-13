@@ -210,7 +210,7 @@ void flash_register_slicer(flash_slicer_t slicer, u_int type, bool force)
 {
 
 	g_topology_lock();
-	if (g_flashmap_slicers[type].slicer == NULL || force == TRUE)
+	if (g_flashmap_slicers[type].slicer == NULL || force)
 		g_flashmap_slicers[type].slicer = slicer;
 	g_topology_unlock();
 }
