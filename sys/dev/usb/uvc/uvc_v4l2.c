@@ -264,6 +264,8 @@ uvc_simple_frac(uint32_t *numerator, uint32_t *denominator,
 		x = r;
 	}
 
+	// XXX x/y = num/den on input, but y/x on output?
+	printf("%s: %u/%u -> %u/%u\n", __func__, *numerator, *denominator, y, x);
 	*numerator = y;
 	*denominator = x;
 	free(p, M_UVC);
