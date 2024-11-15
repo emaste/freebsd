@@ -44,7 +44,7 @@ end
 
 -- Return a table of original hashes of changes that have already been
 -- cherry-picked (MFC'd).
-local function read_to(from_branch, to_branch, dirspec)
+local function read_to(from_branch, to_branch, expression, dirspec)
 	local command = "git log " .. from_branch .. ".." .. to_branch
 	command = command .. " --grep 'cherry picked from'"
 	if dirspec then
@@ -57,7 +57,7 @@ local function read_to(from_branch, to_branch, dirspec)
 	local handle = assert(io.popen(command))
 	local content = {}
 	for line in handle:lines() do
-		local hash = line:match("%(cherry picked from commit ([0-9a-f]+)%)")
+		local hash = line:match(expression)
 		if hash then
 			table.insert(content, hash)
 		end
@@ -199,7 +199,8 @@ local function main()
 	end
 
 	local from_hashes = read_from(from_branch, to_branch, author, dirspec)
-	local to_hashes = read_to(from_branch, to_branch, dirspec)
+	local cherry_expr = "%(cherry picked from commit ([0-9a-f]+)%)"
+	local to_hashes = read_to(from_branch, to_branch, cherry_expr, dirspec)
 
 	local result_hashes = set_difference(from_hashes, to_hashes)
 
