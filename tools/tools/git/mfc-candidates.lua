@@ -42,6 +42,23 @@ local function read_from(from_branch, to_branch, author, dirspec)
 	return content
 end
 
+-- Expand hash if it is short.  Git SHA-1 hashes are 40 characters.
+local function expand_hash(hash)
+	if #hash < 40 then
+		if verbose > 1 then
+			print("Expanding short hash " .. hash)
+		end
+		local expanded = exec_command(
+		    "git rev-parse " .. hash .. " 2>/dev/null")
+		--print("hash = |" .. hash .. "|")
+		if #expanded == 0 and verbose > 0 then
+			print("Unable to expand '" .. hash .. "'")
+		end
+		hash = expanded
+	end
+	return hash
+end
+
 -- Return a table of original hashes of changes that have already been
 -- cherry-picked (MFC'd).
 local function read_to(from_branch, to_branch, expression, dirspec)
@@ -74,11 +91,7 @@ local function read_exclude(filename)
 	for line in file:lines() do
 		local hash = line:match("^%x+")
 		if hash then
-			-- Hashes are 40 chars; if less, expand short hash.
-			if #hash < 40 then
-				hash = exec_command(
-				    "git rev-parse " .. hash)
-			end
+			hash = expand_hash(hash)
 			table.insert(content, hash)
 		end
 	end
