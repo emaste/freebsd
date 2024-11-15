@@ -61,9 +61,9 @@ end
 
 -- Return a table of original hashes of changes that have already been
 -- cherry-picked (MFC'd).
-local function read_to(from_branch, to_branch, expression, dirspec)
-	local command = "git log " .. from_branch .. ".." .. to_branch
-	command = command .. " --grep 'cherry picked from'"
+local function read_to(from_branch, to_branch, grep, expression, dirspec)
+	local command = "git log --first-parent " .. from_branch .. ".." .. to_branch
+	command = command .. " --grep '" .. grep .. "'"
 	if dirspec then
 		command = command .. " " .. dirspec
 	end
@@ -76,6 +76,7 @@ local function read_to(from_branch, to_branch, expression, dirspec)
 	for line in handle:lines() do
 		local hash = line:match(expression)
 		if hash then
+			hash = expand_hash(hash)
 			table.insert(content, hash)
 		end
 	end
@@ -168,10 +169,13 @@ local function main()
 
 	local do_help = false
 	local exclude_file = nil
+	local fixes = false
 	local i = 1
 	while i <= #arg and arg[i] do
 		local opt = arg[i]
-		if opt == "-a" then
+		if opt == "-F" then
+			fixes = true
+		elseif opt == "-a" then
 			author = ""
 		elseif opt == "-f" then
 			from_branch = arg[i + 1]
@@ -211,9 +215,21 @@ local function main()
 		params(from_branch, to_branch, author)
 	end
 
+	if fixes then
+		print("Fixes mode")
+		local already_hashes = read_from(to_branch, from_branch, author, dirspec)
+		local fixes_expr = "Fixes:%s*([0-9a-f]+)"
+		local fixes_hashes = read_to(to_branch, from_branch, "Fixes:", fixes_expr, dirspec)
+		print("Fixes hashes:")
+		for _, hash in ipairs(fixes_hashes) do
+			print(hash)
+		end
+		return
+	end
+
 	local from_hashes = read_from(from_branch, to_branch, author, dirspec)
 	local cherry_expr = "%(cherry picked from commit ([0-9a-f]+)%)"
-	local to_hashes = read_to(from_branch, to_branch, cherry_expr, dirspec)
+	local to_hashes = read_to(from_branch, to_branch, "cherry picked from", cherry_expr, dirspec)
 
 	local result_hashes = set_difference(from_hashes, to_hashes)
 
