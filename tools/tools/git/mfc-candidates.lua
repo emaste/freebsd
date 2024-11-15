@@ -50,11 +50,16 @@ local function expand_hash(hash)
 		end
 		local expanded = exec_command(
 		    "git rev-parse " .. hash .. " 2>/dev/null")
-		--print("hash = |" .. hash .. "|")
-		if #expanded == 0 and verbose > 0 then
-			print("Unable to expand '" .. hash .. "'")
+		if #expanded == 40 then
+			hash = expanded
+		elseif verbose > 0 then
+			print("Unable to expand hash \"" .. hash .. "\"")
+			hash = nil
 		end
-		hash = expanded
+		--print("hash = |" .. hash .. "|")
+--		if #expanded < 40 and verbose > 0 then
+--			print("Unable to expand '" .. hash .. "'")
+--		end
 	end
 	return hash
 end
@@ -77,7 +82,9 @@ local function read_to(from_branch, to_branch, grep, expression, dirspec)
 		local hash = line:match(expression)
 		if hash then
 			hash = expand_hash(hash)
-			table.insert(content, hash)
+			if hash then
+				table.insert(content, hash)
+			end
 		end
 	end
 	handle:close()
@@ -111,6 +118,18 @@ local function set_difference(set1, set2)
 	for _, value in ipairs(set1) do
 		if not set2_values[value] then
 			table.insert(result, value)
+		end
+	end
+	return result
+end
+
+local function set_intersection(set1, set2)
+	local result = {}
+	for _, element in ipairs(set1) do
+		for _, e2 in ipairs(set2) do
+			if e2 == element then
+				result[#result+1] = element
+			end
 		end
 	end
 	return result
@@ -220,9 +239,13 @@ local function main()
 		local already_hashes = read_from(to_branch, from_branch, author, dirspec)
 		local fixes_expr = "Fixes:%s*([0-9a-f]+)"
 		local fixes_hashes = read_to(to_branch, from_branch, "Fixes:", fixes_expr, dirspec)
-		print("Fixes hashes:")
-		for _, hash in ipairs(fixes_hashes) do
-			print(hash)
+--		print("Fixes hashes:")
+--		for _, hash in ipairs(fixes_hashes) do
+--			print(hash)
+--		end
+		local result_hashes = set_intersection(already_hashes, fixes_hashes)
+		for _, hash in ipairs(result_hashes) do
+			print(exec_command("git show --pretty='%h %s' --no-patch " .. hash))
 		end
 		return
 	end
