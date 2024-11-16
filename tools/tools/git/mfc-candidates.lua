@@ -35,7 +35,7 @@ local function read_from(from_branch, to_branch, author, dirspec)
 	end
 	local handle = assert(io.popen(command))
 	local content = {}
-	for line in handle:lines() do
+	for line in assert(handle:lines()) do
 		table.insert(content, line)
 	end
 	handle:close()
@@ -78,7 +78,7 @@ local function read_to(from_branch, to_branch, grep, expression, dirspec)
 	end
 	local handle = assert(io.popen(command))
 	local content = {}
-	for line in handle:lines() do
+	for line in assert(handle:lines()) do
 		local hash = line:match(expression)
 		if hash then
 			hash = expand_hash(hash)
