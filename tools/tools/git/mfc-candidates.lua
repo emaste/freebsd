@@ -224,10 +224,13 @@ local function main()
 		return
 	end
 
-	if arg[i] then
-		dirspec = arg[i]
-		--print("dirspec = " .. dirspec)
-		-- XXX handle multiple dirspecs?
+	while arg[i] do
+		if dirspec then
+			dirspec = dirspec .. " " .. arg[i]
+		else
+			dirspec = arg[i]
+		end
+		i = i + 1
 	end
 
 	if verbose > 0 then
