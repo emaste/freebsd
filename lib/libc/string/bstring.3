@@ -40,7 +40,7 @@
 .Nm memcpy ,
 .Nm memmove ,
 .Nm memset
-.Nd byte string operations
+.Nd byte object operations
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -69,7 +69,7 @@
 .Ft void *
 .Fn memset "void *b" "int c" "size_t len"
 .Sh DESCRIPTION
-These functions operate on variable length strings of bytes.
+These functions operate on variable length byte objects.
 They do not check for terminating null bytes as the routines
 listed in
 .Xr string 3
