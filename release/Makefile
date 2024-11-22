@@ -216,6 +216,8 @@ disc1: packagesystem
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
 	${PKG_INSTALL} wifi-firmware-kmod-release || true
+# Install pkg for installing pkgbase
+#	${PKG_INSTALL} pkg || true
 	${PKG_CLEAN} || true
 .endif
 # Set up installation environment
@@ -290,6 +292,8 @@ dvd: packagesystem
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
 	${PKG_INSTALL} wifi-firmware-kmod-release || true
+# Install pkg for installing pkgbase
+#	${PKG_INSTALL} pkg || true
 	${PKG_CLEAN} || true
 .endif
 # Set up installation environment
