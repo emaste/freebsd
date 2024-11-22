@@ -153,36 +153,78 @@ trap true SIGINT	# This section is optional
 trap error SIGINT	# Catch cntrl-C here
 if [ -z "$BSDINSTALL_SKIP_HOSTNAME" ]; then bsdinstall hostname || error "Set hostname failed"; fi
 
-export DISTRIBUTIONS="${DISTRIBUTIONS:-base.txz kernel.txz}"
-if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
-	DISTMENU=`awk -F'\t' '!/^(kernel\.txz|base\.txz)/{print $1,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
-	DISTMENU="$(echo ${DISTMENU} | sed -E 's/\.txz//g')"
-
-	if [ -n "$DISTMENU" ]; then
-		exec 5>&1
-		EXTRA_DISTS=$( eval bsddialog \
-		    --backtitle \"$OSNAME Installer\" \
-		    --title \"Distribution Select\" --nocancel --separate-output \
-		    --checklist \"Choose optional system components to install:\" \
-		    0 0 0 $DISTMENU \
-		2>&1 1>&5 )
-		for dist in $EXTRA_DISTS; do
-			export DISTRIBUTIONS="$DISTRIBUTIONS $dist.txz"
-		done
-	fi
+USE_PKGBASE=
+if [ -x /usr/local/sbin/pkg ] && eval bsddialog --backtitle \"$OSNAME Installer\" \
+	--title \"Use pkgbase\" --yesno \
+	\"Would you like to install with experimental pkgbase?\" 0 0; then
+	USE_PKGBASE=true
 fi
 
-FETCH_DISTRIBUTIONS=""
-for dist in $DISTRIBUTIONS; do
-	if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
-		FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
-	fi
-done
+if [ -z "${USE_PKGBASE}" ]; then
+	export DISTRIBUTIONS="${DISTRIBUTIONS:-base.txz kernel.txz}"
+	if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
+		DISTMENU=`awk -F'\t' '!/^(kernel\.txz|base\.txz)/{print $1,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
+		DISTMENU="$(echo ${DISTMENU} | sed -E 's/\.txz//g')"
 
-if [ -n "$FETCH_DISTRIBUTIONS" -a -n "$BSDINSTALL_CONFIGCURRENT" ]; then
-	bsddialog --backtitle "$OSNAME Installer" --title "Network Installation" --msgbox "Some installation files were not found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
-	bsdinstall netconfig || error
-	NETCONFIG_DONE=yes
+		if [ -n "$DISTMENU" ]; then
+			exec 5>&1
+			EXTRA_DISTS=$( eval bsddialog \
+			    --backtitle \"$OSNAME Installer\" \
+			    --title \"Distribution Select\" --nocancel --separate-output \
+			    --checklist \"Choose optional system components to install:\" \
+			    0 0 0 $DISTMENU \
+			2>&1 1>&5 )
+			for dist in $EXTRA_DISTS; do
+				export DISTRIBUTIONS="$DISTRIBUTIONS $dist.txz"
+			done
+		fi
+	fi
+
+	FETCH_DISTRIBUTIONS=""
+	for dist in $DISTRIBUTIONS; do
+		if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
+			FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
+		fi
+	done
+
+	if [ -n "$FETCH_DISTRIBUTIONS" -a -n "$BSDINSTALL_CONFIGCURRENT" ]; then
+		bsddialog --backtitle "$OSNAME Installer" --title "Network Installation" --msgbox "Some installation files were not found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
+		bsdinstall netconfig || error
+		NETCONFIG_DONE=yes
+	fi
+else
+	DEFAULT_EXTRA_DISTS="dbg dev lib32"
+	EXTRA_DISTS_DESCR_dbg="Debug"
+	EXTRA_DISTS_DESCR_dev="Development Libraries"
+	EXTRA_DISTS_DESCR_lib32="32-bit Libraries"
+	BSDINSTALL_EXTRA_DISTS="${BSDINSTALL_EXTRA_DISTS:=${DEFAULT_EXTRA_DISTS}}"
+	for i in ${BSDINSTALL_EXTRA_DISTS}; do
+		eval _descr="\${EXTRA_DISTS_DESCR_${i}}"
+		BSDINSTALL_EXTRA_DISTS_STRING="${BSDINSTALL_EXTRA_DISTS_STRING# } ${i} '${_descr}' off"
+	done
+	if [ -n "${BSDINSTALL_EXTRA_DISTS_STRING}" ]; then
+		exec 5>&1
+		EXTRA_DISTS=$( eval bsddialog \
+			--backtitle \"$OSNAME Installer\" \
+			--nocancel \
+			--separate-output \
+			--title \"Distribution Select\" \
+			--checklist \"Choose optional system components to install:\" 0 0 0 \
+			$BSDINSTALL_EXTRA_DISTS_STRING \
+			2>&1 1>&5 )
+	fi
+	BSDINSTALL_INVERTED_DISTS=
+	for d in ${BSDINSTALL_EXTRA_DISTS}; do
+		_tmp="$d"
+		for x in ${EXTRA_DISTS}; do
+			if [ "$d" = "$x" ]; then
+				continue 2
+			else
+				[ "${_tmp}" = "${_tmp%%$d*}" ] && _tmp="$_tmp $d"
+			fi
+		done
+		BSDINSTALL_INVERTED_DISTS="${BSDINSTALL_INVERTED_DISTS} ${_tmp# }"
+	done
 fi
 
 rm -f $PATH_FSTAB
@@ -339,16 +381,77 @@ esac
 
 [ -f /usr/libexec/bsdinstall/local.pre-fetch ] && f_dprintf "Running local.pre-fetch" && sh /usr/libexec/bsdinstall/local.pre-fetch "$BSDINSTALL_CHROOT"
 
-if [ -n "$FETCH_DISTRIBUTIONS" ]; then
-	exec 5>&1
-	export BSDINSTALL_DISTDIR=$(`dirname $0`/fetchmissingdists 2>&1 1>&5)
-	FETCH_RESULT=$?
-	exec 5>&-
+if [ -z "${USE_PKGBASE}" ]; then
+	if [ -n "$FETCH_DISTRIBUTIONS" ]; then
+		exec 5>&1
+		export BSDINSTALL_DISTDIR=$(`dirname $0`/fetchmissingdists 2>&1 1>&5)
+		FETCH_RESULT=$?
+		exec 5>&-
 
-	[ $FETCH_RESULT -ne 0 ] && error "Could not fetch remote distributions"
+		[ $FETCH_RESULT -ne 0 ] && error "Could not fetch remote distributions"
+	fi
+	bsdinstall checksum || error "Distribution checksum failed"
+	bsdinstall distextract || error "Distribution extract failed"
 fi
-bsdinstall checksum || error "Distribution checksum failed"
-bsdinstall distextract || error "Distribution extract failed"
+
+trap true SIGINT	# This section is optional
+if [ "$NETCONFIG_DONE" != yes ]; then
+	bsdinstall netconfig	# Don't check for errors -- the user may cancel
+fi
+if [ -n "${USE_PKGBASE}" ]; then
+	f_dprintf "Setting up pkgbase.."
+	mkdir -p "${BSDINSTALL_CHROOT}/etc/pkg"
+	cat << EOF > "${BSDINSTALL_CHROOT}/etc/pkg/FreeBSD_base.conf"
+FreeBSD_base: {
+	mirror_type: "srv",
+	signature_type: "fingerprints",
+	fingerprints: "/usr/share/keys/pkg",
+	url: "https://pkg.freebsd.org/\${ABI}/base_latest"
+}
+EOF
+	mkdir -p "${BSDINSTALL_CHROOT}/usr/share/keys/pkg/trusted"
+	cat << EOF > "${BSDINSTALL_CHROOT}/usr/share/keys/pkg/trusted/pkg.freebsd.org.2013102301"
+function: "sha256"
+fingerprint: "b0170035af3acc5f3f3ae1859dc717101b4e6c1d0a794ad554928ca0cbb2f438"
+EOF
+	# Install base pkgs
+	env TMPDIR="${BSDINSTALL_CHROOT}/tmp" pkg \
+		-r "${BSDINSTALL_CHROOT}" \
+		-R "${BSDINSTALL_CHROOT}/etc/pkg" \
+		-o IGNORE_OSVERSION=yes \
+		update || error "Unable to update pkg repositories"
+	BASE_PKGS=$(env TMPDIR="${BSDINSTALL_CHROOT}/tmp" pkg \
+		-r "${BSDINSTALL_CHROOT}" \
+		-R "${BSDINSTALL_CHROOT}/etc/pkg" rquery %n)
+	for k in ${KERNCONF:-GENERIC}; do
+		BASE_PKGS="${BASE_PKGS} ${OSNAME}-kernel-${k}"
+	done
+	f_dprintf "Installing base packages.."
+	for p in ${BASE_PKGS}; do
+		for d in $BSDINSTALL_INVERTED_DISTS; do
+			_tmp="${p#FreeBSD-}"
+			[ "$_tmp" != "${_tmp%%-$d*}" ] && continue 2
+		done
+		if ! env TMPDIR="${BSDINSTALL_CHROOT}/tmp" pkg \
+			-r "${BSDINSTALL_CHROOT}" \
+			-R "${BSDINSTALL_CHROOT}/etc/pkg" \
+			-o IGNORE_OS_VERSION=y \
+			install -r FreeBSD_base -y "${p}"; then
+			f_dprintf "Error installing base pkg: ${p}"
+		fi
+	done
+	if ! env TMPDIR="${BSDINSTALL_CHROOT}/tmp" pkg \
+		-r "${BSDINSTALL_CHROOT}" \
+		-R "${BSDINSTALL_CHROOT}/etc/pkg" \
+		-o IGNORE_OS_VERSION=y \
+		install -r FreeBSD -y pkg; then
+		f_dprintf "Error installing pkg(8)"
+	fi
+	pkg -r "${BSDINSTALL_CHROOT}" \
+		-R "${BSDINSTALL_CHROOT}/etc/pkg" \
+		-o IGNORE_OS_VERSION=y \
+		clean -ay
+fi
 
 # Set up boot loader
 bsdinstall bootconfig || error "Failed to configure bootloader"
@@ -356,11 +459,6 @@ bsdinstall bootconfig || error "Failed to configure bootloader"
 [ -f /usr/libexec/bsdinstall/local.pre-configure ] && f_dprintf "Running local.pre-configure" && sh /usr/libexec/bsdinstall/local.pre-configure "$BSDINSTALL_CHROOT"
 
 bsdinstall rootpass || error "Could not set root password"
-
-trap true SIGINT	# This section is optional
-if [ "$NETCONFIG_DONE" != yes ]; then
-	bsdinstall netconfig	# Don't check for errors -- the user may cancel
-fi
 [ -z "$BSDINSTALL_SKIP_TIME" ] && bsdinstall time
 [ -z "$BSDINSTALL_SKIP_SERVICES" ] && bsdinstall services
 [ -z "$BSDINSTALL_SKIP_HARDENING" ] && bsdinstall hardening
