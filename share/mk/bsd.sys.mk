@@ -317,9 +317,7 @@ SSP_CFLAGS?=	-fstack-protector-strong
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP
 
-# XXX This should be defaulted to 2 when WITH_SSP is in use after further
-# testing and soak time.
-FORTIFY_SOURCE?=	0
+FORTIFY_SOURCE?=	2
 
 # We want to avoid defining _FORTIFY_SOURCE if it's set to 0, but we rely on
 # deferred-evaluation for ${.IMPSRC} to expand.  The below construction
