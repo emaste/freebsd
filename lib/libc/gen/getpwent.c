@@ -1020,6 +1020,10 @@ pwdb_match_entry_v4(char *entry, size_t entrysize, enum nss_lookup_type how,
 }
 
 
+/*
+ * NOTE: pwdb v4 uses uint32_t for pw_change and pw_expire, so they cannot be
+ * set past y2106.
+ */
 static int
 pwdb_parse_entry_v4(char *buffer, size_t bufsize, struct passwd *pwd,
     int *errnop)
