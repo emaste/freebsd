@@ -1,7 +1,7 @@
 # machine-independent gen sources
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/gen ${LIBC_SRCTOP}/gen ${SRCTOP}/etc
 
-CONFS+=	group master.passwd shells
+CONFS+=	disktab group master.passwd shells
 CONFSMODE_master.passwd=	600
 CONFSPACKAGE=   runtime
 
