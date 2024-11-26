@@ -1,6 +1,5 @@
 .PATH: ${SRCTOP}/sys/geom
 
-CONFS=	disktab
 PACKAGE=runtime
 PROG=	bsdlabel
 SRCS=	bsdlabel.c geom_bsd_enc.c
