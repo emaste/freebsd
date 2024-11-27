@@ -45,6 +45,7 @@
 #include <pwd.h>
 #include <termios.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +62,7 @@ static char	hostname[MAXHOSTNAMELEN];
 
 static void	jkfprintf(FILE *, char[], off_t);
 static void	mailfor(char *);
-static void	notify(struct utmpx *, char[], off_t, int);
+static void	notify(struct utmpx *, char[], off_t, bool);
 static void	reapchildren(int);
 
 int
@@ -112,7 +113,7 @@ mailfor(char *name)
 	char *cp;
 	char *file;
 	off_t offset;
-	int folder;
+	bool folder;
 	char buf[MAXPATHLEN];
 
 	if ((cp = strchr(name, '@')) == NULL)
@@ -137,7 +138,7 @@ mailfor(char *name)
 static const char *cr;
 
 static void
-notify(struct utmpx *utp, char file[], off_t offset, int folder)
+notify(struct utmpx *utp, char file[], off_t offset, bool folder)
 {
 	FILE *tp;
 	struct stat stb;
@@ -189,6 +190,16 @@ notify(struct utmpx *utp, char file[], off_t offset, int folder)
 		    cr, utp->ut_user, (int)sizeof(hostname), hostname,
 		    folder ? cr : "", folder ? "to " : "", folder ? file : "",
 		    cr, cr);
+		// Either (folder = true/false, indicating nonstd mail dir):
+		//
+		// <beep>New mail for <user>@<host><beep> has arrived
+		// to <file>:
+		// ----
+		//
+		// or
+		//
+		// <beep>New mail for <user>@<host><beep> has arrived:
+		// ----
 		jkfprintf(tp, file, offset);
 	} else if (stb.st_mode & S_IXGRP) {
 		(void)fprintf(tp, "\007");
