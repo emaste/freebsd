@@ -353,6 +353,10 @@ returns a pointer to a global
 .Nm errno
 variable that is compatible with the previous definition.
 .Pp
+XXX note that the above is mostly an implementation detail.
+.Nm errno
+should be accessed as if it were a thread-local integer variable.
+.Pp
 When a system call detects an error,
 it returns an integer value
 indicating failure
