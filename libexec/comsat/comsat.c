@@ -62,7 +62,7 @@ static char	hostname[MAXHOSTNAMELEN];
 
 static void	jkfprintf(FILE *, char[], off_t);
 static void	mailfor(char *);
-static void	notify(struct utmpx *, char[], off_t, bool);
+static void	notify(struct utmpx *, char[], off_t);
 static void	reapchildren(int);
 
 int
@@ -113,32 +113,27 @@ mailfor(char *name)
 	char *cp;
 	char *file;
 	off_t offset;
-	bool folder;
-	char buf[MAXPATHLEN];
 
 	if ((cp = strchr(name, '@')) == NULL)
 		return;
 	*cp = '\0';
 	offset = strtoll(cp + 1, NULL, 10);
-	if ((cp = strchr(cp + 1, ':')) != NULL &&
-	    strchr((file = cp + 1), '/') == NULL) {
-		snprintf(buf, sizeof(buf), "%s/%s", _PATH_MAILDIR, file);
-		folder = 1;
-	} else {
-		snprintf(buf, sizeof(buf), "%s/%s", _PATH_MAILDIR, name);
-		folder = 0;
+	if (asprintf(&file, "%s/%.*s", _PATH_MAILDIR, (int)sizeof(utp->ut_user),
+	    name) != 0) {
+		return;
 	}
 	setutxent();
 	while ((utp = getutxent()) != NULL)
 		if (utp->ut_type == USER_PROCESS && !strcmp(utp->ut_user, name))
-			notify(utp, buf, offset, folder);
+			notify(utp, file, offset);
 	endutxent();
+	free(file);
 }
 
 static const char *cr;
 
 static void
-notify(struct utmpx *utp, char file[], off_t offset, bool folder)
+notify(struct utmpx *utp, char file[], off_t offset)
 {
 	FILE *tp;
 	struct stat stb;
@@ -186,10 +181,8 @@ notify(struct utmpx *utp, char file[], off_t offset, bool folder)
 
 	if (stb.st_mode & S_IXUSR) {
 		(void)fprintf(tp, 
-		    "%s\007New mail for %s@%.*s\007 has arrived%s%s%s:%s----%s",
-		    cr, utp->ut_user, (int)sizeof(hostname), hostname,
-		    folder ? cr : "", folder ? "to " : "", folder ? file : "",
-		    cr, cr);
+		    "%s\007New mail for %s@%.*s\007 has arrived:%s----%s",
+		    cr, utp->ut_user, (int)sizeof(hostname), hostname, cr, cr);
 		// Either (folder = true/false, indicating nonstd mail dir):
 		//
 		// <beep>New mail for <user>@<host><beep> has arrived
