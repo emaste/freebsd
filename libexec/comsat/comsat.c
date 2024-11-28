@@ -62,7 +62,7 @@ static char	hostname[MAXHOSTNAMELEN];
 
 static void	jkfprintf(FILE *, char[], off_t);
 static void	mailfor(char *);
-static void	notify(struct utmpx *, char[], off_t, bool);
+static void	notify(struct utmpx *, char[], off_t);
 static void	reapchildren(int);
 
 int
@@ -113,40 +113,27 @@ mailfor(char *name)
 	char *cp;
 	char *file;
 	off_t offset;
-	bool folder;
-	char buf[sizeof(_PATH_MAILDIR) + sizeof(utp->ut_user) + 1];
-	char buf2[sizeof(_PATH_MAILDIR) + sizeof(utp->ut_user) + 1];
 
 	if (!(cp = strchr(name, '@')))
 		return;
 	*cp = '\0';
 	offset = strtoll(cp + 1, NULL, 10);
-	if (!(cp = strchr(cp + 1, ':')))
-		file = name;
-	else
-		file = cp + 1;
-	// buf is standard mail path
-	sprintf(buf, "%s/%.*s", _PATH_MAILDIR, (int)sizeof(utp->ut_user),
-	    name);
-	if (*file != '/') {
-		// absolute path allowed?
-		sprintf(buf2, "%s/%.*s", _PATH_MAILDIR,
-		    (int)sizeof(utp->ut_user), file);
-		file = buf2;
+	if (asprintf(&file, "%s/%.*s", _PATH_MAILDIR, (int)sizeof(utp->ut_user),
+	    name) != 0) {
+		return;
 	}
-	// file is not standard mail path for this user
-	folder = strcmp(buf, file);
 	setutxent();
 	while ((utp = getutxent()) != NULL)
 		if (utp->ut_type == USER_PROCESS && !strcmp(utp->ut_user, name))
-			notify(utp, file, offset, folder);
+			notify(utp, file, offset);
 	endutxent();
+	free(file);
 }
 
 static const char *cr;
 
 static void
-notify(struct utmpx *utp, char file[], off_t offset, bool folder)
+notify(struct utmpx *utp, char file[], off_t offset)
 {
 	FILE *tp;
 	struct stat stb;
@@ -197,10 +184,8 @@ notify(struct utmpx *utp, char file[], off_t offset, bool folder)
 	case S_IXUSR:
 	case (S_IXUSR | S_IXGRP):
 		(void)fprintf(tp, 
-		    "%s\007New mail for %s@%.*s\007 has arrived%s%s%s:%s----%s",
-		    cr, utp->ut_user, (int)sizeof(hostname), hostname,
-		    folder ? cr : "", folder ? "to " : "", folder ? file : "",
-		    cr, cr);
+		    "%s\007New mail for %s@%.*s\007 has arrived:%s----%s",
+		    cr, utp->ut_user, (int)sizeof(hostname), hostname, cr, cr);
 		// Either (folder = true/false, indicating nonstd mail dir):
 		//
 		// <beep>New mail for <user>@<host><beep> has arrived
