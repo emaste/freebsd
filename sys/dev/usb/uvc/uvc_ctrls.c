@@ -57,6 +57,8 @@
 #include "uvc_buf.h"
 #include "uvc_v4l2.h"
 
+// See Linux drivers/media/usb/uvc/uvc_ctrl.c
+
 #define UVC_CTRL_DATA_CURRENT	0
 #define UVC_CTRL_DATA_BACKUP	1
 #define UVC_CTRL_DATA_MIN	2
