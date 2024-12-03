@@ -58,7 +58,7 @@ static int	debug = 0;
 
 #define MAXIDLE	120
 
-static char	hostname[MAXHOSTNAMELEN];
+static char	hostname[MAXHOSTNAMELEN + 1];
 
 static void	jkfprintf(FILE *, char[], off_t);
 static void	mailfor(char *);
