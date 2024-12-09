@@ -95,12 +95,22 @@ struct rtwn_cmdq {
 };
 #define RTWN_CMDQ_SIZE		16
 
+enum rtwn_ra_level {
+	RTWN_RA_LEVEL_OFF = 0,
+	RTWN_RA_LEVEL_LOW = 1,
+	RTWN_RA_LEVEL_MED = 2,
+	RTWN_RA_LEVEL_HI = 3,
+};
+
 struct rtwn_node {
 	struct ieee80211_node	ni;	/* must be the first */
 	int			id;
 
 	struct rtwn_tx_phystat	last_physt;
 	int			avg_pwdb;
+	enum rtwn_ra_level	current_ra_level;
+	uint32_t		rate_mask;
+	uint32_t		ht_rate_mask;
 };
 #define RTWN_NODE(ni)		((struct rtwn_node *)(ni))
 
