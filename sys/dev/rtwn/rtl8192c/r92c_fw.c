@@ -198,6 +198,7 @@ r92c_init_ra(struct rtwn_softc *sc, int macid)
 {
 	struct ieee80211_htrateset *rs_ht;
 	struct ieee80211_node *ni;
+	struct rtwn_node *un;
 	uint32_t rates, htrates;
 	int maxrate;
 
@@ -210,6 +211,7 @@ r92c_init_ra(struct rtwn_softc *sc, int macid)
 	}
 
 	ni = ieee80211_ref_node(sc->node_list[macid]);
+	un = RTWN_NODE(ni);
 	if (ni->ni_flags & IEEE80211_NODE_HT)
 		rs_ht = &ni->ni_htrates;
 	else
@@ -219,6 +221,8 @@ r92c_init_ra(struct rtwn_softc *sc, int macid)
 	 * firmware; and for this chipset 2-stream 11n support is enough.
 	 */
 	rtwn_get_rates(sc, &ni->ni_rates, rs_ht, &rates, &htrates, &maxrate, 0);
+	un->rate_mask = rates;
+	un->ht_rate_mask = htrates;
 	RTWN_NT_UNLOCK(sc);
 
 #ifndef RTWN_WITHOUT_UCODE
