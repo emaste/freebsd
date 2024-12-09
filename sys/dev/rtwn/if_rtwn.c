@@ -1829,6 +1829,7 @@ rtwn_node_alloc(struct ieee80211vap *vap,
 
 	un->id = RTWN_MACID_UNDEFINED;
 	un->avg_pwdb = -1;
+	un->current_ra_level = RTWN_RA_LEVEL_OFF;
 
 	return &un->ni;
 }
