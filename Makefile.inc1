@@ -1001,8 +1001,8 @@ IMAKE_INSTALL=	INSTALL="${INSTALL_CMD} ${INSTALLFLAGS}"
 IMAKE_MTREE=	MTREE_CMD="${MTREE_CMD} ${MTREEFLAGS}"
 .endif
 .if make(distributeworld)
-.if ${DISTDIR:U/} == /
-.error DISTDIR must be set for make distributeworld.
+.if ${DISTDIR:U/} == / || !defined(NO_ROOT)
+.error DISTDIR and NO_ROOT must be set for make distributeworld.
 .endif
 CERTCTLDESTDIR=	${DESTDIR}/${DISTDIR}
 CERTCTLFLAGS+=	-d /base
