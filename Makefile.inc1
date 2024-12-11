@@ -208,6 +208,11 @@ NO_ROOT:=	1
 DB_FROM_SRC:=	1
 .export NO_ROOT
 .endif
+.if make(distributeworld)
+NO_ROOT:=	1
+.export NO_ROOT
+.endif
+
 
 # If all targets are disabled for system llvm then don't expect it to work
 # for cross-builds.
