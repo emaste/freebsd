@@ -1033,7 +1033,7 @@ cd9660_rename_filename(iso9660_disk *diskStructure, cd9660node *iter, int num,
         char *tmp;
 
 	if (diskStructure->verbose_level > 0)
-		printf("Rename_filename called\n");
+		printf("Rename_filename called for %s\n", iter->o_name);
 
 	assert(1 <= diskStructure->isoLevel && diskStructure->isoLevel <= 2);
 	/* TODO : A LOT of chanes regarding 8.3 filenames */
@@ -1122,6 +1122,8 @@ cd9660_rename_filename(iso9660_disk *diskStructure, cd9660node *iter, int num,
 		tmp[numbts+1] = '1';
 		tmp[numbts+2] = '\0';
 
+		if (diskStructure->verbose_level > 0)
+			printf(" new name is %s\n", tmp);
 		/*
 		 * now tmp has exactly the identifier
 		 * we want so we'll copy it back to record
