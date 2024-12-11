@@ -70,6 +70,8 @@ VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 .endfor
 .endif
 
+NO_ROOT:=	1
+
 .if ${.MAKE.OS} == "FreeBSD"
 # For installing packages into the release media.
 .if defined(NO_ROOT)
