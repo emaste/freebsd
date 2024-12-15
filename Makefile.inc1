@@ -1567,9 +1567,8 @@ packageworld: .PHONY
 	    @${DESTDIR}/${DISTDIR}/${dist}.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}.txz
 .else
-	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    ${TAR_CMD} cvf - --exclude usr/lib/debug . | \
-	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}.txz
+	# packageworld always invoked with NO_ROOT now
+	false
 .endif
 .endfor
 
@@ -1579,9 +1578,7 @@ packageworld: .PHONY
 	    ${TAR_CMD} cvf - @${DESTDIR}/${DISTDIR}/${dist}.debug.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
 . else
-	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    ${TAR_CMD} cvLf - usr/lib/debug | \
-	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
+	false
 . endif
 .endfor
 
