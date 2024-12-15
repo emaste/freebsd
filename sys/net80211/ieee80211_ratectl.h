@@ -43,6 +43,11 @@ enum ieee80211_ratealgs {
 #define IEEE80211_RATECTL_STATUS_SHORT_RETRY	0x00000004
 #define IEEE80211_RATECTL_STATUS_LONG_RETRY	0x00000008
 #define IEEE80211_RATECTL_STATUS_RSSI		0x00000010
+#define IEEE80211_RATECTL_STATUS_FREQ		0x00000020
+#define IEEE80211_RATECTL_STATUS_NSS		0x00000040
+#define IEEE80211_RATECTL_STATUS_MCS		0x00000080
+#define IEEE80211_RATECTL_STATUS_PHYTYPE	0x00000100
+#define IEEE80211_RATECTL_STATUS_CHWIDTH	0x00000200
 
 /* failure reason */
 enum ieee80211_ratectl_tx_fail_reason {
@@ -60,10 +65,15 @@ struct ieee80211_ratectl_tx_status {
 	enum ieee80211_ratectl_tx_fail_reason status;	/* Tx status */
 
 	int		pktlen;		/* frame length */
-	int		final_rate;	/* transmission rate */
+	int		final_rate;	/* dot11rate transmission rate */
 	uint_fast8_t	short_retries;	/* RTS/CTS retries */
 	uint_fast8_t	long_retries;	/* ACK retries */
 	int8_t		rssi;		/* ACK RSSI */
+	uint32_t	freq;		/* Frequency, MHz */
+	uint16_t	chwidth;	/* Channel width, MHz */
+	uint8_t		nss;		/* Number of spatial streams */
+	uint8_t		mcs;		/* HT MCS, VHT MCS */
+	enum ieee80211_phytype	phytype; /* PHY type for completed rate */
 
 	uint8_t		spare[15];	/* for future use */
 };
