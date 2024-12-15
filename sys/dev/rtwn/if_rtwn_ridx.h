@@ -54,6 +54,8 @@
  */
 #define RTWN_RIDX_VHT_MCS_SHIFT	44
 #define RTWN_RIDX_VHT_MCS(s, i)	(RTWN_RIDX_VHT_MCS_SHIFT + ((10*(s)) + (i)))
+#define RTWN_RIDX_TO_VHT_NSS(s)	(((s) - RTWN_RIDX_VHT_MCS_SHIFT) / 10)
+#define RTWN_RIDX_TO_VHT_MCS(s)	(((s) - RTWN_RIDX_VHT_MCS_SHIFT) % 10)
 
 /*
  * The total amount of rate indexes, CCK, OFDM, HT MCS0..31,
