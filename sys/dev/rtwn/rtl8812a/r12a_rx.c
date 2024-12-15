@@ -105,13 +105,42 @@ r12a_ratectl_tx_complete(struct rtwn_softc *sc, uint8_t *buf, int len)
 		    R12A_TXRPTB0_LIFE_EXPIRE)) ? " not" : "", ntries);
 
 		txs.flags = IEEE80211_RATECTL_STATUS_LONG_RETRY |
-			    IEEE80211_RATECTL_STATUS_FINAL_RATE;
+			    IEEE80211_RATECTL_STATUS_FINAL_RATE |
+			    IEEE80211_RATECTL_STATUS_PHYTYPE;
 		txs.long_retries = ntries;
-		if (RTWN_RATE_IS_HT(rpt->final_rate)) {	/* MCS */
+		if (RTWN_RATE_IS_CCK(rpt->final_rate)) {
+			/* CCK - table lookup */
+			txs.final_rate = ridx2rate[rpt->final_rate];
+			txs.phytype = IEEE80211_T_CCK;
+		} else if RTWN_RATE_IS_OFDM(rpt->final_rate) {
+			/* CCK - table lookup */
+			txs.final_rate = ridx2rate[rpt->final_rate];
+			txs.phytype = IEEE80211_T_OFDM;
+		} else if (RTWN_RATE_IS_HT(rpt->final_rate)) {
+			/*
+			 * Current; since current ratectl expects HT
+			 * to return final_rate as a dot11rate.
+			 */
 			txs.final_rate = RTWN_RIDX_TO_MCS(rpt->final_rate);
 			txs.final_rate |= IEEE80211_RATE_MCS;
-		} else
-			txs.final_rate = ridx2rate[rpt->final_rate];
+
+			/* New; report MCS directly */
+			txs.mcs = RTWN_RIDX_TO_MCS(rpt->final_rate);
+			txs.flags |= IEEE80211_RATECTL_STATUS_MCS;
+			txs.phytype = IEEE80211_T_HT;
+		} else if (RTWN_RATE_IS_VHT(rpt->final_rate)) {
+			txs.flags &= ~IEEE80211_RATECTL_STATUS_FINAL_RATE;
+			txs.final_rate = 0;
+			txs.flags |= IEEE80211_RATECTL_STATUS_MCS |
+			    IEEE80211_RATECTL_STATUS_NSS;
+			txs.mcs = RTWN_RIDX_TO_VHT_MCS(rpt->final_rate);
+			txs.nss = RTWN_RIDX_TO_VHT_NSS(rpt->final_rate);
+			txs.phytype = IEEE80211_T_VHT;
+		} else {
+			txs.flags &= ~IEEE80211_RATECTL_STATUS_FINAL_RATE;
+			txs.final_rate = 0;
+		}
+
 		if (rpt->txrptb0 & R12A_TXRPTB0_RETRY_OVER)
 			txs.status = IEEE80211_RATECTL_TX_FAIL_LONG;
 		else if (rpt->txrptb0 & R12A_TXRPTB0_LIFE_EXPIRE)
@@ -309,9 +338,8 @@ r12a_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 		    IEEE80211_RATE_MCS | RTWN_RIDX_TO_MCS(rate);
 		rxs->c_pktflags |= IEEE80211_RX_F_HT;
 	} else if (RTWN_RATE_IS_VHT(rate)) {
-		/* XXX: need to revisit VHT rate representation */
-		rxs->c_vhtnss = (rate - RTWN_RIDX_VHT_MCS_SHIFT) / 10;
-		rxs->c_rate = (rate - RTWN_RIDX_VHT_MCS_SHIFT) % 10;
+		rxs->c_vhtnss = RTWN_RIDX_TO_VHT_NSS(rate);
+		rxs->c_rate = RTWN_RIDX_TO_VHT_MCS(rate);
 		rxs->c_pktflags |= IEEE80211_RX_F_VHT;
 	}
 
