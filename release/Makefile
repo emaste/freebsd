@@ -287,17 +287,17 @@ bootonly-bootonly bootonly-memstick: bootonly
 
 release.iso: disc1.iso
 disc1.iso: disc1-disc1
-	cd disc1-disc1 && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
+	cd disc1-disc1 && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ../${.TARGET} ./METALOG ${XTRADIR}
 
 dvd1.iso: dvd pkg-stage
-	cd dvd && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
+	cd dvd && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ../${.TARGET} ./METALOG ${XTRADIR}
 
 bootonly.iso: bootonly-bootonly
 	cd bootonly-bootonly && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ../${.TARGET} ./METALOG ${XTRADIR}
 
 memstick: memstick.img
 memstick.img: disc1-memstick
-	cd disc1-memstick && sh ${.CURDIR}/${TARGET}/make-memstick.sh .${NO_ROOT:D/METALOG} ../${.TARGET}
+	cd disc1-memstick && sh ${.CURDIR}/${TARGET}/make-memstick.sh ./METALOG ../${.TARGET}
 
 mini-memstick: mini-memstick.img
 mini-memstick.img: bootonly-memstick
