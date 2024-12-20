@@ -208,6 +208,18 @@ pf_match_translation(struct pf_pdesc *pd,
 	return (rm);
 }
 
+VNET_DEFINE_STATIC(bool, pf_nat_endpi) = false;
+#define V_pf_nat_endpi	VNET(pf_nat_endpi)
+SYSCTL_BOOL(_net_pf, OID_AUTO, eim_nat, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(pf_nat_endpi), false,
+    "Enable Endpoint Independent Mapping (EIM) nat by default");
+
+static bool
+pf_nat_eim(struct pf_krule *r)
+{
+	return ((r->rdr.opts & PF_POOL_ENDPI) != 0 || V_pf_nat_endpi);
+}
+
 static int
 pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
     struct pf_addr *naddr, uint16_t *nport, uint16_t low,
@@ -234,7 +246,7 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 	 * from the mapping. In this case we have to look up the src_node as
 	 * pf_map_addr would.
 	 */
-	if (pd->proto == IPPROTO_UDP && (r->rdr.opts & PF_POOL_ENDPI)) {
+	if (pd->proto == IPPROTO_UDP && pf_nat_eim(r)) {
 		struct pf_udp_endpoint_cmp udp_source;
 
 		bzero(&udp_source, sizeof(udp_source));
@@ -361,8 +373,7 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 			tmp = cut;
 			for (tmp -= 1; tmp >= low && tmp <= 0xffff; --tmp) {
 				if (pd->proto == IPPROTO_UDP &&
-				    (r->rdr.opts & PF_POOL_ENDPI &&
-				    udp_mapping != NULL)) {
+				    pf_nat_eim(r) && udp_mapping != NULL) {
 					(*udp_mapping)->endpoints[1].port = htons(tmp);
 					if (pf_udp_mapping_insert(*udp_mapping) == 0) {
 						*nport = htons(tmp);
