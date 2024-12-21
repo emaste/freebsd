@@ -163,6 +163,9 @@ struct ieee80211_channel {
 #define	IEEE80211_CHAN_ANYC \
 	((struct ieee80211_channel *) IEEE80211_CHAN_ANY)
 
+#define	IEEE80211_IS_CHAN_DEFINED(c)	((c) != NULL)
+#define	IEEE80211_IS_CHAN_ANYC(c)	((c) == IEEE80211_CHAN_ANYC)
+
 /* channel attributes */
 #define	IEEE80211_CHAN_PRIV0	0x00000001 /* driver private bit 0 */
 #define	IEEE80211_CHAN_PRIV1	0x00000002 /* driver private bit 1 */
