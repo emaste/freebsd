@@ -941,14 +941,15 @@ ieee80211_vht_check_tx_vht(const struct ieee80211_node *ni)
 	const struct ieee80211vap *vap;
 	const struct ieee80211_channel *bss_chan;
 
-	if (ni == NULL || ni->ni_chan == IEEE80211_CHAN_ANYC ||
-	    ni->ni_vap == NULL || ni->ni_vap->iv_bss == NULL)
+	if (ni == NULL || IEEE80211_IS_CHAN_ANYC(ni->ni_chan) ||
+	    ni->ni_vap == NULL ||
+	    !IEEE80211_IS_CHAN_DEFINED(ni->ni_vap->iv_bss))
 		return (false);
 
 	vap = ni->ni_vap;
 	bss_chan = vap->iv_bss->ni_chan;
 
-	if (bss_chan == IEEE80211_CHAN_ANYC)
+	if (IEEE80211_IS_CHAN_ANYC(bss_chan))
 		return (false);
 
 	return (IEEE80211_IS_CHAN_VHT(ni->ni_chan));
