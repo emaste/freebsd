@@ -42,6 +42,7 @@ struct shrinker {
 	unsigned long		(*scan_objects)(struct shrinker *, struct shrink_control *);
 	int			seeks;
 	unsigned int		flags;
+	void *			private_data;
 	long			batch;
 	TAILQ_ENTRY(shrinker)	next;
 };
