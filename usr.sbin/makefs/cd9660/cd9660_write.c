@@ -182,6 +182,7 @@ cd9660_write_path_table(iso9660_disk *diskStructure, FILE *fd, off_t sector,
 		    ptcur->isoDirRecord->ext_attr_length[0];
 		memcpy(temp_entry.name, ptcur->isoDirRecord->name,
 		    temp_entry.length[0] + 1);
+printf("name=%s len=%d\n", temp_entry.name, temp_entry.length[0] + 1);
 
 		/* round up */
 		len = temp_entry.length[0] + 8 + (temp_entry.length[0] & 0x01);
