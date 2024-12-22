@@ -412,4 +412,28 @@ want_init_on_free(void)
 	return (false);
 }
 
+static inline unsigned long
+folio_pfn(struct folio *folio)
+{
+	return page_to_pfn(&folio->page);
+}
+
+static inline long
+folio_nr_pages(struct folio *folio)
+{
+	return 1;
+}
+
+static inline size_t
+folio_size(struct folio *folio)
+{
+	return PAGE_SIZE;
+}
+
+static inline void
+folio_mark_dirty(struct folio *folio)
+{
+	set_page_dirty(&folio->page);
+}
+
 #endif					/* _LINUXKPI_LINUX_MM_H_ */
