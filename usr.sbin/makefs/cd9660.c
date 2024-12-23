@@ -100,6 +100,7 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <util.h>
@@ -140,11 +141,11 @@ static void cd9660_convert_structure(iso9660_disk *, fsnode *, cd9660node *, int
 static void cd9660_free_structure(cd9660node *);
 static int cd9660_generate_path_table(iso9660_disk *);
 static int cd9660_level1_convert_filename(iso9660_disk *, const char *, char *,
-    size_t, int);
+    size_t, bool);
 static int cd9660_level2_convert_filename(iso9660_disk *, const char *, char *,
-    size_t, int);
+    size_t, bool);
 static int cd9660_convert_filename(iso9660_disk *, const char *, char *, size_t,
-    int);
+    bool);
 static void cd9660_populate_dot_records(iso9660_disk *, cd9660node *);
 static int64_t cd9660_compute_offsets(iso9660_disk *, cd9660node *, int64_t);
 #if 0
@@ -1571,7 +1572,7 @@ cd9660_compute_full_filename(cd9660node *node, char *buf)
  */
 static int
 cd9660_level1_convert_filename(iso9660_disk *diskStructure, const char *oldname,
-    char *newname, size_t newnamelen, int is_file)
+    char *newname, size_t newnamelen, bool is_file)
 {
 	/*
 	 * ISO 9660 : 10.1
@@ -1627,7 +1628,7 @@ cd9660_level1_convert_filename(iso9660_disk *diskStructure, const char *oldname,
 /* XXX bounds checking! */
 static int
 cd9660_level2_convert_filename(iso9660_disk *diskStructure, const char *oldname,
-    char *newname, size_t newnamelen, int is_file)
+    char *newname, size_t newnamelen, bool is_file)
 {
 	/*
 	 * ISO 9660 : 7.5.1
@@ -1694,7 +1695,7 @@ cd9660_level2_convert_filename(iso9660_disk *diskStructure, const char *oldname,
  */
 static int
 cd9660_convert_filename(iso9660_disk *diskStructure, const char *oldname,
-    char *newname, size_t newnamelen, int is_file)
+    char *newname, size_t newnamelen, bool is_file)
 {
 	assert(1 <= diskStructure->isoLevel && diskStructure->isoLevel <= 2);
 	if (diskStructure->isoLevel == 1)
