@@ -61,12 +61,14 @@ typedef struct wait_queue_head wait_queue_head_t;
 
 typedef int wait_queue_func_t(wait_queue_t *, unsigned int, int, void *);
 
+#define WQ_FLAG_WOKEN		0x02
+
 /*
  * Many API consumers directly reference these fields and those of
  * wait_queue_head.
  */
 struct wait_queue {
-	unsigned int flags;	/* always 0 */
+	unsigned int flags;
 	void *private;
 	wait_queue_func_t *func;
 	union {
@@ -89,6 +91,9 @@ struct wait_queue_head {
  */
 extern wait_queue_func_t autoremove_wake_function;
 extern wait_queue_func_t default_wake_function;
+extern wait_queue_func_t woken_wake_function;
+
+long wait_woken(wait_queue_t *wq, unsigned state, long timeout);
 
 #define	DEFINE_WAIT_FUNC(name, function)				\
 	wait_queue_t name = {						\
