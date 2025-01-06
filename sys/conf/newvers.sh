@@ -290,6 +290,8 @@ if [ -n "$git_cmd" ] ; then
 			modified=yes
 		fi
 		git=" ${git}"
+
+		timestamp=$($git_cmd show -s --format=%ct HEAD 2>/dev/null)
 	fi
 fi
 
@@ -334,6 +336,13 @@ else
 	VERINFO="${VERSION} #${v}${svn}${git}${gitup}${got}${hg}: ${t}"
 	VERSTR="${VERINFO}\\n    ${u}@${h}:${d}\\n"
 fi
+if [ -n "$timestamp" ]; then
+	TSTAMP="#define SOURCE_TIMESTAMP ${timestamp}
+"
+else
+	TSTAMP=
+
+fi
 
 vers_content_new=$(cat << EOF
 $COPYRIGHT
@@ -348,7 +357,7 @@ $COPYRIGHT
 #define SCCSSTR "@(#)${VERINFO}"
 #define VERSTR "${VERSTR}"
 #define RELSTR "${RELEASE}"
-
+${TSTAMP}
 const char sccs[sizeof(SCCSSTR) > 128 ? sizeof(SCCSSTR) : 128] = SCCSSTR;
 const char version[sizeof(VERSTR) > 256 ? sizeof(VERSTR) : 256] = VERSTR;
 const char compiler_version[] = "${compiler_v}";
