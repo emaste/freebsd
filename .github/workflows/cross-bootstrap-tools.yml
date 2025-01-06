@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         target_arch: [ amd64, aarch64 ]
-        os: [ ubuntu-22.04, ubuntu-24.04, macos-latest ]
+        os: [ ubuntu-22.04, ubuntu-24.04, macos-latest, freebsd-14.2 ]
         include:
           # TODO: both Ubuntu and macOS have bmake packages, we should try them instead of bootstrapping our own copy.
           - os: ubuntu-22.04
@@ -33,6 +33,10 @@ jobs:
             compiler: clang-18
             cross-toolchain: llvm@18
             pkgs: bmake libarchive llvm@18
+          - os: freebsd-14.2
+            compiler: clang-18
+            cross-bindir: /usr/local/bin
+            pkgs: llvm18
           - target_arch: amd64
             target: amd64
           - target_arch: aarch64
@@ -49,6 +53,10 @@ jobs:
         run: |
           brew update --quiet || true
           brew install ${{ matrix.pkgs }} || true
+      - name: install packages (FreeBSD)
+        if: runner.os == 'FreeBSD'
+        run: |
+          pkg install ${{ matrix.pkgs }} || true
       - name: create environment
         run: |
           echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
