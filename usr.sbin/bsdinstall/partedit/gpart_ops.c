@@ -107,8 +107,7 @@ newfs_command(const char *fstype, int use_default)
 			{"", true, 0, "SU", "Softupdates",
 			    "Enable softupdates (default)"},
 			{"", true, 0, "SUJ", "Softupdates journaling",
-			    "Enable file system journaling (default - "
-			    "turn off for SSDs)"},
+			    "Enable file system journaling (default)"},
 			{"", false, 0, "TRIM", "Enable SSD TRIM support",
 			    "Enable TRIM support, useful on solid-state "
 			    "drives" },
