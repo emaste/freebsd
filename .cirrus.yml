@@ -180,6 +180,7 @@ task:
   package_check_script:
   - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -v -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/stage/METALOG"
 
+  # XXX this is not run if the above fails
   make_sysent_script:
   # Check that make sysent results were committed if required
   - make sysent
