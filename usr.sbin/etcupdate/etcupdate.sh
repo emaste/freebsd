@@ -226,10 +226,10 @@ build_tree()
 				fi
 			fi
 			if [ -n "$($make -V.ALLTARGETS:Minstalletc)" ]; then
-				$make DESTDIR=$destdir installetc || exit 1
+				$make DESTDIR=$destdir DISTDIR=. installetc || exit 1
 			else
-				$make DESTDIR=$destdir distrib-dirs || exit 1
-				$make DESTDIR=$destdir distribution || exit 1
+				$make DESTDIR=$destdir DISTDIR=. distrib-dirs || exit 1
+				$make DESTDIR=$destdir DISTDIR=. distribution || exit 1
 			fi
 		) || return 1
 	fi
