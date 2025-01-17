@@ -760,6 +760,8 @@ fetchupgrade_check_params () {
 	chmod 700 ${WORKDIR}
 	cd ${WORKDIR} || exit 1
 	if [ "$BASEDIR" != / ] && [ -z "$UNAME_r" ]; then
+		# idea from jrtc27 in D48016
+		UNAME_r=$(ROOT=${BASEDIR} freebsd-version)
 		echo "$(basename $0): -b basedir requires --currently-running to be specified."
 		exit 1
 	fi
