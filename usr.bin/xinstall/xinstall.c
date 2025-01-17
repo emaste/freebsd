@@ -1454,7 +1454,7 @@ metadata_log(const char *path, const char *type, struct timespec *ts,
 		fprintf(metafp, " link=%s", buf);
 	}
 	if (*type == 'f') /* type=file */
-		fprintf(metafp, " size=%lld", (long long)size);
+		fprintf(metafp, " size=%llu", (unsigned long long)size);
 	if (ts != NULL && dopreserve)
 		fprintf(metafp, " time=%lld.%09ld",
 		    (long long)ts[1].tv_sec, ts[1].tv_nsec);
