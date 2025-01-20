@@ -66,6 +66,7 @@ SUBDIR=adjkerntz \
 	swapon \
 	sysctl \
 	tunefs \
+	umbctl \
 	umount
 
 .if ${MK_INET} != "no" || ${MK_INET6} != "no"
