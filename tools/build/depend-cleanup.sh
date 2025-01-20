@@ -260,11 +260,6 @@ check_epoch
 
 # Date      Rev      Description
 
-# 20220326  fbc002cb72d2    move from bcmp.c to bcmp.S
-if [ "$MACHINE_ARCH" = "amd64" ]; then
-	clean_dep lib/libc bcmp c
-fi
-
 # 20220524  68fe988a40ca    kqueue_test binary replaced shell script
 if stat "$OBJTOP"/tests/sys/kqueue/libkqueue/*kqtest* \
     "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.kqtest* >/dev/null 2>&1; then
@@ -273,23 +268,11 @@ if stat "$OBJTOP"/tests/sys/kqueue/libkqueue/*kqtest* \
 	   "$OBJTOP"/tests/sys/kqueue/libkqueue/*
 fi
 
-# 20221115  42d10b1b56f2    move from rs.c to rs.cc
-clean_dep   usr.bin/rs      rs c
-
 # 20230110  bc42155199b5    usr.sbin/zic/zic -> usr.sbin/zic
 if [ -d "$OBJTOP"/usr.sbin/zic/zic ] ; then
 	echo "Removing old zic directory"
 	run rm -rf "$OBJTOP"/usr.sbin/zic/zic
 fi
-
-# 20230208  29c5f8bf9a01    move from mkmakefile.c to mkmakefile.cc
-clean_dep   usr.sbin/config  mkmakefile c
-# 20230209  83d7ed8af3d9    convert to main.cc and mkoptions.cc
-clean_dep   usr.sbin/config  main c
-clean_dep   usr.sbin/config  mkoptions c
-
-# 20230401  54579376c05e    kqueue1 from syscall to C wrapper
-clean_dep   lib/libc        kqueue1 S
 
 # 20230623  b077aed33b7b    OpenSSL 3.0 update
 if [ -f "$OBJTOP"/secure/lib/libcrypto/aria.o ]; then
@@ -301,28 +284,12 @@ if [ -f "$OBJTOP"/secure/lib/libcrypto/aria.o ]; then
 	done
 fi
 
-# 20230714  ee8b0c436d72    replace ffs/fls implementations with clang builtins
-clean_dep   lib/libc        ffs   S
-clean_dep   lib/libc        ffsl  S
-clean_dep   lib/libc        ffsll S
-clean_dep   lib/libc        fls   S
-clean_dep   lib/libc        flsl  S
-clean_dep   lib/libc        flsll S
-
 # 20230815  28f6c2f29280    GoogleTest update
 if [ -e "$OBJTOP"/tests/sys/fs/fusefs/mockfs.o ] && \
     grep -q '_ZN7testing8internal18g_linked_ptr_mutexE' "$OBJTOP"/tests/sys/fs/fusefs/mockfs.o; then
 	echo "Removing stale fusefs GoogleTest objects"
 	run rm -rf "$OBJTOP"/tests/sys/fs/fusefs
 fi
-
-# 20231031  0527c9bdc718    Remove forward compat ino64 stuff
-clean_dep   lib/libc        fstat         c
-clean_dep   lib/libc        fstatat       c
-clean_dep   lib/libc        fstatfs       c
-clean_dep   lib/libc        getdirentries c
-clean_dep   lib/libc        getfsstat     c
-clean_dep   lib/libc        statfs        c
 
 # 20240308  e6ffc7669a56    Remove pointless MD syscall(2)
 # 20240308  0ee0ae237324    Remove pointless MD syscall(2)
