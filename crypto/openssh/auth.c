@@ -522,7 +522,7 @@ getpwnamallow(struct ssh *ssh, const char *user)
 	from_ip = ssh_remote_ipaddr(ssh);
 	if (!auth_hostok(lc, from_host, from_ip)) {
 		debug("Denied connection for %.200s from %.200s [%.200s].",
-		    pw->pw_name, from_host, from_ip);
+		      pw->pw_name, from_host, from_ip);
 		return (NULL);
 	}
 #endif /* HAVE_AUTH_HOSTOK */
