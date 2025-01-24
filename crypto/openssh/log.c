@@ -446,8 +446,6 @@ sshlogdie(const char *file, const char *func, int line, int showfunc,
 	va_end(args);
 	cleanup_exit(255);
 }
-#if 0
-#endif
 
 void
 sshlogv(const char *file, const char *func, int line, int showfunc,
