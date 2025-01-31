@@ -318,7 +318,7 @@ vt_ime_draw_status_bar(struct vt_device *vd, char *status)
 	struct vt_window *vw;
 	struct vt_buf *vb;
 
-	const teken_attr_t *a;
+	//const teken_attr_t *a;
 	term_char_t ch;
 	term_rect_t tarea;
 
@@ -331,7 +331,7 @@ vt_ime_draw_status_bar(struct vt_device *vd, char *status)
 	vw = vd->vd_curwindow;
 	vb = &vw->vw_buf;
 
-	a = teken_get_curattr(&vb->vb_terminal->tm_emulator);
+	//a = teken_get_curattr(&vb->vb_terminal->tm_emulator);
 	ch = FG_WHITE | BG_BLUE;
 
 	len = strlen(status);
