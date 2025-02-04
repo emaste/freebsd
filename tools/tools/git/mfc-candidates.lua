@@ -15,7 +15,7 @@ local verbose = 0
 local function exec_command(command)
 	local handle = assert(io.popen(command))
 	local output = handle:read("a")
-	handle:close()
+	assert(handle:close())
 	if output:sub(-1) == "\n" then
 		return output:sub(1, -2)
 	end
