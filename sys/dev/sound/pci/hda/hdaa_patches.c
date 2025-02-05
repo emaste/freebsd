@@ -457,21 +457,31 @@ hdac_pin_patch(struct hdaa_widget *w)
 	 * plugged in.
 	 */
 	if ((config & HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) !=
-	    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK)
+	    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK) {
+		device_printf(w->devinfo->dev, "not jack, nid=%d line %d\n",
+		    nid, __LINE__);
 		goto skip;
+	}
 
+	device_printf(w->devinfo->dev, "looking for auto for nid=%d (%d-%d)\n",
+	    nid, w->devinfo->startnode, w->devinfo->endnode);
 	for (i = w->devinfo->startnode; i < w->devinfo->endnode; i++) {
 		if (i == nid)
 			continue;
 		wp = hdaa_widget_get(w->devinfo, i);
-		if (wp == NULL)
+		if (wp == NULL) {
+			device_printf(w->devinfo->dev, "i=%d wp is NULL", i);
 			continue;
+		}
 		wpconfig = wp->wclass.pin.config;
 
 		/* Find appropriate "Fixed" pin to associate with. */
 		if ((wpconfig & HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) !=
-		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED)
+		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED) {
+			device_printf(w->devinfo->dev,
+			    "i=%d wpconfig=0x%x, not fixed\n", i, wpconfig);
 			continue;
+		}
 
 		/* Define groups of pins we are allowed to associate. */
 		/* FIXME Ugly... */
@@ -484,6 +494,11 @@ hdac_pin_patch(struct hdaa_widget *w)
 			case HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN:
 				break;
 			default:
+				device_printf(w->devinfo->dev,
+				    "i=%d wpconfig=0x%x (0x%x) config=0x%x (0x%x), %d\n",
+				    i, wpconfig, wpconfig & HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
+				    config, config & HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
+				    __LINE__);
 				goto skip;
 			}
 			break;
@@ -494,10 +509,19 @@ hdac_pin_patch(struct hdaa_widget *w)
 			case HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT:
 				break;
 			default:
+				device_printf(w->devinfo->dev,
+				    "i=%d wpconfig=0x%x (0x%x) config=0x%x (0x%x), %d\n",
+				    i, wpconfig, wpconfig & HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
+				    config, config & HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
+				    __LINE__);
 				goto skip;
 			}
 			break;
 		default:
+			device_printf(w->devinfo->dev,
+			    "i=%d wpconfig=0x%x (0x%x) config=0x%x, %d\n",
+			    i, wpconfig, wpconfig & HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
+			    config, __LINE__);
 			goto skip;
 		}
 
@@ -529,12 +553,12 @@ skip:
 
 	if (patch_str != NULL)
 		config = hdaa_widget_pin_patch(config, patch_str);
-	HDA_BOOTVERBOSE(
+	{
 		if (config != orig)
 			device_printf(w->devinfo->dev,
 			    "Patching pin config nid=%u 0x%08x -> 0x%08x\n",
 			    nid, orig, config);
-	);
+	}
 	w->wclass.pin.config = config;
 }
 
@@ -581,13 +605,13 @@ hdaa_widget_patch(struct hdaa_widget *w)
 	if (hdaa_codec_id(devinfo) == HDA_CODEC_AD1984A &&
 	    w->nid == 23)
 		w->param.widget_cap &= ~HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL_MASK;
-	HDA_BOOTVERBOSE(
+	{
 		if (w->param.widget_cap != orig) {
 			device_printf(w->devinfo->dev,
 			    "Patching widget caps nid=%u 0x%08x -> 0x%08x\n",
 			    w->nid, orig, w->param.widget_cap);
 		}
-	);
+	}
 
 	if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
 		hdac_pin_patch(w);
