@@ -173,9 +173,11 @@ match_pin_patches(int vendor_id, int vendor_subid)
 static void
 hdac_pin_patch(struct hdaa_widget *w)
 {
+	struct hdaa_widget *wp;
 	const char *patch_str = NULL;
-	uint32_t config, orig, id, subid;
-	nid_t nid = w->nid;
+	uint32_t config, orig, id, subid, wpconfig, n;
+	nid_t i, nid = w->nid;
+
 
 	config = orig = w->wclass.pin.config;
 	id = hdaa_codec_id(w->devinfo);
@@ -447,6 +449,83 @@ hdac_pin_patch(struct hdaa_widget *w)
 			}
 		}
 	}
+
+	/*
+	 * The idea is that we want to associate pins of "Jack" connectivity
+	 * and related types, together with their "Fixed" equivalents, so that
+	 * input/output can be automatically redirected to the jack pin once
+	 * plugged in.
+	 */
+	if ((config & HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) !=
+	    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK)
+		goto skip;
+
+	for (i = w->devinfo->startnode; i < w->devinfo->endnode; i++) {
+		if (i == nid)
+			continue;
+		wp = hdaa_widget_get(w->devinfo, i);
+		if (wp == NULL)
+			continue;
+		wpconfig = wp->wclass.pin.config;
+
+		/* Find appropriate "Fixed" pin to associate with. */
+		if ((wpconfig & HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) !=
+		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED)
+			continue;
+
+		/* Define groups of pins we are allowed to associate. */
+		/* FIXME Ugly... */
+		/* XXX More groups? */
+		switch (wpconfig & HDA_CONFIG_DEFAULTCONF_DEVICE_MASK) {
+		case HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN:
+		case HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN:
+			switch (config & HDA_CONFIG_DEFAULTCONF_DEVICE_MASK) {
+			case HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN:
+			case HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN:
+				break;
+			default:
+				goto skip;
+			}
+			break;
+		case HDA_CONFIG_DEFAULTCONF_DEVICE_SPEAKER:
+		case HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT:
+			switch (config & HDA_CONFIG_DEFAULTCONF_DEVICE_MASK) {
+			case HDA_CONFIG_DEFAULTCONF_DEVICE_SPEAKER:
+			case HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT:
+				break;
+			default:
+				goto skip;
+			}
+			break;
+		default:
+			goto skip;
+		}
+
+		/* as */
+		n = HDA_CONFIG_DEFAULTCONF_ASSOCIATION(wpconfig);
+		config &= ~HDA_CONFIG_DEFAULTCONF_ASSOCIATION_MASK;
+		config |= ((n << HDA_CONFIG_DEFAULTCONF_ASSOCIATION_SHIFT) &
+		    HDA_CONFIG_DEFAULTCONF_ASSOCIATION_MASK);
+
+		device_printf(w->devinfo->dev, "nid=%d, as: %d -> %d\n",
+		    i, HDA_CONFIG_DEFAULTCONF_ASSOCIATION(config), n);
+
+		/* seq */
+		n = 15; /* FIXME Not all pins are patched with seq=15. */
+		config &= ~HDA_CONFIG_DEFAULTCONF_SEQUENCE_MASK;
+		config |= ((n << HDA_CONFIG_DEFAULTCONF_SEQUENCE_SHIFT) &
+		    HDA_CONFIG_DEFAULTCONF_SEQUENCE_MASK);
+
+		device_printf(w->devinfo->dev, "nid=%d, seq: %d -> %d\n",
+		    i, HDA_CONFIG_DEFAULTCONF_SEQUENCE(config), n);
+
+		/*
+		 * According to snd_hda.4, "color" and "loc" are ignored, so we
+		 * don't need to not worry about them.
+		 */
+		break;
+	}
+skip:
 
 	if (patch_str != NULL)
 		config = hdaa_widget_pin_patch(config, patch_str);
