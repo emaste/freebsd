@@ -2,7 +2,8 @@
 .include "${SRCTOP}/secure/ssh.mk"
 
 PROG=	ssh-add
-SRCS+=	ssh-add.c ssh-sk-client.c
+SRCS+=	ssh-add.c
+SRCS+=	${SRCS_SK_CLIENT}
 PACKAGE=	ssh
 
 LIBADD=	ssh

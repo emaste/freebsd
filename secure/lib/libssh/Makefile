@@ -4,29 +4,26 @@
 LIB=	ssh
 PRIVATELIB=	true
 SHLIB_MAJOR=	5
-SRCS=	ssh_api.c ssherr.c \
-	sshbuf.c sshkey.c sshbuf-getput-basic.c \
-	sshbuf-misc.c sshbuf-getput-crypto.c krl.c bitmap.c
-SRCS+=	authfd.c authfile.c \
-	canohost.c channels.c cipher.c cipher-aes.c cipher-aesctr.c \
+SRCS=	ssh_api.c
+SRCS+=	authfd.c \
+	cipher-aes.c \
 	cleanup.c \
 	compat.c fatal.c hostfile.c \
-	log.c match.c moduli.c nchan.c packet.c \
-	readpass.c ttymodes.c xmalloc.c addr.c addrmatch.c \
-	atomicio.c dispatch.c mac.c misc.c utf8.c \
-	monitor_fdpass.c rijndael.c ssh-dss.c ssh-ecdsa.c ssh-ecdsa-sk.c \
-	ssh-ed25519-sk.c ssh-rsa.c dh.c \
-	msg.c dns.c entropy.c umac.c umac128.c \
-	ssh-pkcs11.c smult_curve25519_ref.c \
-	poly1305.c chacha.c cipher-chachapoly.c cipher-chachapoly-libcrypto.c \
-	ssh-ed25519.c digest-openssl.c digest-libc.c \
-	hmac.c ed25519.c hash.c \
-	kex.c kexdh.c kexgex.c kexecdh.c kexc25519.c \
-	kexgexc.c kexgexs.c \
-	kexsntrup761x25519.c sntrup761.c kexgen.c \
-	sftp-realpath.c platform-pledge.c platform-tracing.c platform-misc.c \
-	sshbuf-io.c
-SRCS+=	ssh-sk-client.c
+	dns.c entropy.c \
+	readpass.c \
+	utf8.c \
+	sftp-realpath.c platform-pledge.c platform-tracing.c platform-misc.c
+SRCS+=	${SRCS_BASE}
+SRCS+=	${SRCS_KEX} ${SRCS_KEXC} ${SRCS_KEXS}
+SRCS+=	${SRCS_KEY}
+SRCS+=	${SRCS_KEYP}
+SRCS+=	${SRCS_KRL}
+SRCS+=	${SRCS_MAC}
+SRCS+=	${SRCS_PKT}
+SRCS+=	${SRCS_PROT}
+SRCS+=	${SRCS_PKCS11}
+SRCS+=	${SRCS_MODULI}
+SRCS+=	${SRCS_SK_CLIENT}
 
 PACKAGE=	ssh
 

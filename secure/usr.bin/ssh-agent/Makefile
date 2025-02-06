@@ -2,7 +2,7 @@
 .include "${SRCTOP}/secure/ssh.mk"
 
 PROG=	ssh-agent
-SRCS=	ssh-agent.c ssh-pkcs11-client.c
+SRCS=	ssh-agent.c ${SRCS_PKCS11_CLIENT}
 PACKAGE=	ssh
 
 LIBADD=	ssh
