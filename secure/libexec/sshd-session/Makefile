@@ -1,8 +1,6 @@
 .include <src.opts.mk>
 .include "${SRCTOP}/secure/ssh.mk"
 
-CONFS=	moduli sshd_config
-CONFSDIR=	/etc/ssh
 PROG=	sshd-session
 SRCS=	sshd-session.c auth-rhosts.c auth-passwd.c \
 	audit.c audit-bsm.c audit-linux.c platform.c \
