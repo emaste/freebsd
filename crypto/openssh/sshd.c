@@ -1879,7 +1879,7 @@ main(int ac, char **av)
 
 #ifdef HAVE_LOGIN_CAP
 	/* Also caches remote hostname for sandboxed child. */
-	auth_get_canonical_hostname(ssh, options.use_dns);
+//	auth_get_canonical_hostname(ssh, options.use_dns);
 #endif
 
 
