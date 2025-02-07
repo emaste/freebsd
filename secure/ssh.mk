@@ -34,6 +34,7 @@ SRCS_KEX+=	smult_curve25519_ref.c
 SRCS_KEX+=	kexgen.c
 SRCS_KEX+=	kexsntrup761x25519.c
 SRCS_KEX+=	sntrup761.c
+SRCS_PKT+=	kexmlkem768x25519.c
 
 SRCS_KEY+=	sshkey.c
 SRCS_KEY+=	cipher.c
@@ -70,6 +71,7 @@ SRCS_MAC+=	umac128.c
 SRCS_PKT+=	canohost.c
 SRCS_PKT+=	dispatch.c
 SRCS_PKT+=	kex.c
+SRCS_PKT+=	kex-names.c
 SRCS_PKT+=	packet.c
 
 SRCS_PROT+=	channels.c
