@@ -20,6 +20,8 @@ CFLAGS+= -DHAVE_LDNS=1
 CFLAGS+= -DLIBWRAP=1
 .endif
 
+CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE:U/usr/local}/bin/xauth\"
+
 .if ${MK_USB} != "no"
 # Built-in security key support
 CFLAGS+= -include sk_config.h
