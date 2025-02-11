@@ -1,17 +1,19 @@
 .include <src.opts.mk>
 .include "${SRCTOP}/secure/ssh.mk"
 
-PROG=	sshd-session
-SRCS=	sshd-session.c auth-rhosts.c auth-passwd.c \
-	audit.c audit-bsm.c audit-linux.c platform.c \
-	sshpty.c sshlogin.c servconf.c serverloop.c \
-	auth.c auth2.c auth2-methods.c auth-options.c session.c \
-	auth2-chall.c groupaccess.c \
-	auth-bsdauth.c auth2-hostbased.c auth2-kbdint.c \
+PROG=	sshd-auth
+SRCS=	sshd-auth.c \
+	auth2-methods.c \
+	auth-rhosts.c auth-passwd.c sshpty.c sshlogin.c servconf.c \
+	serverloop.c auth.c auth2.c auth-options.c session.c auth2-chall.c \
+	groupaccess.c auth-bsdauth.c auth2-hostbased.c auth2-kbdint.c \
 	auth2-none.c auth2-passwd.c auth2-pubkey.c auth2-pubkeyfile.c \
-	monitor.c monitor_wrap.c auth-krb5.c \
 	auth2-gss.c gss-serv.c gss-serv-krb5.c \
+	monitor_wrap.c auth-krb5.c \
+	audit.c audit-bsm.c audit-linux.c platform.c \
 	loginrec.c auth-pam.c auth-shadow.c auth-sia.c \
+	sandbox-null.c sandbox-rlimit.c sandbox-darwin.c \
+	sandbox-seccomp-filter.c sandbox-capsicum.c sandbox-solaris.c \
 	sftp-server.c sftp-common.c \
 	uidswap.c
 PACKAGE=	ssh
@@ -26,8 +28,8 @@ LIBADD=	pam ssh util
 
 .if ${MK_LDNS} != "no"
 CFLAGS+=	-DHAVE_LDNS=1
-#DPADD+=	${LIBLDNS}
-#LDADD+=	-lldns
+DPADD+=	${LIBLDNS}
+LDADD+=	-lldns
 .endif
 
 .if ${MK_AUDIT} != "no"
