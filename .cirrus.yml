@@ -4,7 +4,7 @@ compute_engine_instance:
   # gcloud compute images list --project freebsd-org-cloud-dev --no-standard-images
   platform: freebsd
   image_project: freebsd-org-cloud-dev
-  image: family/freebsd-14-0-snap
+  image: family/freebsd-14-2-snap
   cpu: 8
   memory: 8G
   disk: 40
