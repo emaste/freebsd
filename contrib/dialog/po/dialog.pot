@@ -1,12 +1,12 @@
 # Dialog
-# Copyright 2003-2020,2021 # Thomas Dickey
+# Copyright 2003-2014,2015 # Thomas Dickey
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: dialog 1.3.20210117\n"
+"Project-Id-Version: dialog 1.2.20150510\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-17 15:18-0500\n"
+"POT-Creation-Date: 2015-05-10 21:00-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,63 +15,53 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: buttons.c:500
+#: buttons.c:480
 msgid "Yes"
 msgstr ""
 
-#: buttons.c:508
+#: buttons.c:488
 msgid "No"
 msgstr ""
 
-#: buttons.c:516
+#: buttons.c:496
 msgid "OK"
 msgstr ""
 
-#: buttons.c:524
+#: buttons.c:504
 msgid "Cancel"
 msgstr ""
 
-#: buttons.c:532
+#: buttons.c:512
 msgid "EXIT"
 msgstr ""
 
-#: buttons.c:540
+#: buttons.c:520
 msgid "Extra"
 msgstr ""
 
-#: buttons.c:548
+#: buttons.c:528
 msgid "Help"
 msgstr ""
 
 #. Headline "Month"
-#: calendar.c:463
+#: calendar.c:300
 msgid "Month"
 msgstr ""
 
 #. Headline "Year"
-#: calendar.c:485
+#: calendar.c:322
 msgid "Year"
 msgstr ""
 
-#: dialog.c:744
-#, c-format
-msgid "Expected %d arguments, found only %d"
-msgstr ""
-
-#: dialog.c:748
-#, c-format
-msgid "Expected %d arguments, found extra %d"
-msgstr ""
-
-#: dialog.c:907
+#: dialog.c:728
 msgid "Rename"
 msgstr ""
 
-#: fselect.c:623
+#: fselect.c:596
 msgid "Directories"
 msgstr ""
 
-#: fselect.c:624
+#: fselect.c:597
 msgid "Files"
 msgstr ""
 
@@ -111,10 +101,10 @@ msgstr ""
 msgid "N/A"
 msgstr ""
 
-#: mixedgauge.c:193
+#: mixedgauge.c:190
 msgid "Overall Progress"
 msgstr ""
 
-#: textbox.c:515
+#: textbox.c:502
 msgid "Search"
 msgstr ""

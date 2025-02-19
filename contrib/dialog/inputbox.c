@@ -1,9 +1,9 @@
 /*
- *  $Id: inputbox.c,v 1.93 2021/01/17 16:36:37 tom Exp $
+ *  $Id: inputbox.c,v 1.84 2018/06/21 23:29:35 tom Exp $
  *
  *  inputbox.c -- implements the input box
  *
- *  Copyright 2000-2020,2021 Thomas E. Dickey
+ *  Copyright 2000-2016,2018 Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -24,7 +24,7 @@
  *	Savio Lam (lam836@cs.cuhk.hk)
  */
 
-#include <dlg_internals.h>
+#include <dialog.h>
 #include <dlg_keys.h>
 
 #define sTEXT -1
@@ -36,11 +36,6 @@
 	DLG_KEYS_DATA( DLGK_FIELD_PREV,	KEY_BTAB ), \
 	DLG_KEYS_DATA( DLGK_FIELD_PREV,	KEY_LEFT ), \
 	DLG_KEYS_DATA( DLGK_FIELD_PREV,	KEY_UP )
-
-#define BTN_HIGH 1
-#define HDR_HIGH 1
-#define MIN_HIGH (HDR_HIGH + (MARGIN * 2 + 1) + (BTN_HIGH + MARGIN * 2))
-#define MIN_WIDE 26
 
 /*
  * Display a dialog box for entering a string
@@ -112,13 +107,13 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
     key = fkey = 0;
 
     if (init != NULL) {
-	dlg_auto_size(title, prompt, &height, &width, MIN_HIGH,
-		      MIN(MAX(dlg_count_columns(init) + 7, MIN_WIDE),
+	dlg_auto_size(title, prompt, &height, &width, 5,
+		      MIN(MAX(dlg_count_columns(init) + 7, 26),
 			  SCOLS - (dialog_vars.begin_set ?
 				   dialog_vars.begin_x : 0)));
 	chr_offset = (int) strlen(init);
     } else {
-	dlg_auto_size(title, prompt, &height, &width, MIN_HIGH, MIN_WIDE);
+	dlg_auto_size(title, prompt, &height, &width, 5, 26);
     }
     dlg_button_layout(buttons, &width);
     dlg_print_size(height, width);
@@ -161,8 +156,9 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 	wsyncup(editor);
 	wcursyncup(editor);
     }
-
     while (result == DLG_EXIT_UNKNOWN) {
+	int edit = 0;
+
 	/*
 	 * The last field drawn determines where the cursor is shown:
 	 */
@@ -182,10 +178,8 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 		wcursyncup(editor);
 	    }
 	    key = dlg_mouse_wgetch((state == sTEXT) ? editor : dialog, &fkey);
-	    if (dlg_result_key(key, fkey, &result)) {
-		if (!dlg_button_key(result, &code, &key, &fkey))
-		    break;
-	    }
+	    if (dlg_result_key(key, fkey, &result))
+		break;
 	}
 
 	/*
@@ -200,7 +194,7 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 	}
 
 	if (state == sTEXT) {	/* Input box selected */
-	    int edit = dlg_edit_string(input, &chr_offset, key, fkey, first);
+	    edit = dlg_edit_string(input, &chr_offset, key, fkey, first);
 
 	    if (edit) {
 		dlg_show_string(editor, input, chr_offset, inputbox_attr,
@@ -242,10 +236,6 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 		dlg_del_window(dialog);
 		result = (state >= 0) ? dlg_enter_buttoncode(state) : DLG_EXIT_OK;
 		break;
-	    case DLGK_LEAVE:
-		if (state >= 0)
-		    result = dlg_ok_buttoncode(state);
-		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
 		dlg_will_resize(dialog);
@@ -253,18 +243,20 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 		height = old_height;
 		width = old_width;
 		/* repaint */
-		_dlg_resize_cleanup(dialog);
+		dlg_clear();
+		dlg_del_window(dialog);
+		refresh();
+		dlg_mouse_free_regions();
 		goto retry;
 #endif
 	    default:
 		beep();
 		break;
 	    }
-	} else if (key > 0) {
+	} else {
 	    beep();
 	}
     }
-    AddLastKey();
 
     dlg_unregister_window(editor);
     dlg_del_window(dialog);

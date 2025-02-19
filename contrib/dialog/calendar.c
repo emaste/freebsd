@@ -1,9 +1,9 @@
 /*
- * $Id: calendar.c,v 1.106 2020/11/23 09:03:49 tom Exp $
+ * $Id: calendar.c,v 1.97 2018/06/19 22:57:01 tom Exp $
  *
  *  calendar.c -- implements the calendar box
  *
- *  Copyright 2001-2019,2020	Thomas E. Dickey
+ *  Copyright 2001-2017,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -21,7 +21,7 @@
  *	Boston, MA 02110, USA.
  */
 
-#include <dlg_internals.h>
+#include <dialog.h>
 #include <dlg_keys.h>
 
 #include <time.h>
@@ -75,6 +75,16 @@ static const char *
 nameOfDayOfWeek(int n)
 {
     static bool shown[MAX_DAYS];
+    static const char *posix_days[MAX_DAYS] =
+    {
+	"Sunday",
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday"
+    };
 
     while (n < 0) {
 	n += MAX_DAYS;
@@ -91,17 +101,7 @@ nameOfDayOfWeek(int n)
     }
 #endif
     if (cached_days[n] == 0) {
-	static const char *posix_days[MAX_DAYS] =
-	{
-	    "Sunday",
-	    "Monday",
-	    "Tuesday",
-	    "Wednesday",
-	    "Thursday",
-	    "Friday",
-	    "Saturday"
-	};
-	size_t limit = MON_WIDE - 1;
+	size_t len, limit = MON_WIDE - 1;
 	char *value = dlg_strclone(posix_days[n]);
 
 	/*
@@ -111,7 +111,7 @@ nameOfDayOfWeek(int n)
 	 * double-width cell.  For now (2016/01/26), handle too-long names only
 	 * for POSIX values.
 	 */
-	if (strlen(value) > limit)
+	if ((len = strlen(value)) > limit)
 	    value[limit] = '\0';
 	cached_days[n] = value;
     }
@@ -126,6 +126,21 @@ static const char *
 nameOfMonth(int n)
 {
     static bool shown[MAX_MONTHS];
+    static const char *posix_mons[MAX_MONTHS] =
+    {
+	"January",
+	"February",
+	"March",
+	"April",
+	"May",
+	"June",
+	"July",
+	"August",
+	"September",
+	"October",
+	"November",
+	"December"
+    };
 
     while (n < 0) {
 	n += MAX_MONTHS;
@@ -143,21 +158,6 @@ nameOfMonth(int n)
     }
 #endif
     if (cached_months[n] == 0) {
-	static const char *posix_mons[MAX_MONTHS] =
-	{
-	    "January",
-	    "February",
-	    "March",
-	    "April",
-	    "May",
-	    "June",
-	    "July",
-	    "August",
-	    "September",
-	    "October",
-	    "November",
-	    "December"
-	};
 	cached_months[n] = dlg_strclone(posix_mons[n]);
     }
     if (!shown[n]) {
@@ -301,6 +301,7 @@ iso_week(int year, int month, int day)
     if (365 + isleap(year) - diy < MAX_DAYS
 	&& new_years_eve_dow >= dow
 	&& new_years_eve_dow < thursday) {
+	++year;
 	week = 1;
     }
     return week;
@@ -370,7 +371,7 @@ static int
 draw_day(BOX * data, struct tm *current)
 {
     int cell_wide = MON_WIDE;
-    int y, x, this_x;
+    int y, x, this_x = 0;
     int save_y = 0, save_x = 0;
     int day = current->tm_mday;
     int mday;
@@ -512,11 +513,12 @@ init_object(BOX * data,
     data->box_draw = box_draw;
     data->week_start = key_offset;
 
-    data->window = dlg_der_window(data->parent,
-				  data->height, data->width,
-				  data->y, data->x);
+    data->window = derwin(data->parent,
+			  data->height, data->width,
+			  data->y, data->x);
     if (data->window == 0)
 	return -1;
+    (void) keypad(data->window, TRUE);
 
     dlg_mouse_setbase(getbegx(parent), getbegy(parent));
     if (code == 'D') {
@@ -713,13 +715,14 @@ dialog_calendar(const char *title,
 #endif
     BOX dy_box, mn_box, yr_box;
     int fkey;
-    int key;
+    int key = 0;
+    int key2;
     int step;
     int button;
     int result = DLG_EXIT_UNKNOWN;
     int week_start;
     WINDOW *dialog;
-    time_t now_time;
+    time_t now_time = time((time_t *) 0);
     struct tm current;
     int state = dlg_default_button();
     const char **buttons = dlg_ok_labels();
@@ -743,7 +746,7 @@ dialog_calendar(const char *title,
     dlg_does_output();
 
     /*
-     * Unless overridden, the current time/date is our starting point.
+     * Unless overrridden, the current time/date is our starting point.
      */
     now_time = time((time_t *) 0);
     current = *localtime(&now_time);
@@ -868,7 +871,6 @@ dialog_calendar(const char *title,
 
     dlg_trace_win(dialog);
     while (result == DLG_EXIT_UNKNOWN) {
-	int key2;
 	BOX *obj = (state == sDAY ? &dy_box
 		    : (state == sMONTH ? &mn_box :
 		       (state == sYEAR ? &yr_box : 0)));
@@ -879,10 +881,9 @@ dialog_calendar(const char *title,
 	    dlg_set_focus(dialog, obj->window);
 
 	key = dlg_mouse_wgetch(dialog, &fkey);
-	if (dlg_result_key(key, fkey, &result)) {
-	    if (!dlg_button_key(result, &button, &key, &fkey))
-		break;
-	}
+	if (dlg_result_key(key, fkey, &result))
+	    break;
+
 #define Mouse2Key(key) (key - M_EVENT)
 	if (fkey && (key >= DLGK_MOUSE(KEY_MIN) && key <= DLGK_MOUSE(KEY_MAX))) {
 	    key = dlg_lookup_key(dialog, Mouse2Key(key), &fkey);
@@ -906,9 +907,6 @@ dialog_calendar(const char *title,
 	    case DLGK_ENTER:
 		result = dlg_enter_buttoncode(button);
 		break;
-	    case DLGK_LEAVE:
-		result = dlg_ok_buttoncode(button);
-		break;
 	    case DLGK_FIELD_PREV:
 		state = dlg_prev_ok_buttonindex(state, sMONTH);
 		break;
@@ -922,7 +920,9 @@ dialog_calendar(const char *title,
 		height = old_height;
 		width = old_width;
 		free(prompt);
-		_dlg_resize_cleanup(dialog);
+		dlg_clear();
+		dlg_del_window(dialog);
+		dlg_mouse_free_regions();
 		/* repaint */
 		goto retry;
 #endif
@@ -1010,7 +1010,8 @@ dialog_calendar(const char *title,
 	DefaultFormat(buffer, current);
 
     dlg_add_result(buffer);
-    AddLastKey();
+    dlg_add_separator();
+    dlg_add_last_key(-1);
 
     return CleanupResult(result, dialog, prompt, &save_vars);
 }

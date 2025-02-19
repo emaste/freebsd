@@ -14,99 +14,99 @@ msgstr ""
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=EUC-JP\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: buttons.c:387
 msgid "Yes"
-msgstr "ã¯ã„"
+msgstr "¤Ï¤¤"
 
 #: buttons.c:395
 msgid "No"
-msgstr "ã„ã„ãˆ"
+msgstr "¤¤¤¤¤¨"
 
 #: buttons.c:403
 msgid "OK"
-msgstr "äº†è§£"
+msgstr "Î»²ò"
 
 #: buttons.c:411
 msgid "Cancel"
-msgstr "å–æ¶ˆ"
+msgstr "¼è¾Ã"
 
 #: buttons.c:419
 msgid "EXIT"
-msgstr "çµ‚äº†"
+msgstr "½ªÎ»"
 
 #: buttons.c:427
 msgid "Extra"
-msgstr "æ‹¡å¼µ"
+msgstr "³ÈÄ¥"
 
 #: buttons.c:435
 msgid "Help"
-msgstr "ãƒ˜ãƒ«ãƒ—"
+msgstr "¥Ø¥ë¥×"
 
 #. Headline "Month"
 #: calendar.c:298
 msgid "Month"
-msgstr "æœˆ"
+msgstr "·î"
 
 #. Headline "Year"
 #: calendar.c:318
 msgid "Year"
-msgstr "å¹´"
+msgstr "Ç¯"
 
 #: dialog.c:756
 msgid "Rename"
-msgstr "åå‰å¤‰æ›´"
+msgstr "Ì¾Á°ÊÑ¹¹"
 
 #: fselect.c:571
 msgid "Directories"
-msgstr "ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒª"
+msgstr "¥Ç¥£¥ì¥¯¥È¥ê"
 
 #: fselect.c:572
 msgid "Files"
-msgstr "ãƒ•ã‚¡ã‚¤ãƒ«"
+msgstr "¥Õ¥¡¥¤¥ë"
 
 #: mixedgauge.c:58
 msgid "Succeeded"
-msgstr "æˆåŠŸ"
+msgstr "À®¸ù"
 
 #: mixedgauge.c:61
 msgid "Failed"
-msgstr "å¤±æ•—"
+msgstr "¼ºÇÔ"
 
 #: mixedgauge.c:64
 msgid "Passed"
-msgstr "ãƒ‘ã‚¹"
+msgstr "¥Ñ¥¹"
 
 #: mixedgauge.c:67
 msgid "Completed"
-msgstr "å®Œäº†"
+msgstr "´°Î»"
 
 #: mixedgauge.c:70
 msgid "Checked"
-msgstr "ç¢ºèªçµ‚äº†"
+msgstr "³ÎÇ§½ªÎ»"
 
 #: mixedgauge.c:73
 msgid "Done"
-msgstr "çµ‚äº†"
+msgstr "½ªÎ»"
 
 #: mixedgauge.c:76
 msgid "Skipped"
-msgstr "ã‚¹ã‚­ãƒƒãƒ—"
+msgstr "¥¹¥­¥Ã¥×"
 
 #: mixedgauge.c:79
 msgid "In Progress"
-msgstr "å‡¦ç†ä¸­"
+msgstr "½èÍıÃæ"
 
 #: mixedgauge.c:85
 msgid "N/A"
-msgstr "ç„¡åŠ¹"
+msgstr "Ìµ¸ú"
 
 #: mixedgauge.c:193
 msgid "Overall Progress"
-msgstr "å…¨ä½“ã®é€²è¡ŒçŠ¶æ³"
+msgstr "Á´ÂÎ¤Î¿Ê¹Ô¾õ¶·"
 
 #: textbox.c:468
 msgid "Search"
-msgstr "èª¿æŸ»"
+msgstr "Ä´ºº"

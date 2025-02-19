@@ -1,14 +1,15 @@
 /*
- *  $Id: progressbox.c,v 1.54 2020/11/22 15:48:27 tom Exp $
+ *  $Id: progressbox.c,v 1.47 2018/06/21 09:14:47 tom Exp $
  *
  *  progressbox.c -- implements the progress box
  *
- *  Copyright 2006-2019,2020	Thomas E. Dickey
+ *  Copyright 2006-2014,2018	Thomas E. Dickey
  *  Copyright 2005		Valery Reznic
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU Lesser General Public License, version 2.1
- *  as published by the Free Software Foundation.
+ *  it under the terms of the GNU Lesser General Public License as
+ *  published by the Free Software Foundation; either version 2.1 of the
+ *  License, or (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful, but
  *  WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -68,7 +69,6 @@ free_obj(MY_OBJ * obj)
     free(obj);
 }
 
-#ifdef KEY_RESIZE
 static void
 restart_obj(MY_OBJ * obj)
 {
@@ -78,12 +78,12 @@ restart_obj(MY_OBJ * obj)
     dlg_clear();
     dlg_del_window(obj->obj.win);
 }
-#endif
 
 static void
 start_obj(MY_OBJ * obj, const char *title, const char *cprompt)
 {
     int y, x, thigh;
+    int i;
 
     obj->prompt = dlg_strclone(cprompt);
     dlg_tab_correct_str(obj->prompt);
@@ -108,7 +108,6 @@ start_obj(MY_OBJ * obj, const char *title, const char *cprompt)
     dlg_draw_helpline(obj->obj.win, FALSE);
 
     if (obj->prompt[0] != '\0') {
-	int i;
 	int y2, x2;
 
 	dlg_attrset(obj->obj.win, dialog_attr);
@@ -146,12 +145,12 @@ get_line(MY_OBJ * obj, int *restart)
 {
     FILE *fp = obj->obj.input;
     int col = 0;
-    int j, tmpint;
+    int j, tmpint, ch;
     char *result = obj->line;
 
     *restart = 0;
     for (;;) {
-	int ch = getc(fp);
+	ch = getc(fp);
 #ifdef KEY_RESIZE
 	/* SIGWINCH may have interrupted this - try to ignore if resizable */
 	if (ferror(fp)) {
@@ -208,7 +207,7 @@ get_line(MY_OBJ * obj, int *restart)
 	}
 
 	nodelay(win, TRUE);
-	if (wgetch(win) == KEY_RESIZE) {
+	if ((ch = wgetch(win)) == KEY_RESIZE) {
 	    *restart = 1;
 	}
 	nodelay(win, FALSE);
@@ -228,9 +227,7 @@ print_line(MY_OBJ * obj, const char *line, int row)
 
     (void) wmove(obj->text, row, 0);	/* move cursor to correct line */
     wprintw(obj->text, " %.*s", limit, line);
-    while (++limit < width) {
-	waddch(obj->text, ' ');
-    }
+    wclrtoeol(obj->text);
 }
 
 #ifdef KEY_RESIZE
@@ -287,14 +284,12 @@ pause_for_ok(MY_OBJ * obj, const char *title, const char *cprompt)
     /* *INDENT-ON* */
 
     int button;
-    int key, fkey;
+    int key = 0, fkey;
     int result = DLG_EXIT_UNKNOWN;
     const char **buttons = dlg_ok_label();
+    int check;
     bool save_nocancel = dialog_vars.nocancel;
     bool redraw = TRUE;
-
-    (void) title;
-    (void) cprompt;
 
     dialog_vars.nocancel = TRUE;
     button = dlg_default_button();
@@ -309,8 +304,6 @@ pause_for_ok(MY_OBJ * obj, const char *title, const char *cprompt)
     dlg_draw_bottom_box2(obj->obj.win, border_attr, border2_attr, dialog_attr);
 
     while (result == DLG_EXIT_UNKNOWN) {
-	int check;
-
 	if (redraw) {
 	    redraw = FALSE;
 	    if (button < 0)
@@ -322,10 +315,8 @@ pause_for_ok(MY_OBJ * obj, const char *title, const char *cprompt)
 	}
 
 	key = dlg_mouse_wgetch(obj->obj.win, &fkey);
-	if (dlg_result_key(key, fkey, &result)) {
-	    if (!dlg_button_key(result, &button, &key, &fkey))
-		break;
-	}
+	if (dlg_result_key(key, fkey, &result))
+	    break;
 
 	if (!fkey && (check = dlg_char_to_button(key, buttons)) >= 0) {
 	    result = dlg_ok_buttoncode(check);
@@ -365,12 +356,10 @@ pause_for_ok(MY_OBJ * obj, const char *title, const char *cprompt)
 		break;
 	    }
 
-	} else if (key > 0) {
+	} else {
 	    beep();
 	}
     }
-    dlg_add_last_key(-1);
-
     dlg_mouse_free_regions();
     dlg_unregister_window(obj->obj.win);
 

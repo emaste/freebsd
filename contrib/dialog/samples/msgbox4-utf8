@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: msgbox4-utf8,v 1.13 2020/11/26 00:25:37 tom Exp $
+# $Id: msgbox4-utf8,v 1.10 2010/01/13 10:20:03 tom Exp $
 
 . ./setup-vars
 
@@ -23,15 +23,13 @@ There are several checking points:
 Hi, this is a simple message box.  You can use this to \
 display any message you like.  The box will remain until \
 you press the ENTER key." 22 $width
-returncode=$?
+retval=$?
 
-case $returncode in
-  $DIALOG_OK)
-    ;;
-  *)
-    . ./report-button;
-    exit
-    ;;
+case $retval in
+  $DIALOG_CANCEL)
+    echo "Cancel pressed.";exit;;
+  $DIALOG_ESC)
+    echo "ESC pressed.";exit;;
 esac
 
 width=`expr $width + 1`
