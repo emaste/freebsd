@@ -39,8 +39,6 @@
 #endif
 
 #ifdef HAVE_SYS_PARAM_H
-#undef MIN
-#undef MAX
 #include <sys/param.h>
 #endif
 
