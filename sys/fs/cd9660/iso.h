@@ -271,7 +271,7 @@ struct ifid {
 #define lblkno(imp, loc)	((loc) >> (imp)->im_bshift)
 #define blksize(imp, ip, lbn)	((imp)->logical_block_size)
 
-int cd9660_vget_internal(struct mount *, ino_t	, int, struct vnode **, int,
+int cd9660_vget_internal(struct mount *, ino_t	, int, struct vnode **, bool,
 			 struct iso_directory_record *);
 #define cd9660_sysctl ((int (*)(int *, u_int, void *, size_t *, void *, \
 				size_t, struct proc *))eopnotsupp)
