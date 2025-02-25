@@ -808,7 +808,6 @@ cd9660_translate_node_common(iso9660_disk *diskStructure, cd9660node *newnode)
 	if (S_ISDIR(newnode->node->type))
 		flag |= ISO_FLAG_DIRECTORY;
 
-printf("%s %s length assigned here\n", __func__, temp);
 	cd9660_populate_iso_dir_record(newnode->isoDirRecord, 0,
 	    flag, strlen(temp), temp);
 
@@ -1045,7 +1044,6 @@ cd9660_rename_filename(iso9660_disk *diskStructure, cd9660node *iter, int num,
 	else
 		maxlength = ISO_FILENAME_MAXLENGTH_BEFORE_VERSION;
 
-printf("%s maxlength=%d old=%s len=??\n", __func__, maxlength, iter->o_name);
 	tmp = emalloc(ISO_FILENAME_MAXLENGTH);
 
 	while (i < num && iter) {
@@ -1648,8 +1646,6 @@ cd9660_level2_convert_filename(iso9660_disk *diskStructure, const char *oldname,
 	int found_ext = 0;
 	char *orignewname = newname;
 
-printf("oldname=%s\n", oldname);
-const char *nn = newname;
 	while (*oldname != '\0' && namelen + extlen < maxlen) {
 		/* Handle period first, as it is special */
 		if (*oldname == '.' && is_file) {
@@ -1687,7 +1683,6 @@ const char *nn = newname;
 		/* Add version */
 		snprintf(newname, newnamelen - (newname - orignewname), ";%i", 1);
 	}
-printf("newname=%s\n", nn);
 	return namelen + extlen + found_ext;
 }
 
