@@ -941,6 +941,18 @@ read_mtree_spec1(FILE *fp, bool def, const char *name)
 			return (error);
 		}
 	}
+	if (node->inode->st.st_ino == 0) {
+		char *path = mtree_file_path(node);
+		struct stat sb;
+
+		if (lstat(path, &sb) == 0) {
+			node->inode->st.st_ino = sb.st_ino;
+		} else {
+			mtree_warning("%s: path '%s' not found", node->name,
+			    path);
+		}
+		free(path);
+	}
 
 	node->first = (mtree_current != NULL) ? mtree_current : node;
 
