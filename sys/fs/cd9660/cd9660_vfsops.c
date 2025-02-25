@@ -650,7 +650,7 @@ cd9660_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 #if 0
 	    VFSTOISOFS(mp)->iso_ftype == ISO_FTYPE_RRIP,
 #else
-	    0,
+	    false,
 #endif
 	    (struct iso_directory_record *)0));
 }
@@ -669,7 +669,7 @@ cd9660_vfs_hash_cmp(struct vnode *vp, void *pino)
 
 int
 cd9660_vget_internal(struct mount *mp, ino_t ino, int flags,
-    struct vnode **vpp, int relocated, struct iso_directory_record *isodir)
+    struct vnode **vpp, bool relocated, struct iso_directory_record *isodir)
 {
 	struct iso_mnt *imp;
 	struct iso_node *ip;
