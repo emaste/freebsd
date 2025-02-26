@@ -829,7 +829,6 @@ read_mtree_spec1(FILE *fp, bool def, const char *name)
 	int error;
 
 	assert(name[0] != '\0');
-	printf("%s:%d (%s) name=%s\n", __FILE__, __LINE__, __func__, name);
 
 	/*
 	 * Treat '..' specially, because it only changes our current
