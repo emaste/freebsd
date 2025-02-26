@@ -1498,10 +1498,10 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 .for d in ${LIBCOMPAT_INCLUDE_DIRS}
 	-mkdir ${DESTDIR}/${DISTDIR}/${dist}/usr/include/${d}
 .endfor
-.if ${MK_DEBUG_FILES} != "no"
+#.if ${MK_DEBUG_FILES} != "no"
 	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
-.endif
+#.endif
 .for libcompat in ${libcompats}
 	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
