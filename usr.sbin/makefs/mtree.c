@@ -941,6 +941,8 @@ read_mtree_spec1(FILE *fp, bool def, const char *name)
 			return (error);
 		}
 	}
+	// XXX we should move the inode lookup logic out of read_mtree_keywords
+	// and do it only here.
 	if (node->inode->st.st_ino == 0) {
 		char *path = mtree_file_path(node);
 		struct stat sb;
