@@ -221,29 +221,29 @@
  * Standard matrix maps:
  *
  * struct pcmchan_matrix {
- * 	.id = Matrix identity (see matrix.h). Custom defined should use
- * 	      one of SND_CHN_MATRIX_MISC (for whatever purposes) or
- * 	      SND_CHN_MATRIX_DRV (hardware driver).
- * 	.channels = Total number of channels, including whatever 'extended'
- * 		    (the X.ext notions, mostly LFE).
- * 	.ext = Total number of extended channels (LFE).
- * 	.map = {
- * 		Sequences of channel type and interleave structure.
- * 		[interleave offset] = {
- * 			.type = channel type (see matrix.h).
- * 			.members = Masks of channels that is acceptable as a
- * 				   member of this channel type.
- * 		},
- * 		[total channels] = {
- * 			.type = Maximum channels marker (SND_CHN_T_MAX).
- * 			.members = 0 (no channels allowed here).
- * 		},
- * 	},
- * 	.mask = Mask of channels that exist in this map.
- * 	.offset = {
- * 		channel offset that directly translate to the above interleave
- * 		offset according to SND_CHN_T_* definitions.
- * 	}
+ *	.id = Matrix identity (see matrix.h). Custom defined should use
+ *	      one of SND_CHN_MATRIX_MISC (for whatever purposes) or
+ *	      SND_CHN_MATRIX_DRV (hardware driver).
+ *	.channels = Total number of channels, including whatever 'extended'
+ *		    (the X.ext notions, mostly LFE).
+ *	.ext = Total number of extended channels (LFE).
+ *	.map = {
+ *		Sequences of channel type and interleave structure.
+ *		[interleave offset] = {
+ *			.type = channel type (see matrix.h).
+ *			.members = Masks of channels that is acceptable as a
+ *				   member of this channel type.
+ *		},
+ *		[total channels] = {
+ *			.type = Maximum channels marker (SND_CHN_T_MAX).
+ *			.members = 0 (no channels allowed here).
+ *		},
+ *	},
+ *	.mask = Mask of channels that exist in this map.
+ *	.offset = {
+ *		channel offset that directly translate to the above interleave
+ *		offset according to SND_CHN_T_* definitions.
+ *	}
  * };
  *
  * Rule of thumb: Avoid using SND_CHN_T_* that is marked with XXX (matrix.h),
