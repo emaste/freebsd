@@ -87,11 +87,15 @@
  */
 
 static int bpf_bufsize = 4096;
+#if defined(DEV_BPF) || defined(NETGRAPH_BPF)
 SYSCTL_INT(_net_bpf, OID_AUTO, bufsize, CTLFLAG_RW,
     &bpf_bufsize, 0, "Default capture buffer size in bytes");
+#endif
 static int bpf_maxbufsize = BPF_MAXBUFSIZE;
+#if defined(DEV_BPF) || defined(NETGRAPH_BPF)
 SYSCTL_INT(_net_bpf, OID_AUTO, maxbufsize, CTLFLAG_RW,
     &bpf_maxbufsize, 0, "Maximum capture buffer in bytes");
+#endif
 
 /*
  * Simple data copy to the current kernel buffer.
