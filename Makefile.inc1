@@ -1372,7 +1372,10 @@ CHECK_GIDS=	audit
 CHECK_UIDS+=	ntpd
 CHECK_GIDS+=	ntpd
 CHECK_UIDS+=	proxy
-CHECK_GIDS+=	proxy authpf
+CHECK_GIDS+=	proxy
+.if ${MK_AUTHPF} != no
+CHECK_GIDS+=	authpf
+.endif
 CHECK_UIDS+=	smmsp
 CHECK_GIDS+=	smmsp
 CHECK_UIDS+=	unbound
