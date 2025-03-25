@@ -26,7 +26,11 @@ EFI_TARGET=	efi-app-x86_64
 .else
 EFI_TARGET=	binary
 .endif
+.if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 EFI_OBJCOPY?=	elfcopy
+.else
+EFI_OBJCOPY?=	${OBJCOPY}
+.endif
 
 # Arbitrarily set the PE/COFF header timestamps to 1 Jan 2024 00:00:00
 # for build reproducibility.
