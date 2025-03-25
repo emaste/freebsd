@@ -1,5 +1,9 @@
 /*-
- * Copyright (c) 2022 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2025 The FreeBSD Foundation
+ * Copyright (c) 2025 Jean-Sébastien Pédron
+ *
+ * This software was developed by Jean-Sébastien Pédron under sponsorship
+ * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -23,78 +27,58 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LINUXKPI_LINUX_PWM_H_
-#define	_LINUXKPI_LINUX_PWM_H_
+#ifndef _LINUXKPI_LINUX_REF_TRACKER_H_
+#define	_LINUXKPI_LINUX_REF_TRACKER_H_
 
-#include <linux/device.h>
-#include <linux/err.h>
+#include <linux/refcount.h>
+#include <linux/types.h>
+#include <linux/spinlock.h>
+#include <linux/stackdepot.h>
 
-struct pwm_state {
-	uint64_t period;
-	bool enabled;
+struct ref_tracker;
+
+struct ref_tracker_dir {
 };
 
-struct pwm_device {
-	struct pwm_state state;
-};
-
-static inline struct pwm_device *
-pwm_get(struct device *dev, const char *consumer)
+static inline void
+ref_tracker_dir_init(struct ref_tracker_dir *dir,
+    unsigned int quarantine_count, const char *name)
 {
-	return (ERR_PTR(-ENODEV));
 }
 
 static inline void
-pwm_put(struct pwm_device *pwm)
+ref_tracker_dir_exit(struct ref_tracker_dir *dir)
+{
+}
+
+static inline void
+ref_tracker_dir_print_locked(struct ref_tracker_dir *dir,
+    unsigned int display_limit)
+{
+}
+
+static inline void
+ref_tracker_dir_print(struct ref_tracker_dir *dir, unsigned int display_limit)
 {
 }
 
 static inline int
-pwm_enable(struct pwm_device *pwm)
-{
-	return (-EINVAL);
-}
-
-static inline void
-pwm_disable(struct pwm_device *pwm)
-{
-}
-
-static inline bool
-pwm_is_enabled(const struct pwm_device *pwm)
-{
-	return (false);
-}
-
-static inline unsigned int
-pwm_get_relative_duty_cycle(const struct pwm_state *state, unsigned int scale)
+ref_tracker_dir_snprint(struct ref_tracker_dir *dir, char *buf, size_t size)
 {
 	return (0);
 }
 
 static inline int
-pwm_set_relative_duty_cycle(struct pwm_state *state, unsigned int duty_cycle,
-    unsigned int scale)
+ref_tracker_alloc(struct ref_tracker_dir *dir, struct ref_tracker **trackerp,
+    gfp_t gfp)
 {
 	return (0);
 }
 
-static inline void
-pwm_get_state(const struct pwm_device *pwm, struct pwm_state *state)
-{
-	*state = pwm->state;
-}
-
 static inline int
-pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state)
-{
-	return (-ENOTSUPP);
-}
-
-static inline int
-pwm_apply_might_sleep(struct pwm_device *pwm, const struct pwm_state *state)
+ref_tracker_free(struct ref_tracker_dir *dir, struct ref_tracker **trackerp)
 {
 	return (0);
 }
 
-#endif	/* _LINUXKPI_LINUX_PWM_H_ */
+#endif /* !defined(_LINUXKPI_LINUX_REF_TRACKER_H_) */
