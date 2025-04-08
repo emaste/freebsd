@@ -27,5 +27,6 @@ EXPORT_SYMS+=	debugfs_create_x64
 EXPORT_SYMS+=	debugfs_lookup
 EXPORT_SYMS+=	debugfs_remove
 EXPORT_SYMS+=	debugfs_remove_recursive
+EXPORT_SYMS+=	debugfs_str_get
 
 .include <bsd.kmod.mk>
