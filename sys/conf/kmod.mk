@@ -250,9 +250,7 @@ ${FULLPROG}: ${KMOD}.kld
 .endif
 
 EXPORT_SYMS?=	NO
-.if ${EXPORT_SYMS} != YES
 CLEANFILES+=	export_syms
-.endif
 
 .if exists(${SYSDIR}/conf/ldscript.kmod.${MACHINE})
 LDSCRIPT_FLAGS?= -T ${SYSDIR}/conf/ldscript.kmod.${MACHINE}
