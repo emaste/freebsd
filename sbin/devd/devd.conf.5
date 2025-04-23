@@ -638,6 +638,22 @@ and
 for details.
 .El
 .Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li HDA Ta Ta Ta
+Events related to the
+.Xr snd_hda 4
+driver.
+.It Li HDA Ta Li REDIR Ta Li IN Ta
+Redirect input to HDA device specified in
+.Pa cdev
+variable.
+.It Li HDA Ta Li REDIR Ta Li OUT Ta
+Redirect output to HDA device specified in
+.Pa cdev
+variable.
+.El
+.Pp
 .\"
 .\" End of tables
 .\"

@@ -46,6 +46,11 @@ HYPERV+=	hyperv.conf
 HYPERVPACKAGE=	hyperv-tools
 .endif
 
+CONFGROUPS+=	HDA
+HDADIR=		${DEVDDIR}
+HDA+=		hda.conf
+HDAPACKAGE=	hda
+
 .if ${MK_USB} != "no"
 DEVD+=	uath.conf ulpt.conf
 .endif
