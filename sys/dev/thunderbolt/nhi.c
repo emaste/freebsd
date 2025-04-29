@@ -276,7 +276,7 @@ nhi_reset_v2(struct nhi_softc *sc)
 		 * register.  If this is 1, it means that we are still
 		 * resetting.
 		 */
-		pause_sbt("nhi", ustosbt(50 * 1000), 0, 0);
+		pause_sbt("nhi", ustosbt(50 * 1000), 0, C_HARDCLOCK);
 		reg = nhi_read_reg(sc, ROUTER_HRR);
 	}
 	if (reg == 0) {
