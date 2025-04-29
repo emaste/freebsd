@@ -80,6 +80,10 @@ CONFGROUPS+=		DHCPCD
 DHCLIENT=		dhcpcd
 DHCLIENTPACKAGE=	dhcpcd
 
+CONFSGROUPS+=		SYSLOGD
+SYSLOGD=		syslogd
+SYSLOGDPACKAGE=		syslogd
+
 
 .if ${MK_ACCT} != "no" || ${MK_UTMPX} != "no"
 CONFGROUPS+=			ACCT
