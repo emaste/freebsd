@@ -96,7 +96,6 @@ CONFS=	DAEMON \
 	swaplate \
 	sysctl \
 	sysctl_lastload \
-	syslogd \
 	sysvipc \
 	tmp \
 	ugidfw \
@@ -128,6 +127,10 @@ GGATEDPACKAGE=		ggate
 CONFGROUPS+=		RESOLVCONF
 RESOLVCONF=		resolv
 RESOLVCONFPACKAGE=	resolvconf
+
+CONFSGROUPS+=		SYSLOGD
+SYSLOGD=		syslogd
+SYSLOGDPACKAGE=		syslogd
 
 CONFGROUPS+=		CRON
 CRON+=			cron
