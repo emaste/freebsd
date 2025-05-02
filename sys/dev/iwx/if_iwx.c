@@ -3699,7 +3699,8 @@ iwx_load_firmware(struct iwx_softc *sc)
 	/* wait for the firmware to load */
 	err = msleep(&sc->sc_uc, &sc->sc_mtx, 0, "iwxuc", hz);
 	if (err || !sc->sc_uc.uc_ok) {
-		printf("%s: firmware upload failed, %d\n", DEVNAME(sc), err);
+		printf("%s: firmware upload failed, err=%d\n", DEVNAME(sc),
+		    err);
 		iwx_ctxt_info_free_paging(sc);
 	}
 
