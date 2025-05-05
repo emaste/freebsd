@@ -73,7 +73,7 @@ export PKG_REPODIR="packages/${PKG_ABI}"
 
 /bin/mkdir -p ${ROOTDIR}/${PKG_REPODIR}
 if [ -n "${PKG_ALTABI}" ]; then
-	ln -s ${PKG_ABI} ${ROOTDIR}/packages/${PKG_ALTABI}
+	ln -sf ${PKG_ABI} ${ROOTDIR}/packages/${PKG_ALTABI}
 fi
 
 # Ensure the ports listed in _DVD_PACKAGES exist to sanitize the
@@ -104,7 +104,7 @@ ${PKGCMD} fetch -o ${PKG_REPODIR} -d ${DVD_PACKAGES}
 # using the on-disc packages.
 export LATEST_DIR="${ROOTDIR}/${PKG_REPODIR}/Latest"
 mkdir -p ${LATEST_DIR}
-ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).pkg ${LATEST_DIR}/pkg.pkg
+ln -sf ../All/$(${PKGCMD} rquery %n-%v pkg).pkg ${LATEST_DIR}/pkg.pkg
 
 ${PKGCMD} repo ${PKG_REPODIR}
 
