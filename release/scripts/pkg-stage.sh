@@ -14,26 +14,10 @@ export PORTSDIR="${PORTSDIR:-/usr/ports}"
 _DVD_PACKAGES_MAIN="
 comms/usbmuxd
 devel/git@lite
-editors/emacs@nox
-editors/vim
+net/wifi-firmware-kmod@release
 filesystems/ext2
 filesystems/ntfs
-misc/freebsd-doc-all
-net/mpd5
-net/rsync
 ports-mgmt/pkg
-shells/bash
-shells/zsh
-security/sudo@default
-sysutils/screen
-sysutils/seatd
-sysutils/tmux
-www/firefox
-www/links
-x11/gnome
-x11/sddm
-x11/xorg
-x11-wm/sway
 "
 
 _DVD_PACKAGES_KMODS="
