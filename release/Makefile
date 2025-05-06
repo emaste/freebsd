@@ -200,6 +200,8 @@ pkgbase-repo:
 disc1: ${PKGBASE_REPO}
 # Install system
 	mkdir -p ${.TARGET}
+	@echo "Installing for ${.TARGET}"
+	@echo "Installing for ${.TARGET}"
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AT=no \
 	    MK_INSTALLLIB=no MK_MAIL=no \
@@ -260,6 +262,7 @@ disc1: ${PKGBASE_REPO}
 bootonly:
 # Install system
 	mkdir -p ${.TARGET}
+	@echo "Installing for ${.TARGET}"
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AT=no \
 	    MK_GAMES=no \
@@ -300,6 +303,7 @@ bootonly:
 dvd: ${PKGBASE_REPO}
 # Install system
 	mkdir -p ${.TARGET}
+	@echo "Installing for ${.TARGET}"
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
 		MK_TESTS=no MK_DEBUG_FILES=no)
