@@ -387,6 +387,7 @@ mini-memstick.img: bootonly-memstick
 
 pkg-stage: dvd
 .if !defined(NOPKG) || empty(NOPKG)
+	(cd ${.CURDIR}/../share/keys/pkg/trusted && make INSTALL="install -U" DESTDIR=${.OBJDIR}/dvd install)
 	env PORTSDIR=${PORTSDIR} REPOS_DIR=${.CURDIR}/pkg_repos/ \
 		sh ${.CURDIR}/scripts/pkg-stage.sh -N
 	mkdir -p ${.OBJDIR}/dvd/packages/repos/
