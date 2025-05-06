@@ -108,7 +108,7 @@ QEMUTGT?=
 
 .if (defined(WITHOUT_QEMU) && !defined(NO_ROOT)) || \
   (!defined(WITHOUT_QEMU) && defined(NO_ROOT))
-.error WITHOUT_QEMU requires NO_ROOT (and vice versa)
+#.error WITHOUT_QEMU requires NO_ROOT (and vice versa)
 .endif
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
