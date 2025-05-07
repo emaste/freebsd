@@ -49,7 +49,7 @@
 #define	ET_BOOTABLE		0x88
 #define	ET_NOT_BOOTABLE	0
 
-#define	ET_MEDIA_NOEM	0
+#define	ET_MEDIA_NOEM			0
 #define	ET_MEDIA_12FDD			1
 #define	ET_MEDIA_144FDD			2
 #define	ET_MEDIA_288FDD			3
