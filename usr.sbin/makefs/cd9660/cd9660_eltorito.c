@@ -269,7 +269,7 @@ cd9660_boot_setup_validation_entry(char sys)
 	checksum = -checksum;
 	cd9660_721(checksum, ve->checksum);
 
-        ELTORITO_DPRINTF(("%s: header_id %d, platform_id %d, key[0] %d, key[1] %d, "
+	ELTORITO_DPRINTF(("%s: header_id %d, platform_id %d, key[0] %d, key[1] %d, "
 	    "checksum %04x\n", __func__, ve->header_id[0], ve->platform_id[0],
 	    ve->key[0], ve->key[1], checksum));
 	return entry;
