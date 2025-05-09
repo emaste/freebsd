@@ -13,13 +13,11 @@
 # buildworld          - Rebuild *everything*, including glue to help do
 #                       upgrades.
 # installworld        - Install everything built by "buildworld".
-# world               - buildworld + installworld, no kernel.
 # buildkernel         - Rebuild the kernel and the kernel-modules.
 # installkernel       - Install the kernel and the kernel-modules.
 # installkernel.debug
 # reinstallkernel     - Reinstall the kernel and the kernel-modules.
 # reinstallkernel.debug
-# kernel              - buildkernel + installkernel.
 # kernel-toolchain    - Builds the subset of world necessary to build a kernel
 # kernel-toolchains   - Build kernel-toolchain for all universe targets.
 # doxygen             - Build API documentation of the kernel, needs doxygen.
@@ -66,13 +64,6 @@
 # at least 6 GB of disk space available.  A complete 'universe' build of
 # r340283 (2018-11) required 167 GB of space.  ZFS lz4 compression
 # achieved a 2.18x ratio, reducing actual space to 81 GB.
-#
-# For individuals wanting to build from the sources currently on their
-# system, the simple instructions are:
-#
-# 1.  `cd /usr/src'  (or to the directory containing your source tree).
-# 2.  Define `HISTORICAL_MAKE_WORLD' variable (see README).
-# 3.  `make world'
 #
 # For individuals wanting to upgrade their sources (even if only a
 # delta of a few days):
@@ -401,60 +392,6 @@ CHECK_TIME!= cmp=`mktemp`; find ${.CURDIR}/sys/sys/param.h -newer "$$cmp" && rm 
 .if !empty(CHECK_TIME)
 .error check your date/time: ${STARTTIME}
 .endif
-
-.if defined(HISTORICAL_MAKE_WORLD) || defined(DESTDIR)
-#
-# world
-#
-# Attempt to rebuild and reinstall everything. This target is not to be
-# used for upgrading an existing FreeBSD system, because the kernel is
-# not included. One can argue that this target doesn't build everything
-# then.
-#
-world: upgrade_checks .PHONY
-	@echo "--------------------------------------------------------------"
-	@echo ">>> make world started on ${STARTTIME}"
-	@echo "--------------------------------------------------------------"
-.if target(pre-world)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making 'pre-world' target"
-	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}; ${_MAKE} pre-world
-.endif
-	${_+_}@cd ${.CURDIR}; ${_MAKE} buildworld
-	${_+_}@cd ${.CURDIR}; ${_MAKE} installworld MK_META_MODE=no
-.if target(post-world)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making 'post-world' target"
-	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}; ${_MAKE} post-world
-.endif
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> make world completed on `LC_ALL=C date`"
-	@echo "                   (started ${STARTTIME})"
-	@echo "--------------------------------------------------------------"
-.else
-world: .PHONY
-	@echo "WARNING: make world will overwrite your existing FreeBSD"
-	@echo "installation without also building and installing a new"
-	@echo "kernel.  This can be dangerous.  Please read the handbook,"
-	@echo "'Rebuilding world', for how to upgrade your system."
-	@echo "Define DESTDIR to where you want to install FreeBSD,"
-	@echo "including /, to override this warning and proceed as usual."
-	@echo ""
-	@echo "Bailing out now..."
-	@false
-.endif
-
-#
-# kernel
-#
-# Short hand for `make buildkernel installkernel'
-#
-kernel: buildkernel installkernel .PHONY
 
 #
 # Perform a few tests to determine if the installed tools are adequate
