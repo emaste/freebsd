@@ -1914,7 +1914,7 @@ distributekernel distributekernel.debug: .PHONY
 	${_+_}cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH:Q} ${MAKE} KERNEL=${INSTKERNNAME} \
-	    DISTBASE=/kernel DESTDIR=${INSTALL_DDIR}/ \
+	    DISTBASE=/kernel DESTDIR=${INSTALL_DDIR}/kernel \
 	    METALOG=${METALOG:S/METALOG/kernel.premeta/} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
@@ -1930,7 +1930,7 @@ distributekernel distributekernel.debug: .PHONY
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.${_kernel}.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH:Q} ${MAKE} \
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
-	    DISTBASE=/kernel.${_kernel} DESTDIR=${INSTALL_DDIR}/ \
+	    DISTBASE=/kernel.${_kernel} DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
 	    METALOG=${METALOG:S/METALOG/kernel.${_kernel}.premeta/} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
@@ -1974,8 +1974,8 @@ stagekernel: .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} DISTDIR=. distributekernel
 
 PORTSDIR?=	/usr/ports
-WSTAGEDIR?=	${OBJTOP}/stage
-KSTAGEDIR?=	${OBJTOP}/stage
+WSTAGEDIR?=	${OBJTOP}/worldstage
+KSTAGEDIR?=	${OBJTOP}/kernelstage
 SSTAGEDIR?=	${OBJTOP}/sourcestage
 REPODIR?=	${OBJROOT}repo
 PKG_FORMAT?=	tzst
