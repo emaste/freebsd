@@ -178,7 +178,7 @@ task:
   - sh tools/boot/ci-qemu-test.sh
 
   package_check_script:
-  - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -v -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/stage/METALOG"
+  - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -v -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage/METALOG"
 
   # XXX this is not run if the above fails
   make_sysent_script:
