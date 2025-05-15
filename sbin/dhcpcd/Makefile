@@ -66,8 +66,8 @@ CONFMODE=	644
 HOOKSRC=	${DISTDIR}/hooks
 .PATH:		${HOOKSRC}
 
-SCRIPTS=	dhcpcd-run-hooks
-SCRIPTSDIR=	${_LIBEXECDIR}
+#SCRIPTS=	dhcpcd-run-hooks
+#SCRIPTSDIR=	${_LIBEXECDIR}
 MAN+=		dhcpcd-run-hooks.8
 
 FILES=		01-test 20-resolv.conf 30-hostname
