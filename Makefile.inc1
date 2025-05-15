@@ -2104,8 +2104,8 @@ create-packages-world:	_pkgbootstrap _repodir .PHONY
 create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
-			DESTDIR=${KSTAGEDIR}/kernel \
-			PKG_VERSION=${PKG_VERSION} DISTDIR=. \
+			DESTDIR=${KSTAGEDIR} \
+			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
 			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 			create-kernel-packages
 
