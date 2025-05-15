@@ -10,7 +10,6 @@ SUBDIR=adjkerntz \
 	devfs \
 	devmatch \
 	dhclient \
-	dhcpcd \
 	dmesg \
 	dump \
 	dumpfs \
