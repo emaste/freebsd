@@ -1118,7 +1118,8 @@ command script can be used:
 D=/here/is/the/jail
 cd /usr/src
 mkdir -p $D
-make world DESTDIR=$D
+make buildworld
+make installworld DESTDIR=$D
 make distribution DESTDIR=$D
 .Ed
 .Pp
