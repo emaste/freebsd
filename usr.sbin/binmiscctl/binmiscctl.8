@@ -295,7 +295,8 @@ overrides:
 D=/path/to/chroot
 cd /usr/src
 mkdir -p $D
-make world TARGET=arm TARGET_ARCH=armv7 DESTDIR=$D
+make buildworld TARGET=arm TARGET_ARCH=armv7
+make installworld TARGET=arm TARGET_ARCH=armv7 DESTDIR=$D
 make distribution TARGET=arm TARGET_ARCH=armv7 DESTDIR=$D
 .Ed
 .Pp
