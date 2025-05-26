@@ -1,3 +1,4 @@
+.\" Exclude from dependency lists
 Build LLVM target support for ARM.
 The
 .Va LLVM_TARGET_ALL
