@@ -1,2 +1,5 @@
-Only build the required LLVM target support.
-This option is preferred to specific target support options.
+Only include LLVM target support matching the architecture of the build host.
+This option is preferred over using specific target support options such as
+.Va WITH_LLVM_TARGET_AARCH64
+and
+.Va WITH_LLVM_TARGET_X86 .
