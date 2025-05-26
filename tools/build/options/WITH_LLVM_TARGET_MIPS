@@ -1,3 +1,4 @@
+.\" Exclude from dependency lists
 Build LLVM target support for MIPS.
 The
 .Va LLVM_TARGET_ALL
