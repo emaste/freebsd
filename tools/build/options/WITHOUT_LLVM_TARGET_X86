@@ -1,3 +1,4 @@
+.\" Exclude from dependency lists
 Do not build LLVM target support for X86.
 The
 .Va LLVM_TARGET_ALL
