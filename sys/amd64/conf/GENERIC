@@ -374,6 +374,7 @@ device		uinput			# install /dev/uinput cdev
 options 	HID_DEBUG		# enable debug msgs
 device		hid			# Generic HID support
 device		hidbus			# Generic HID Bus
+options 	U2F_MAKE_UHID_ALIAS	# install /dev/uhid alias
 options 	IICHID_SAMPLING		# Workaround missing GPIO INTR support
 
 # EFI devices
