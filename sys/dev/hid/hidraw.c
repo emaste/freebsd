@@ -64,6 +64,7 @@
 #define HID_DEBUG_VAR	hidraw_debug
 #include <dev/hid/hid.h>
 #include <dev/hid/hidbus.h>
+#include <dev/hid/hidquirk.h>
 #include <dev/hid/hidraw.h>
 
 #ifdef HID_DEBUG
@@ -84,6 +85,12 @@ SYSCTL_INT(_hw_hid_hidraw, OID_AUTO, debug, CTLFLAG_RWTUN,
 	if ((local_buf) != (buf)) {			\
 		free((buf), M_DEVBUF);			\
 	}
+
+#ifdef HIDRAW_MAKE_UHID_ALIAS
+#define	HIDRAW_NAME	"uhid"
+#else
+#define	HIDRAW_NAME	"hidraw"
+#endif
 
 struct hidraw_softc {
 	device_t sc_dev;		/* base device */
@@ -110,6 +117,8 @@ struct hidraw_softc {
 		bool	uhid:1;		/* driver switched in to uhid mode */
 		bool	lock:1;		/* input queue sleepable lock */
 		bool	flush:1;	/* do not wait for data in read() */
+		bool	nora:1;		/* read-ahead is disabled */
+		bool	run:1;		/* interrupt handler is started */
 	} sc_state;
 	int sc_fflags;			/* access mode for open lifetime */
 
@@ -183,8 +192,8 @@ hidraw_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
 
-	if (device_find_child(parent, "hidraw", DEVICE_UNIT_ANY) == NULL) {
-		child = BUS_ADD_CHILD(parent, 0, "hidraw",
+	if (device_find_child(parent, HIDRAW_NAME, DEVICE_UNIT_ANY) == NULL) {
+		child = BUS_ADD_CHILD(parent, 0, HIDRAW_NAME,
 		    device_get_unit(parent));
 		if (child != NULL)
 			hidbus_set_index(child, HIDRAW_INDEX);
@@ -267,6 +276,31 @@ hidraw_detach(device_t self)
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
+}
+
+inline static void
+hidraw_intr_start(struct hidraw_softc *sc)
+{
+	bool empty;
+
+	if (sc->sc_state.nora) {
+		mtx_lock(&sc->sc_mtx);
+		empty = (sc->sc_tail == sc->sc_head);
+		mtx_unlock(&sc->sc_mtx);
+		if (empty)
+			hid_intr_start(sc->sc_dev);
+	} else if (!sc->sc_state.run) {
+		mtx_lock(&sc->sc_mtx);
+		sc->sc_state.run = true;
+		mtx_unlock(&sc->sc_mtx);
+		hid_intr_start(sc->sc_dev);
+	}
+}
+
+inline static void
+hidraw_intr_stop(struct hidraw_softc *sc)
+{
+	hid_intr_stop(sc->sc_dev);
 }
 
 void
@@ -369,6 +403,9 @@ hidraw_open(struct cdev *dev, int flag, int mode, struct thread *td)
 	sc->sc_qlen = malloc(sizeof(hid_size_t) * HIDRAW_BUFFER_SIZE, M_DEVBUF,
 	    M_ZERO | M_WAITOK);
 
+	sc->sc_state.nora = hid_test_quirk(sc->sc_hw, HQ_NO_READAHEAD);
+	sc->sc_state.run = false;
+
 	/* Set up interrupt pipe. */
 	sc->sc_state.immed = false;
 	sc->sc_async = 0;
@@ -376,8 +413,6 @@ hidraw_open(struct cdev *dev, int flag, int mode, struct thread *td)
 	sc->sc_state.quiet = false;
 	sc->sc_head = sc->sc_tail = 0;
 	sc->sc_fflags = flag;
-
-	hid_intr_start(sc->sc_dev);
 
 	return (0);
 }
@@ -390,7 +425,7 @@ hidraw_dtor(void *data)
 	DPRINTF("sc=%p\n", sc);
 
 	/* Disable interrupts. */
-	hid_intr_stop(sc->sc_dev);
+	hidraw_intr_stop(sc);
 
 	sc->sc_tail = sc->sc_head = 0;
 	sc->sc_async = 0;
@@ -415,6 +450,8 @@ hidraw_read(struct cdev *dev, struct uio *uio, int flag)
 	sc = dev->si_drv1;
 	if (sc == NULL)
 		return (EIO);
+
+	hidraw_intr_start(sc);
 
 	mtx_lock(&sc->sc_mtx);
 	error = dev->si_drv1 == NULL ? EIO : hidraw_lock_queue(sc, false);
@@ -949,6 +986,7 @@ hidraw_poll(struct cdev *dev, int events, struct thread *td)
 	if (events & (POLLOUT | POLLWRNORM) && (sc->sc_fflags & FWRITE))
 		revents |= events & (POLLOUT | POLLWRNORM);
 	if (events & (POLLIN | POLLRDNORM) && (sc->sc_fflags & FREAD)) {
+		hidraw_intr_start(sc);
 		mtx_lock(&sc->sc_mtx);
 		if (sc->sc_head != sc->sc_tail)
 			revents |= events & (POLLIN | POLLRDNORM);
@@ -974,6 +1012,7 @@ hidraw_kqfilter(struct cdev *dev, struct knote *kn)
 	switch(kn->kn_filter) {
 	case EVFILT_READ:
 		if (sc->sc_fflags & FREAD) {
+			hidraw_intr_start(sc);
 			kn->kn_fop = &hidraw_filterops_read;
 			break;
 		}
@@ -1050,7 +1089,7 @@ static device_method_t hidraw_methods[] = {
 };
 
 static driver_t hidraw_driver = {
-	"hidraw",
+	HIDRAW_NAME,
 	hidraw_methods,
 	sizeof(struct hidraw_softc)
 };
