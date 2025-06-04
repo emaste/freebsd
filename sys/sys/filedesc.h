@@ -278,7 +278,7 @@ struct filedesc_to_leader *
 int	getvnode(struct thread *td, int fd, const cap_rights_t *rightsp,
 	    struct file **fpp);
 int	getvnode_path(struct thread *td, int fd, const cap_rights_t *rightsp,
-	    struct file **fpp);
+	    uint8_t *flagsp, struct file **fpp);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 
 int	fget_cap_noref(struct filedesc *fdp, int fd,
