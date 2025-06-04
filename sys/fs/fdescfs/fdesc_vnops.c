@@ -502,7 +502,7 @@ fdesc_setattr(struct vop_setattr_args *ap)
 		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
 	} else {
 		error = getvnode_path(td, fd,
-		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
+		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), NULL, &fp);
 	}
 	if (error) {
 		/*

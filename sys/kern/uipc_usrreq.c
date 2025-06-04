@@ -3448,10 +3448,12 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 	struct filedescent **fdep;
 	void *data;
 	socklen_t clen = control->m_len, datalen;
-	int error, newfds;
+	int error, fdflags, newfds;
 	u_int newlen;
 
 	UNP_LINK_UNLOCK_ASSERT();
+
+	fdflags = (flags & MSG_CMSG_CLOEXEC) ? O_CLOEXEC : 0;
 
 	error = 0;
 	if (controlp != NULL) /* controlp == NULL => free control messages */
