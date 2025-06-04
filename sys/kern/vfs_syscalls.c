@@ -1319,6 +1319,10 @@ success:
 		else
 #endif
 			fcaps = NULL;
+		if ((nd.ni_resflags & NIRES_BENEATH) != 0)
+			flags |= O_RESOLVE_BENEATH;
+		else
+			flags &= ~O_RESOLVE_BENEATH;
 		error = finstall_refed(td, fp, &indx, flags, fcaps);
 		/* On success finstall_refed() consumes fcaps. */
 		if (error != 0) {
