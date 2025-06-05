@@ -44,9 +44,9 @@
 #   Shift(+Ctrl)+[//?]  172    ¬    NOT SIGN
 #   Ctrl+Shift+Space    160         NO-BREAK SPACE
 #
-#                                                         alt
-# scan                       cntrl          alt    alt   cntrl lock
-# code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
+#                                                        altgr
+# scan                       ctrl          altgr  altgr  ctrl  lock
+# code  base   shift  ctrl   shift  altgr  shift  ctrl   shift state
 # ------------------------------------------------------------------
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
   001   esc    esc    esc    esc    esc    esc    debug  panic   O
@@ -157,9 +157,9 @@
   106   meta   meta   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
   107   meta   meta   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
   108   nop    nop    nop    nop    nop    nop    nop    nop     O
-#                                                         alt
-# scan                       cntrl          alt    alt   cntrl lock
-# code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
+#                                                        altgr
+# scan                       ctrl          altgr  altgr  ctrl  lock
+# code  base   shift  ctrl   shift  altgr  shift  ctrl   shift state
 # ------------------------------------------------------------------
   128   nop    nop    nop    nop    nop    nop    nop    nop     O
   129   esc    esc    esc    esc    esc    esc    debug  panic   O

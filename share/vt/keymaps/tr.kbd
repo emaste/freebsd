@@ -13,9 +13,9 @@
 #                 PK. 35290 Guzelyali/Izmir/TURKEY
 #
 # Work Tel      : +90 232 2463992
-#                                                         alt
-# scan                       cntrl          alt    alt   cntrl lock
-# code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
+#                                                        altgr
+# scan                       ctrl          altgr  altgr  ctrl  lock
+# code  base   shift  ctrl   shift  altgr  shift  ctrl   shift state
 # ------------------------------------------------------------------
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
   001   esc    esc    esc    esc    esc    esc    debug  esc     O
