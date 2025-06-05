@@ -2,9 +2,9 @@
 # Colemak Layout for FreeBSD console
 # 2006-01-01 Shai Coleman, http://colemak.com/ . Public domain.
 
-#                                                         alt
-# scan                       cntrl          alt    alt   cntrl lock
-# code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
+#                                                        altgr
+# scan                       ctrl          altgr  altgr  ctrl  lock
+# code  base   shift  ctrl   shift  altgr  shift  ctrl   shift state
 # ------------------------------------------------------------------
 
   041   '`'    '~'    nop    nop    dtil   '~'    nop    nop     O
