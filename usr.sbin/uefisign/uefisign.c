@@ -348,22 +348,19 @@ main(int argc, char **argv)
 			Vflag = true;
 			break;
 		case 'c':
-			if (certpath == NULL)
-				certpath = checked_strdup(optarg);
-			else
+			if (certpath != NULL)
 				err(1, "-c can only be specified once");
+			certpath = checked_strdup(optarg);
 			break;
 		case 'k':
-			if (keypath == NULL)
-				keypath = checked_strdup(optarg);
-			else
+			if (keypath != NULL)
 				err(1, "-k can only be specified once");
+			keypath = checked_strdup(optarg);
 			break;
 		case 'o':
-			if (outpath == NULL)
-				outpath = checked_strdup(optarg);
-			else
+			if (outpath != NULL)
 				err(1, "-o can only be specified once");
+			outpath = checked_strdup(optarg);
 			break;
 		case 'v':
 			vflag = true;
