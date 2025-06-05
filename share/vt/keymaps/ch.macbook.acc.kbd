@@ -2,9 +2,9 @@
 # swissgerman Macbook/Macbook PRO keymap, with accent keys
 # derived from swissgerman.iso.acc.kbd
 # 06.08.2010 by Andreas Tobler <andreast@fgznet.ch>
-#                                                         alt
-# scan                       cntrl          alt    alt   cntrl lock
-# code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
+#                                                        altgr
+# scan                       ctrl          altgr  altgr  ctrl  lock
+# code  base   shift  ctrl   shift  altgr  shift  ctrl   shift state
 # ------------------------------------------------------------------
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
   001   esc    esc    esc    esc    esc    esc    debug  esc     O
