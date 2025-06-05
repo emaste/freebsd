@@ -1,8 +1,8 @@
 #
 # Built on Wed  1 Apr 15:59:44 EEST 1998 by peppe@cs.uoi.gr
-#                                                         alt
-# scan                       cntrl          alt    alt   cntrl lock
-# code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
+#                                                        altgr
+# scan                       ctrl          altgr  altgr  ctrl  lock
+# code  base   shift  ctrl   shift  altgr  shift  ctrl   shift state
 # ------------------------------------------------------------------
 # 
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
