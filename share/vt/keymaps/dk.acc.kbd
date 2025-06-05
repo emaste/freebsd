@@ -24,8 +24,8 @@
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# scan                       cntrl          alt    alt   cntrl lock
-# code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
+# scan                       ctrl          altgr  altgr  ctrl  lock
+# code  base   shift  ctrl   shift  altgr  shift  ctrl   shift state
 # ------------------------------------------------------------------
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
   001   esc    esc    esc    esc    esc    esc    debug  esc     O
