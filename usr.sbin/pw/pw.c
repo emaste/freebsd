@@ -163,24 +163,25 @@ main(int argc, char *argv[])
 				    "%s%s", optarg, arg == 'R' ?
 				    _PATH_PWD : "");
 				conf.altroot = true;
-			} else
+			} else {
 				break;
-		}
-		else if (mode == -1 && (tmp = getindex(Modes, argv[1])) != -1)
+			}
+		} else if (mode == -1 && (tmp = getindex(Modes, argv[1])) != -1) {
 			mode = tmp;
-		else if (which == -1 && (tmp = getindex(Which, argv[1])) != -1)
+		} else if (which == -1 && (tmp = getindex(Which, argv[1])) != -1) {
 			which = tmp;
-		else if ((mode == -1 && which == -1) &&
+		} else if ((mode == -1 && which == -1) &&
 			 ((tmp = getindex(Combo1, argv[1])) != -1 ||
 			  (tmp = getindex(Combo2, argv[1])) != -1)) {
 			which = tmp / M_NUM;
 			mode = tmp % M_NUM;
-		} else if (strcmp(argv[1], "help") == 0 && argv[2] == NULL)
+		} else if (strcmp(argv[1], "help") == 0 && argv[2] == NULL) {
 			cmdhelp(mode, which);
-		else if (which != -1 && mode != -1)
+		} else if (which != -1 && mode != -1) {
 				arg1 = argv[1];
-		else
+		} else {
 			errx(EX_USAGE, "unknown keyword `%s'", argv[1]);
+		}
 		++argv;
 		--argc;
 	}
