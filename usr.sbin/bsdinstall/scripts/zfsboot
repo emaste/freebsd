@@ -127,17 +127,21 @@ f_include $BSDCFG_SHARE/variable.subr
 if [ -z "${ZFSBOOT_SWAP_SIZE}" ]; then
 	case $(sysctl -n hw.pagesize) in
 	65536)
-		pgs_per_gb=16384 ;;
+		pgs_per_mb=16 ;;
 	16384)
-		pgs_per_gb=65536 ;;
+		pgs_per_mb=64 ;;
 	4096|*)
-		pgs_per_gb=262144 ;;
+		pgs_per_mb=256 ;;
 	esac
-	swap=$(($(sysctl -n hw.availpages) / $pg_per_gb / 20))
-	if [ $swap -lt 4 ]; then
-		swap=4
+	swap=$(($(sysctl -n hw.availpages) / $pgs_per_mb / 20))
+	if [ $swap -lt 4096 ]; then
+		swap=4096
 	fi
-	ZFSBOOT_SWAP_SIZE=${swap}g
+	maxswap=$(($(sysctl -n vm.swap_maxpages) / $pg_per_mb))
+	if [ $maxswap -ge 0 -a $maxswap -lt $swap ]; then
+		swap=$maxswap
+	fi
+	ZFSBOOT_SWAP_SIZE=${swap}m
 fi
 
 #
