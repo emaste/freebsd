@@ -43,6 +43,10 @@ spleen-16x32.fnt:en:Spleen, 16x32
 
 spleen-32x64.fnt:en:Spleen, 32x64
 
+terminus-b16n.fnt:en:Terminus BSD Console, size 16
+terminus-b16n.fnt:da:Terminus BSD-konsol, størrelse 16
+terminus-b16n.fnt:de:Terminus BSD Console, Größe 16
+
 terminus-b32.fnt:en:Terminus BSD Console, size 32
 terminus-b32.fnt:da:Terminus BSD-konsol, størrelse 32
 terminus-b32.fnt:de:Terminus BSD Console, Größe 32
