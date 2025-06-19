@@ -10,6 +10,7 @@ FONTS=	comic-8x14.fnt \
 	spleen-12x24.fnt \
 	spleen-16x32.fnt \
 	spleen-32x64.fnt \
+	terminus-b16n.fnt \
 	terminus-b32.fnt \
 	tom-thumb.fnt \
 	vgarom-8x8.fnt \
