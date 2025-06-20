@@ -137,7 +137,7 @@ if [ -z "${ZFSBOOT_SWAP_SIZE}" ]; then
 	if [ $swap -lt 4096 ]; then
 		swap=4096
 	fi
-	maxswap=$(($(sysctl -n vm.swap_maxpages) / $pg_per_mb))
+	maxswap=$(($(sysctl -n vm.swap_maxpages) / $pgs_per_mb))
 	if [ $maxswap -ge 0 -a $maxswap -lt $swap ]; then
 		swap=$maxswap
 	fi
