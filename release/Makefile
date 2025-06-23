@@ -189,7 +189,8 @@ dvd: packagesystem
 .endif
 
 .if defined(PKGBASE)
-PKGBASE_REPO=	pkgbase-repo
+disc1: pkgbase-repo
+dvd: pkgbase-repo
 PKG_ABI=	$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/usr/bin/uname config ABI)
 .endif
 
@@ -197,7 +198,7 @@ pkgbase-repo:
 	mkdir -p pkgbase-repo
 	( ${IMAKE} -C ${WORLDDIR} packages REPODIR=${.OBJDIR}/pkgbase-repo )
 
-disc1: ${PKGBASE_REPO}
+disc1:
 # Install system
 	mkdir -p ${.TARGET}
 	@echo "Installing for ${.TARGET}"
@@ -300,7 +301,7 @@ bootonly:
 	echo "./boot/loader.conf type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	echo "./etc/rc.local type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 
-dvd: ${PKGBASE_REPO}
+dvd:
 # Install system
 	mkdir -p ${.TARGET}
 	@echo "Installing for ${.TARGET}"
