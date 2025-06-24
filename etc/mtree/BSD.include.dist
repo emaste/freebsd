@@ -2,7 +2,7 @@
 # Please see the file src/etc/mtree/README before making changes to this file.
 #
 
-/set type=dir uname=root gname=wheel mode=0755
+/set type=dir uname=root uid=0 gname=wheel gid=0 mode=0755
 .
     arpa
     ..
