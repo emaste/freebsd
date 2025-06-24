@@ -176,7 +176,7 @@ task:
 
   # XXX this is not run if the above fails
   cat_metalog_script:
-  - cat /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/stage/METALOG
+  - cat /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage/METALOG
 
   test_script:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11
