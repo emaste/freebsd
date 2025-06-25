@@ -968,13 +968,17 @@ Install ELF Tool Chain's cxxfilt as c++filt, instead of LLVM's llvm-cxxfilt.
 Generate full debug information for LLVM libraries and tools, which uses
 more disk space and build resources, but allows for easier debugging.
 .It Va WITHOUT_LLVM_TARGET_AARCH64
+.\" Exclude from dependency lists
 Do not build LLVM target support for AArch64.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_ALL
-Only build the required LLVM target support.
-This option is preferred to specific target support options.
+Only include LLVM target support matching the architecture of the build host.
+This option is preferred over using specific target support options such as
+.Va WITH_LLVM_TARGET_AARCH64
+and
+.Va WITH_LLVM_TARGET_X86 .
 When set, these options are also in effect:
 .Pp
 .Bl -inset -compact
@@ -996,31 +1000,37 @@ is set explicitly)
 is set explicitly)
 .El
 .It Va WITHOUT_LLVM_TARGET_ARM
+.\" Exclude from dependency lists
 Do not build LLVM target support for ARM.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITH_LLVM_TARGET_BPF
+.\" Exclude from dependency lists
 Build LLVM target support for BPF.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITH_LLVM_TARGET_MIPS
+.\" Exclude from dependency lists
 Build LLVM target support for MIPS.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_POWERPC
+.\" Exclude from dependency lists
 Do not build LLVM target support for PowerPC.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_RISCV
+.\" Exclude from dependency lists
 Do not build LLVM target support for RISC-V.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_X86
+.\" Exclude from dependency lists
 Do not build LLVM target support for X86.
 The
 .Va LLVM_TARGET_ALL
