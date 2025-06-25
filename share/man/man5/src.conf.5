@@ -1021,13 +1021,17 @@ This means that binaries linked against these libraries, such as clang,
 ld.lld and lldb will be much larger and position dependent, but will
 start more quickly.
 .It Va WITHOUT_LLVM_TARGET_AARCH64
+.\" Exclude from dependency lists
 Do not build LLVM target support for AArch64.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_ALL
-Only build the required LLVM target support.
-This option is preferred to specific target support options.
+Only include LLVM target support matching the architecture of the build host.
+This option is preferred over using specific target support options such as
+.Va WITH_LLVM_TARGET_AARCH64
+and
+.Va WITH_LLVM_TARGET_X86 .
 When set, these options are also in effect:
 .Pp
 .Bl -inset -compact
@@ -1049,31 +1053,37 @@ is set explicitly)
 is set explicitly)
 .El
 .It Va WITHOUT_LLVM_TARGET_ARM
+.\" Exclude from dependency lists
 Do not build LLVM target support for ARM.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITH_LLVM_TARGET_BPF
+.\" Exclude from dependency lists
 Build LLVM target support for BPF.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITH_LLVM_TARGET_MIPS
+.\" Exclude from dependency lists
 Build LLVM target support for MIPS.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_POWERPC
+.\" Exclude from dependency lists
 Do not build LLVM target support for PowerPC.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_RISCV
+.\" Exclude from dependency lists
 Do not build LLVM target support for RISC-V.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_X86
+.\" Exclude from dependency lists
 Do not build LLVM target support for X86.
 The
 .Va LLVM_TARGET_ALL
