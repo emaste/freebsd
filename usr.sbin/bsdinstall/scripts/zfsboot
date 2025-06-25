@@ -1811,7 +1811,7 @@ while :; do
 		fi
 		;;
 	?" $msg_partition_scheme")
-		# Toggle between GPT (BIOS), GPT (UEFI) and MBR
+		# Toggle between partition schemes
 		if [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" -a \
 		     "$ZFSBOOT_BOOT_TYPE" = "BIOS" ]; then
 			ZFSBOOT_PARTITION_SCHEME="GPT"
@@ -1821,9 +1821,6 @@ while :; do
 			ZFSBOOT_PARTITION_SCHEME="GPT"
 			ZFSBOOT_BOOT_TYPE="BIOS+UEFI"
 		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" ]; then
-			ZFSBOOT_PARTITION_SCHEME="MBR"
-			ZFSBOOT_BOOT_TYPE="BIOS"
-		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "MBR" ]; then
 			ZFSBOOT_PARTITION_SCHEME="GPT + Active"
 			ZFSBOOT_BOOT_TYPE="BIOS"
 		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT + Active" ]; then
