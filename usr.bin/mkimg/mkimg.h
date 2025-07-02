@@ -85,7 +85,7 @@ round_track(lba_t n)
 }
 
 #if !defined(SPARSE_WRITE)
-#define	sparse_write	write
+#define	sparse_write	write // XXX bug - sparse_write includes retry loop
 #else
 ssize_t sparse_write(int, const void *, size_t);
 #endif
