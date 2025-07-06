@@ -169,8 +169,7 @@ ci-buildworld: .PHONY
 	@echo "Building world for ${TARGET_ARCH}"
 	${IMAKE} -j${PARALLEL_JOBS} -C ${WORLDDIR} ${METAMODE} \
 		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF} \
-		${EXTRA_MAKE_FLAGS} buildworld > ${.CURDIR}/_.${TARGET_ARCH}.${.TARGET} 2>&1 || \
-		(echo "${.TARGET} failed, check _.${TARGET_ARCH}.${.TARGET} for details" ; false)
+		${EXTRA_MAKE_FLAGS} buildworld
 
 
 ci-buildkernel: ci-buildworld-${TARGET_ARCH:tl} .PHONY
@@ -178,8 +177,7 @@ ci-buildkernel: ci-buildworld-${TARGET_ARCH:tl} .PHONY
 	${IMAKE} -j${PARALLEL_JOBS} -C ${WORLDDIR} ${METAMODE} \
 		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF} \
 		${EXTRA_MAKE_FLAGS} KERNCONF=${KERNCONF} \
-		buildkernel > ${.CURDIR}/_.${TARGET_ARCH}.${.TARGET} 2>&1 || \
-		(echo "${.TARGET} failed, check _.${TARGET_ARCH}.${.TARGET} for details" ; false)
+		buildkernel
 
 ci-buildimage: ${QEMUTGT} ci-buildkernel-${TARGET_ARCH:tl} .PHONY
 	@echo "Building ci image for ${TARGET_ARCH}"
@@ -189,9 +187,7 @@ ci-buildimage: ${QEMUTGT} ci-buildkernel-${TARGET_ARCH:tl} .PHONY
 		${RELEASEDIR}/scripts/mk-vmimage.sh \
 		-C ${RELEASEDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${VMFS} \
 		-i ${.OBJDIR}/ci.img -s ${VMSIZE} -f ${FORMAT} \
-		-S ${WORLDDIR} -o ${.OBJDIR}/${CIIMAGE} -c ${CICONF} \
-		> ${.CURDIR}/_.${TARGET_ARCH}.${.TARGET} 2>&1 || \
-		(echo "${.TARGET} failed, check _.${TARGET_ARCH}.${.TARGET} for details" ; false)
+		-S ${WORLDDIR} -o ${.OBJDIR}/${CIIMAGE} -c ${CICONF}
 	touch ${.TARGET}
 
 ci-set-smoke-var: .PHONY
