@@ -205,6 +205,7 @@
 #define	XHCI_ID_VIRTUALIZATION	0x0004
 #define	XHCI_ID_MSG_IRQ		0x0005
 #define	XHCI_ID_USB_LOCAL_MEM	0x0006
+#define	XHCI_ID_USB_DEBUG	0x000a
 
 /* XHCI register R/W wrappers */
 #define	XREAD1(sc, what, a) \
