@@ -1,0 +1,4 @@
+comment = "DHCP/IPv4LL/IPv6RS/DHCPv6 client"
+desc = <<EOD
+DHCP/IPv4LL/IPv6RS/DHCPv6 client
+EOD
