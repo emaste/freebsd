@@ -52,7 +52,7 @@ jobs:
             for (const commit of commits) {
               const sob_lines = commit.commit.message.match(/^[^\S\r\n]*signed-off-by:.*/gim);
 
-              if (sob_lines == null && !commit.commit.author.email.toLowerCase().endsWith("freebsd.org"))
+              if (sob_lines == null)
                 addToChecklist("Missing Signed-off-by lines", commit.sha);
               else if (sob_lines != null) {
                 let author_signed = false;
