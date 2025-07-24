@@ -327,3 +327,8 @@ if [ -f "$OBJTOP"/lib/clang/liblldb/liblldb.a ]; then
 	echo "Removing old static liblldb library"
         run rm -f "$OBJTOP"/lib/clang/liblldb/liblldb.a
 fi
+
+if [ $MK_MITKRB5 = yes -a -f "${OBJTOP}"/kerberos5/lib/libkrb5/libkrb5.so.11 ]; then
+	echo "Cleaning up after MIT Kerberos transition"
+	echo run rm -f "$OBJTOP"/kerberos5/
+fi
