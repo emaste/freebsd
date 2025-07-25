@@ -107,10 +107,6 @@ RUNTIMELINKS+=	passwd.5 pwd.db.5
 RUNTIMELINKS+=	passwd.5 spwd.db.5
 RUNTIMEPACKAGE=	runtime
 
-MANGROUPS+=	SMB
-SMB=		nsmb.conf.5
-SMBPACKAGE=	smbutils
-
 MANGROUPS+=	SSH
 SSH=		moduli.5
 SSHPACKAGE=	ssh
