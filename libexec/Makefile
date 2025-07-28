@@ -52,6 +52,7 @@ SUBDIR+=	fingerd
 
 .if ${MK_FREEBSD_UPDATE} != "no"
 _phttpget=	phttpget
+SUBDIR+=	pkgbasify
 .endif
 
 .if ${MK_FTP} != "no"
