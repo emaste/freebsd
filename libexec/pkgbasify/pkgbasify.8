@@ -1,0 +1,112 @@
+.\"-
+.\" Copyright 2025 The FreeBSD Foundation
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted providing that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd July 28, 2025
+.Dt PKGBASIFY 8
+.Os
+.Sh NAME
+.Nm pkgbasify
+.Nd convert installed system to packaged base
+.Sh SYNOPSIS
+.Nm
+.Op Fl h | Fl -help
+.Op Fl -force
+.Sh DESCRIPTION
+The
+.Nm
+utility converts a
+.Fx
+installation to a packaged base installation managed by
+.Xr pkg 8 .
+.Sh OPTIONS
+The following options are supported:
+.Bl -tag -width "--force"
+.It Fl h | Fl -help
+Print usage message and exit.
+.It Fl -force
+Attempt conversion even if /usr/bin/uname is already owned by a package.
+This is normally used as a safety check to prevent inconsistent states.
+.Sh WARNING
+Ensure you have at least 5 GiB of free disk space.
+Conversion can likely succeed with less, but
+.Xr pkg 8
+pkg is not yet able to detect and handle insufficient space gracefully.
+It can be difficult to recover if the system runs out of space during conversion.
+.Sh OPERATION
+.Nm
+performs the following steps:
+.Bl -enum
+.It
+Make a backup copy of the
+.Xr etcupdate 8
+current database
+.Pq Pa /var/db/etcupdate/current .
+This makes it possible for
+.Nm
+to merge config files after converting the system.
+.It
+Select a repository based on the output of
+.Xr freebsd-version 1
+and create
+.Pa /usr/local/etc/pkg/repos/FreeBSD-base.conf .
+.It
+Select packages that correspond to the currently installed base system components.
+.Bl -bullet
+.It
+If a component is not already installed, the corresponding packages will not be installed.
+For example: if the lib32 component is not present, pkgbasify will skip installation of lib32 packages.
+.It
+pkgbasify never installs the FreeBSD-src package even if /usr/src is present and non-empty.
+This prevents unwanted overwriting of potentially modified source files and/or a VCS repository.
+.El
+.It
+Prompt the user to create a "pre-pkgbasify" boot environment using bectl(8) if possible.
+.It
+Install the selected packages with
+.Xr pkg 8 ,
+overwriting base system files and creating
+.Pa .pkgsave
+files as per standard
+.Xr pkg 8
+behavior.
+.It
+Run a three-way-merge between the .pkgsave files (ours), the new files installed by pkg (theirs), and the old files in the copy of the etcupdate database.
+If there are merge conflicts, an error is logged and manual intervention may be required.
+.pkgsave files without a corresponding entry in the old etcupdate database are skipped.
+.It
+If
+.Xr sshd 8
+is running, restart the service.
+.It
+Run
+.Xr pwd_mkdb 8
+and
+.Xr cap_mkdb 1 .
+.It
+Remove
+.Pa /boot/kernel/linker.hints .
+.El
+
+.Sh SEE ALSO
+.Xr pkg 8
