@@ -690,42 +690,67 @@ teken_256to16(teken_color_t c)
 }
 
 static const char * const special_strings_cons25[] = {
-	[TKEY_UP] = "\x1B[A",		[TKEY_DOWN] = "\x1B[B",
-	[TKEY_LEFT] = "\x1B[D",		[TKEY_RIGHT] = "\x1B[C",
+	[TKEY_UP] = "\x1B[A",
+	[TKEY_DOWN] = "\x1B[B",
+	[TKEY_LEFT] = "\x1B[D",
+	[TKEY_RIGHT] = "\x1B[C",
 
-	[TKEY_HOME] = "\x1B[H",		[TKEY_END] = "\x1B[F",
-	[TKEY_INSERT] = "\x1B[L",	[TKEY_DELETE] = "\x7F",
-	[TKEY_PAGE_UP] = "\x1B[I",	[TKEY_PAGE_DOWN] = "\x1B[G",
+	[TKEY_HOME] = "\x1B[H",
+	[TKEY_END] = "\x1B[F",
+	[TKEY_INSERT] = "\x1B[L",
+	[TKEY_DELETE] = "\x7F",
+	[TKEY_PAGE_UP] = "\x1B[I",
+	[TKEY_PAGE_DOWN] = "\x1B[G",
 
-	[TKEY_F1] = "\x1B[M",		[TKEY_F2] = "\x1B[N",
-	[TKEY_F3] = "\x1B[O",		[TKEY_F4] = "\x1B[P",
-	[TKEY_F5] = "\x1B[Q",		[TKEY_F6] = "\x1B[R",
-	[TKEY_F7] = "\x1B[S",		[TKEY_F8] = "\x1B[T",
-	[TKEY_F9] = "\x1B[U",		[TKEY_F10] = "\x1B[V",
-	[TKEY_F11] = "\x1B[W",		[TKEY_F12] = "\x1B[X",
+	[TKEY_F1] = "\x1B[M",
+	[TKEY_F2] = "\x1B[N",
+	[TKEY_F3] = "\x1B[O",
+	[TKEY_F4] = "\x1B[P",
+	[TKEY_F5] = "\x1B[Q",
+	[TKEY_F6] = "\x1B[R",
+	[TKEY_F7] = "\x1B[S",
+	[TKEY_F8] = "\x1B[T",
+	[TKEY_F9] = "\x1B[U",
+	[TKEY_F10] = "\x1B[V",
+	[TKEY_F11] = "\x1B[W",
+	[TKEY_F12] = "\x1B[X",
 };
 
 static const char * const special_strings_ckeys[] = {
-	[TKEY_UP] = "\x1BOA",		[TKEY_DOWN] = "\x1BOB",
-	[TKEY_LEFT] = "\x1BOD",		[TKEY_RIGHT] = "\x1BOC",
+	[TKEY_UP] = "\x1BOA",
+	[TKEY_DOWN] = "\x1BOB",
+	[TKEY_LEFT] = "\x1BOD",
+	[TKEY_RIGHT] = "\x1BOC",
 
-	[TKEY_HOME] = "\x1BOH",		[TKEY_END] = "\x1BOF",
+	[TKEY_HOME] = "\x1BOH",
+	[TKEY_END] = "\x1BOF",
 };
 
 static const char * const special_strings_normal[] = {
-	[TKEY_UP] = "\x1B[A",		[TKEY_DOWN] = "\x1B[B",
-	[TKEY_LEFT] = "\x1B[D",		[TKEY_RIGHT] = "\x1B[C",
+	[TKEY_UP] = "\x1B[A",
+	[TKEY_DOWN] = "\x1B[B",
+	[TKEY_LEFT] = "\x1B[D",
+	[TKEY_RIGHT] = "\x1B[C",
 
-	[TKEY_HOME] = "\x1B[H",		[TKEY_END] = "\x1B[F",
-	[TKEY_INSERT] = "\x1B[2~",	[TKEY_DELETE] = "\x1B[3~",
-	[TKEY_PAGE_UP] = "\x1B[5~",	[TKEY_PAGE_DOWN] = "\x1B[6~",
+	[TKEY_HOME] = "\x1B[H",
+	[TKEY_END] = "\x1B[F",
+	[TKEY_INSERT] = "\x1B[2~",
+	[TKEY_DELETE] = "\x1B[3~",
+	[TKEY_PAGE_UP] = "\x1B[5~",
+	[TKEY_PAGE_DOWN] = "\x1B[6~",
 
-	[TKEY_F1] = "\x1BOP",		[TKEY_F2] = "\x1BOQ",
-	[TKEY_F3] = "\x1BOR",		[TKEY_F4] = "\x1BOS",
-	[TKEY_F5] = "\x1B[15~",		[TKEY_F6] = "\x1B[17~",
-	[TKEY_F7] = "\x1B[18~",		[TKEY_F8] = "\x1B[19~",
-	[TKEY_F9] = "\x1B[20~",		[TKEY_F10] = "\x1B[21~",
-	[TKEY_F11] = "\x1B[23~",	[TKEY_F12] = "\x1B[24~",
+	[TKEY_F1] = "\x1BOP",
+	[TKEY_F2] = "\x1BOQ",
+	[TKEY_F3] = "\x1BOR",
+	[TKEY_F4] = "\x1BOS",
+	[TKEY_F5] = "\x1B[15~",	
+	[TKEY_F6] = "\x1B[17~",
+	[TKEY_F7] = "\x1B[18~",
+	[TKEY_F8] = "\x1B[19~",
+	[TKEY_F9] = "\x1B[20~",
+	[TKEY_F10] = "\x1B[21~",
+	[TKEY_F11] = "\x1B[23~",
+	[TKEY_F12] = "\x1B[24~",
 };
 
 const char *
