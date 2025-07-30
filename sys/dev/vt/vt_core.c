@@ -967,14 +967,6 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 			VT_UNLOCK(vd);
 			break;
 		}
-		case FKEY | F(1):  case FKEY | F(2):  case FKEY | F(3):
-		case FKEY | F(4):  case FKEY | F(5):  case FKEY | F(6):
-		case FKEY | F(7):  case FKEY | F(8):  case FKEY | F(9):
-		case FKEY | F(10): case FKEY | F(11): case FKEY | F(12):
-			/* F1 through F12 keys. */
-			terminal_input_special(vw->vw_terminal,
-			    TKEY_F1 + c - (FKEY | F(1)));
-			break;
 		case FKEY | F(49): /* Home key. */
 			terminal_input_special(vw->vw_terminal, TKEY_HOME);
 			break;
@@ -1010,6 +1002,13 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 			vt_ime_toggle_mode(&vt_ime_default);
 			break;
 #endif
+		default:
+			/* F1 through F12 keys. */
+			if (c >= (FKEY | F(1)) && c <= (FKEY | F(12))) {
+				terminal_input_special(vw->vw_terminal,
+				    TKEY_F1 + c - (FKEY | F(1)));
+			}
+			break;
 		}
 	} else if (KEYFLAGS(c) == 0) {
 		/* Don't do UTF-8 conversion when doing raw mode. */
