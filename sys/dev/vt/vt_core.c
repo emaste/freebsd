@@ -1003,8 +1003,8 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 			break;
 #endif
 		default:
-			/* F1 through F12 keys. */
-			if (c >= (FKEY | F(1)) && c <= (FKEY | F(12))) {
+			/* Fx function keys. */
+			if (c >= (FKEY | F(1)) && c <= (FKEY | F(48))) {
 				terminal_input_special(vw->vw_terminal,
 				    TKEY_F1 + c - (FKEY | F(1)));
 			}
