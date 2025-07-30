@@ -372,7 +372,7 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 	 * russian *need* a koi8 font
 	 * $font_current is the current font from /etc/rc.conf
 	 */
-	if (font && strcmp(font, font_current))
+	if (font != NULL && strcmp(font, font_current))
 		vidcontrol(font);
 
 	/* Build up the menu */
