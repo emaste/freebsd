@@ -68,10 +68,10 @@
 
     $ git subtree merge -P crypto/openssh vendor/openssh
 
-    A number of files have been deleted from FreeBSD's copy of ssh,
-    including rendered man pages (which have a .0 extension).  When
-    git prompts for these deleted files during the merge, choose 'd'
-    (leaving them deleted).
+    A number of files have been deleted from FreeBSD's copy of ssh, including
+    rendered man pages (which have a .0 extension) and generated files (such
+    as config.h.in).  When git prompts for these deleted files during the
+    merge, choose 'd' (leaving them deleted).
 
 11) Resolve conflicts.  Remember to bump the version addendum in
     version.h, and update the default value in sshd_config and
