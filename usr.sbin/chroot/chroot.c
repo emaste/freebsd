@@ -31,7 +31,6 @@
 
 #include <sys/types.h>
 #include <sys/procctl.h>
-#include <sys/sysctl.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -175,15 +174,8 @@ main(int argc, char *argv[])
 	if (chdir(argv[0]) == -1)
 		err(1, "%s", argv[0]);
 	if (chroot(".") == -1) {
-		if (errno == EPERM && !nonprivileged && geteuid() != 0) {
-			int val;
-			size_t len = sizeof(val);
-			if (sysctlbyname(
-			    "security.bsd.unprivileged_chroot",
-			    &val, &len, NULL, 0) == 0 && val == 0)
-				errx(1, "unprivileged use denied by security.bsd.unprivileged_chroot sysctl");
+		if (errno == EPERM && !nonprivileged && geteuid() != 0)
 			errx(1, "unprivileged use requires -n");
-		}
 		err(1, "%s", argv[0]);
 	}
 
