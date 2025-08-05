@@ -108,7 +108,7 @@ also do a lot more advanced searches - type 'man grep' for details.
 %
 In order to support national characters for European languages in tools like
 less without creating other nationalisation aspects, set the environment
-variable LC_ALL to 'en_US.UTF-8'.
+variable LC_ALL to 'C.UTF-8'.
 %
 "man firewall" will give advice for building a FreeBSD firewall using ipfw(8).
 		-- David Scheidt <dscheidt@tumbolia.com>
