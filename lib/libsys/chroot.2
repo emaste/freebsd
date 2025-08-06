@@ -180,10 +180,12 @@ disables the alternative root for the process.
 All functions described in this page are restricted to the super-user if the
 .Ql Va security.bsd.unprivileged_chroot
 sysctl variable is set to 0.
-Unprivileged use requires that the process has enabled the
+If enabled, unprivileged use also requires that the process has enabled the
 .Dv PROC_NO_NEW_PRIVS_CTL
 .Xr procctl 2
-setting.
+prior to the
+.Nm
+call.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
