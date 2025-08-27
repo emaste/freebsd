@@ -11,7 +11,11 @@ CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
-.if ${MK_MITKRB5} == "no"
+.if ${MK_MITKRB5} != "no"
+CFLAGS+=	-I${KRB5_DIR}/include \
+		-I${KRB5_SRCTOP}/include \
+		-I${KRB5_OBJTOP}/lib
+.else
 CFLAGS+= -DHEIMDAL=1
 .endif
 .endif
