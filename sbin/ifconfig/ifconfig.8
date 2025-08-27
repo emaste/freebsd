@@ -630,6 +630,7 @@ This is useful for devices which have multiple physical layer interfaces
 .It Cm name Ar name
 Set the interface name to
 .Ar name .
+.\" 15 is IF_NAMESIZE minus one, for the NUL terminator.
 .It Cm rxcsum , txcsum , rxcsum6 , txcsum6
 If the driver supports user-configurable checksum offloading,
 enable receive (or transmit) checksum offloading on the interface.
