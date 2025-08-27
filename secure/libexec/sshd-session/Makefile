@@ -40,9 +40,6 @@ LDFLAGS+=-L${LIBBLACKLISTDIR}
 .if ${MK_MITKRB5} != "no"
 LIBADD+=	gssapi_krb5 krb5
 .include "../../krb5/Makefile.inc"
-CFLAGS+=	-I${KRB5_DIR}/include \
-		-I${KRB5_SRCTOP}/include \
-		-I${KRB5_OBJTOP}/lib
 .else
 LIBADD+=	gssapi_krb5 gssapi krb5
 .endif
