@@ -633,6 +633,7 @@ Set the interface name to
 The
 .Ar name
 may not be longer than 15 characters.
+.\" 15 is IF_NAMESIZE minus one, for the NUL terminator.
 .It Cm rxcsum , txcsum , rxcsum6 , txcsum6
 If the driver supports user-configurable checksum offloading,
 enable receive (or transmit) checksum offloading on the interface.
