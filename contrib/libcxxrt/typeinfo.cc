@@ -85,23 +85,15 @@ extern "C" char* __cxa_demangle(const char* mangled_name,
 	char *demangled = __cxa_demangle_gnu3(mangled_name);
 	if (NULL != demangled)
 	{
-		size_t len = strlen(demangled) + 1;
-		if (buf && len <= *n)
+		size_t len = strlen(demangled);
+		if (!buf || (*n < len+1))
+		{
+			buf = static_cast<char*>(realloc(buf, len+1));
+		}
+		if (0 != buf)
 		{
 			memcpy(buf, demangled, len);
-			if (status)
-			{
-				*status = 0;
-			}
-			free(demangled);
-		}
-		else
-		{
-			if (buf)
-			{
-				free(buf);
-			}
-			buf = demangled;
+			buf[len] = 0;
 			if (n)
 			{
 				*n = len;
@@ -111,6 +103,14 @@ extern "C" char* __cxa_demangle(const char* mangled_name,
 				*status = 0;
 			}
 		}
+		else
+		{
+			if (status)
+			{
+				*status = -1;
+			}
+		}
+		free(demangled);
 	}
 	else
 	{
