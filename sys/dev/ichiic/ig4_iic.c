@@ -659,8 +659,7 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			 */
 			if (ig4iic_xfer_is_started(sc) &&
 			    ig4iic_xfer_abort(sc) != 0) {
-				device_printf(sc->dev, "Failed to abort "
-				    "transfer. Do the controller reset.\n");
+				device_printf(sc->dev, "Failed to abort transfer. Resetting controller.\n");
 				ig4iic_set_config(sc, true);
 			} else {
 				while (reg_read(sc, IG4_REG_I2C_STA) &
