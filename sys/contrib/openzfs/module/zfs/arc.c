@@ -492,13 +492,13 @@ static taskq_t *arc_flush_taskq;
 static uint_t zfs_arc_evict_threads = 0;
 
 /* The 7 states: */
-arc_state_t ARC_anon;
-arc_state_t ARC_mru;
-arc_state_t ARC_mru_ghost;
-arc_state_t ARC_mfu;
-arc_state_t ARC_mfu_ghost;
-arc_state_t ARC_l2c_only;
-arc_state_t ARC_uncached;
+static arc_state_t ARC_anon;
+/*  */ arc_state_t ARC_mru;
+static arc_state_t ARC_mru_ghost;
+/*  */ arc_state_t ARC_mfu;
+static arc_state_t ARC_mfu_ghost;
+static arc_state_t ARC_l2c_only;
+static arc_state_t ARC_uncached;
 
 arc_stats_t arc_stats = {
 	{ "hits",			KSTAT_DATA_UINT64 },
@@ -845,7 +845,7 @@ typedef struct arc_async_flush {
 /* L2ARC Performance Tunables */
 static uint64_t l2arc_write_max = L2ARC_WRITE_SIZE;	/* def max write size */
 uint64_t l2arc_dwpd_limit = 100;			/* 100 = 1.0 DWPD */
-static uint64_t l2arc_dwpd_bump = 0;			/* DWPD reset trigger */
+static uint64_t l2arc_write_boost = L2ARC_WRITE_SIZE;	/* extra warmup write */
 static uint64_t l2arc_headroom = L2ARC_HEADROOM;	/* # of dev writes */
 static uint64_t l2arc_headroom_boost = L2ARC_HEADROOM_BOOST;
 static uint64_t l2arc_feed_secs = L2ARC_FEED_SECS;	/* interval seconds */
