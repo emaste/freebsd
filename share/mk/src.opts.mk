@@ -525,6 +525,11 @@ MK_LOADER_VERIEXEC_PASS_MANIFEST := no
 MK_DEPEND_CLEANUP:=	no
 .endif
 
+.if ${MK_BEARSSL} == "no" && \
+    (${MK_LOADER_VERIEXEC} == "yes" || ${MK_VERIEXEC} == "yes")
+.error VERIEXEC requires BEARSSL
+.endif
+
 #
 # MK_* options whose default value depends on another option.
 #
