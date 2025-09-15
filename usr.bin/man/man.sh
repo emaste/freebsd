@@ -511,39 +511,42 @@ man_display_page_groff() {
 # Usage: man_find_and_display page
 # Search through the manpaths looking for the given page.
 man_find_and_display() {
-	local found_page has_slash locpath p path sect
+	local file found_page has_slash locpath p path sect
 
+	file=$1
 	# Check to see if it's a file. But only if it has a '/' in
 	# the filename or if -l was specified.
-	case "$1" in
+	case "$file" in
 	*/*)	has_slash=yes
 		;;
 	esac
 	if [ -n "$has_slash" -o -n "$lflag" ]; then
-		if [ -f "$1" -a -r "$1" ]; then
-			decho "Found a usable page, displaying that"
-			if [ -z "$lflag" ]; then
-				echo "Opening a file directly is deprecated," \
-				    "use -l instead." >&2
+		if [ -n "$lflag" ]; then
+			if [ "$file" = - ]; then
+				file=/dev/stdin
+			elif ! [ -f "$file" -a -r "$file" ]; then
+				echo "Cannot read $file" >&2
+				ret=1
+				return
 			fi
-			unset use_cat
-			manpage="$1"
-			setup_cattool "$manpage"
-			p=$(cd "$(dirname "$manpage")" && pwd)
-			case "$(basename "$p")" in
-				man*|cat*) p=$p/.. ;;
-				*) p=$p/../.. ;;
-			esac
-			if man_check_for_so "$p"; then
-				found_page=yes
-				man_display_page
-			fi
-			return
-		elif [ -n "$lflag" ]; then
-			echo "Cannot read $1" >&2
-			ret=1
-			return
 		fi
+		decho "Found a usable page, displaying that"
+		if [ -z "$lflag" ]; then
+			echo "Opening a file directly is deprecated, Use -l instead." >&2
+		fi
+		unset use_cat
+		manpage="$file"
+		setup_cattool "$manpage"
+		p=$(cd "$(dirname "$manpage")" && pwd)
+		case "$(basename "$p")" in
+			man*|cat*) p=$p/.. ;;
+			*) p=$p/../.. ;;
+		esac
+		if man_check_for_so "$p"; then
+			found_page=yes
+			man_display_page
+		fi
+		return
 	fi
 
 	IFS=:
