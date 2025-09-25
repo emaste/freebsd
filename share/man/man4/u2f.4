@@ -23,7 +23,7 @@
 .Os
 .Sh NAME
 .Nm u2f
-.Nd FIDO/U2F USB security keys
+.Nd FIDO2/U2F USB security key driver
 .Sh SYNOPSIS
 .Cd "device u2f"
 .Pp
@@ -37,7 +37,7 @@ In
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for FIDO/U2F-compatible USB security keys.
+driver provides support for FIDO2/U2F-compatible USB security keys.
 They are Human Interface Devices (HID) which can be accessed via the
 .Pa /dev/u2f/N
 interface.
@@ -55,7 +55,7 @@ calls from u2f group users.
 .Sh HARDWARE
 The
 .Nm
-driver supports FIDO/U2F-compatible USB security keys.
+driver supports FIDO2/U2F-compatible USB security keys.
 .Sh SYSCTL VARIABLES
 The following variables are available as both
 .Xr sysctl 8
