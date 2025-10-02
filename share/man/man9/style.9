@@ -465,6 +465,10 @@ or:
 .Bd -literal
 void	function(int _fd);
 .Ed
+Historically,
+.Fx
+headers did not include their dependencies.
+We are now moving towards having self-contained headers.
 .Pp
 Prototypes may have an extra space after a tab to enable function names
 to line up:
