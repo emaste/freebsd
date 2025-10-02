@@ -20,6 +20,7 @@ build()
 	echo
 	time make $ARGS $DASHJ PKG_FORMAT=tzst PKG_LEVEL=1 packages
 	echo
+	cd release
 	time make $ARGS disc1.iso
 }
 
