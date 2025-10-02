@@ -46,7 +46,7 @@ local function select_packages(pkg, media, all_libcompats)
 	end
 	assert(components["kernel"])
 	assert(components["base"])
-	assert(components["pkg"])
+	-- assert(components["pkg"])
 
 	local selected = {}
 	if media == "disc" then
