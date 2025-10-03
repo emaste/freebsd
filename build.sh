@@ -21,6 +21,7 @@ build()
 	time make $ARGS $DASHJ PKG_FORMAT=tzst PKG_LEVEL=1 packages
 	echo
 	cd release
+	rm -rf obj/disc1*
 	time make $ARGS disc1.iso
 }
 
