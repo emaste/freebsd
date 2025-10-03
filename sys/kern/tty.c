@@ -1648,24 +1648,6 @@ tty_set_winsize(struct tty *tp, const struct winsize *wsz)
 }
 
 static int
-tty_sti_check(struct tty *tp, int fflag, struct thread *td)
-{
-	/* Root can bypass all of our constraints. */
-	if (priv_check(td, PRIV_TTY_STI) == 0)
-		return (0);
-
-	/* Unprivileged users must have it opened for read. */
-	if ((fflag & FREAD) == 0)
-		return (EPERM);
-
-	/* It must also be their controlling tty. */
-	if (!tty_is_ctty(tp, td->td_proc))
-		return (EACCES);
-
-	return (0);
-}
-
-static int
 tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
     struct thread *td)
 {
