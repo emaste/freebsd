@@ -22,6 +22,7 @@ build()
 	echo
 	cd release
 	rm -rf obj/disc1*
+	export PKG_LEVEL=1
 	time make $ARGS disc1.iso
 }
 
