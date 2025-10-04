@@ -99,6 +99,7 @@ local function main()
 	    "-o ABI=" .. ABI .. " " ..
 	    "-o INSTALL_AS_USER=1 -o PKG_DBDIR=" .. PKGDB .. " -R " .. repo_dir .. " "
 
+	print("Updating PKG_DBDIR=" .. PKGDB .. " repo_dir " .. repo_dir)
 	assert(os.execute(pkg .. "update"))
 
 	local packages = select_packages(pkg, media, all_libcompats)
