@@ -8,6 +8,7 @@ DASHJ=-j$(nproc)
 ARGS="$ARGS WITHOUT_TOOLCHAIN= CROSS_TOOLCHAIN=llvm19"
 # Reduce build verbosity
 ARGS="$ARGS -s"
+ARGS="$ARGS PORTSDIR=/home/emaste/src/freebsd-ports"
 
 LOG=$(pwd)/build.$(date +%Y%m%d_%H%M%S).log
 ln -fs $LOG build.log
