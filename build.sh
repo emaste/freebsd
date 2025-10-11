@@ -5,7 +5,7 @@
 DASHJ=-j$(nproc)
 
 # Skip 2x toolchain build
-ARGS="$ARGS WITHOUT_TOOLCHAIN= CROSS_TOOLCHAIN=llvm19"
+ARGS="$ARGS CROSS_TOOLCHAIN=llvm19"
 # Reduce build verbosity
 ARGS="$ARGS -s"
 ARGS="$ARGS PORTSDIR=/home/emaste/src/freebsd-ports"
