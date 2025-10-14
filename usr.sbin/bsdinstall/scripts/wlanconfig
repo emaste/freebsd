@@ -200,6 +200,7 @@ fi
 
 while :; do
 	SCANSSID=0
+	rescans=0
 	# While wpa_supplicant may IFF_UP the interface, we do not want to rely
 	# in this.  In case the script is run manually (outside the installer,
 	# e.g., for testing) wpa_supplicant may be running and the wlanN
@@ -217,6 +218,9 @@ while :; do
 	' | sort | uniq )
 
 	if [ ! "$NETWORKS" ]; then
+		# If no networks found perform first rescan without prompting.
+		rescans=$((rescans + 1))
+		[ $rescans -eq 1 ] && continue
 		f_dialog_title "$msg_error"
 		f_yesno "No wireless networks were found. Rescan?" && continue
 	else
