@@ -26,7 +26,7 @@ SRCS=	${LIBOPENSSH_SRCS} \
 	log.c match.c moduli.c nchan.c packet.c \
 	readpass.c ttymodes.c xmalloc.c addr.c addrmatch.c \
 	atomicio.c dispatch.c mac.c misc.c utf8.c \
-	monitor_fdpass.c rijndael.c ssh-dss.c ssh-ecdsa.c ssh-ecdsa-sk.c \
+	monitor_fdpass.c rijndael.c ssh-ecdsa.c ssh-ecdsa-sk.c \
 	ssh-ed25519-sk.c ssh-rsa.c dh.c \
 	msg.c dns.c entropy.c umac.c umac128.c \
 	ssh-pkcs11.c smult_curve25519_ref.c \
@@ -71,4 +71,4 @@ LIBADD+=	crypto crypt z
 
 .include <bsd.lib.mk>
 
-.PATH: ${SSHDIR} ${SSHDIR}/openbsd-compat
+.PATH: ${SSHDIR} ${SSHDIR}/openbsd-compat ${SSHDIR}/openbsd-compat/include

@@ -10,8 +10,7 @@
 # possible, but leave them commented.  Uncommented options override the
 # default value.
 
-# Note that some of FreeBSD's defaults differ from OpenBSD's, and
-# FreeBSD has a few additional options.
+# Note that some of FreeBSD's defaults differ from OpenBSD's.
 
 #Port 22
 #AddressFamily any
