@@ -61,6 +61,7 @@ STAGE_DIR.${header:T}= ${STAGE_OBJTOP}${${group}DIR_${header:T}}
 stage_as.${header:T}: ${header}
 stage_includes: stage_as.${header:T}
 
+# maybe expand ${.ALLSRC:@w@"${w}"@} or something like that, see PR290325
 installincludes: _${group}INS_${header:T}
 _${group}INS_${header:T}: ${header}
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -C -o ${${group}OWN_${.ALLSRC:T}} \
