@@ -22,9 +22,18 @@ build()
 	time make $ARGS $DASHJ PKG_FORMAT=tzst PKG_LEVEL=1 packages
 	echo
 	cd release
-	rm -rf obj/pkgbase-repo* obj/disc1*
+	rm -rf obj/pkgbase-repo* obj/disc1* obj/dvd1*
 	export PKG_LEVEL=1
 	time make $ARGS disc1.iso
+	#time make $ARGS dvd1.iso
+}
+
+build_dvd()
+{
+	cd release
+	export PKG_LEVEL=1
+	time make $ARGS dvd1.iso
 }
 
 build 2>&1 | tee $LOG
+#build_dvd 2>&1 | tee $LOG
