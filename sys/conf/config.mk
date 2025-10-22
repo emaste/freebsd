@@ -19,10 +19,6 @@ opt_global.h:
 	@awk '$$1 == "options" && $$2 !~ "GEOM_" { print "#define ", $$2, " 1"; }' \
 		< ${SYSDIR}/${MACHINE}/conf/DEFAULTS \
 		>>  ${.TARGET}
-.if ${MK_BHYVE_SNAPSHOT} != "no"
-opt_bhyve_snapshot.h:
-	@echo "#define BHYVE_SNAPSHOT 1" > ${.TARGET}
-.endif
 opt_bpf.h:
 	echo "#define DEV_BPF 1" > ${.TARGET}
 .if ${MK_INET_SUPPORT} != "no"
@@ -65,9 +61,6 @@ KERN_OPTS.powerpc=DEV_PCI
 KERN_OPTS=MROUTING IEEE80211_DEBUG \
 	IEEE80211_SUPPORT_MESH DEV_BPF \
 	${KERN_OPTS.${MACHINE}} ${KERN_OPTS_EXTRA}
-.if ${MK_BHYVE_SNAPSHOT} != "no"
-KERN_OPTS+= BHYVE_SNAPSHOT
-.endif
 .if ${MK_INET_SUPPORT} != "no"
 KERN_OPTS+= INET TCP_OFFLOAD
 .endif

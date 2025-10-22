@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-#include "opt_bhyve_snapshot.h"
-
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
@@ -528,7 +526,6 @@ vioapic_pincount(struct vm *vm)
 	return (REDIR_ENTRIES);
 }
 
-#ifdef BHYVE_SNAPSHOT
 int
 vioapic_snapshot(struct vioapic *vioapic, struct vm_snapshot_meta *meta)
 {
@@ -545,4 +542,3 @@ vioapic_snapshot(struct vioapic *vioapic, struct vm_snapshot_meta *meta)
 done:
 	return (ret);
 }
-#endif

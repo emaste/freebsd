@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-#include "opt_bhyve_snapshot.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
@@ -291,7 +289,6 @@ svm_modresume(void)
 	svm_enable(NULL);
 }
 
-#ifdef BHYVE_SNAPSHOT
 void
 svm_set_tsc_offset(struct svm_vcpu *vcpu, uint64_t offset)
 {
@@ -305,7 +302,6 @@ svm_set_tsc_offset(struct svm_vcpu *vcpu, uint64_t offset)
 
 	vm_set_tsc_offset(vcpu->vcpu, offset);
 }
-#endif
 
 /* Pentium compatible MSRs */
 #define MSR_PENTIUM_START 	0
