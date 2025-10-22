@@ -27,8 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_bhyve_snapshot.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
@@ -317,9 +315,7 @@ static int vmx_getdesc(void *vcpui, int reg, struct seg_desc *desc);
 static int vmx_getreg(void *vcpui, int reg, uint64_t *retval);
 static int vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val);
 static void vmx_inject_pir(struct vlapic *vlapic);
-#ifdef BHYVE_SNAPSHOT
 static int vmx_restore_tsc(void *vcpui, uint64_t now);
-#endif
 
 static inline bool
 host_has_rdpid(void)
@@ -1422,10 +1418,8 @@ vmx_set_tsc_offset(struct vmx_vcpu *vcpu, uint64_t offset)
 	}
 
 	error = vmwrite(VMCS_TSC_OFFSET, offset);
-#ifdef BHYVE_SNAPSHOT
 	if (error == 0)
 		vm_set_tsc_offset(vcpu->vcpu, offset);
-#endif
 	return (error);
 }
 
@@ -4138,7 +4132,6 @@ vmx_vlapic_cleanup(struct vlapic *vlapic)
 	free(vlapic, M_VLAPIC);
 }
 
-#ifdef BHYVE_SNAPSHOT
 static int
 vmx_vcpu_snapshot(void *vcpui, struct vm_snapshot_meta *meta)
 {
@@ -4278,7 +4271,6 @@ vmx_restore_tsc(void *vcpui, uint64_t offset)
 		VMCLEAR(vmcs);
 	return (error);
 }
-#endif
 
 const struct vmm_ops vmm_ops_intel = {
 	.modinit	= vmx_modinit,

@@ -109,9 +109,7 @@ void vlapic_dcr_write_handler(struct vlapic *vlapic);
 void vlapic_lvt_write_handler(struct vlapic *vlapic, uint32_t offset);
 void vlapic_self_ipi_handler(struct vlapic *vlapic, uint64_t val);
 
-#ifdef BHYVE_SNAPSHOT
 int vlapic_snapshot(struct vm *vm, struct vm_snapshot_meta *meta);
-#endif
 
 int vm_handle_ipi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu);
 
