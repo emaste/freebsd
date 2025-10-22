@@ -48,8 +48,6 @@ int vrtc_addr_handler(struct vm *vm, bool in, int port, int bytes,
 int vrtc_data_handler(struct vm *vm, bool in, int port, int bytes,
     uint32_t *val);
 
-#ifdef BHYVE_SNAPSHOT
 int vrtc_snapshot(struct vrtc *vrtc, struct vm_snapshot_meta *meta);
-#endif
 
 #endif
