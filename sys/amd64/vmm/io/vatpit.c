@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-#include "opt_bhyve_snapshot.h"
-
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/queue.h>
@@ -473,7 +471,6 @@ vatpit_cleanup(struct vatpit *vatpit)
 	free(vatpit, M_VATPIT);
 }
 
-#ifdef BHYVE_SNAPSHOT
 int
 vatpit_snapshot(struct vatpit *vatpit, struct vm_snapshot_meta *meta)
 {
@@ -510,4 +507,3 @@ vatpit_snapshot(struct vatpit *vatpit, struct vm_snapshot_meta *meta)
 done:
 	return (ret);
 }
-#endif

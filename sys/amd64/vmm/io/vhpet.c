@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-#include "opt_bhyve_snapshot.h"
-
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -763,7 +761,6 @@ vhpet_getcap(struct vm_hpet_cap *cap)
 	return (0);
 }
 
-#ifdef BHYVE_SNAPSHOT
 int
 vhpet_snapshot(struct vhpet *vhpet, struct vm_snapshot_meta *meta)
 {
@@ -807,4 +804,3 @@ vhpet_restore_time(struct vhpet *vhpet)
 
 	return (0);
 }
-#endif
