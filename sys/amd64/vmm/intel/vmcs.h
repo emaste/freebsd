@@ -56,7 +56,6 @@ int	vmcs_getdesc(struct vmcs *vmcs, int running, int ident,
 		     struct seg_desc *desc);
 int	vmcs_setdesc(struct vmcs *vmcs, int running, int ident,
 		     struct seg_desc *desc);
-#ifdef BHYVE_SNAPSHOT
 int	vmcs_getany(struct vmcs *vmcs, int running, int ident, uint64_t *val);
 int	vmcs_setany(struct vmcs *vmcs, int running, int ident, uint64_t val);
 int	vmcs_snapshot_reg(struct vmcs *vmcs, int running, int ident,
@@ -65,7 +64,6 @@ int	vmcs_snapshot_desc(struct vmcs *vmcs, int running, int seg,
 			   struct vm_snapshot_meta *meta);
 int	vmcs_snapshot_any(struct vmcs *vmcs, int running, int ident,
 			  struct vm_snapshot_meta *meta);
-#endif
 
 /*
  * Avoid header pollution caused by inline use of 'vtophys()' in vmx_cpufunc.h

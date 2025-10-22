@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-#include "opt_bhyve_snapshot.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
@@ -1021,7 +1019,6 @@ vrtc_cleanup(struct vrtc *vrtc)
 	free(vrtc, M_VRTC);
 }
 
-#ifdef BHYVE_SNAPSHOT
 int
 vrtc_snapshot(struct vrtc *vrtc, struct vm_snapshot_meta *meta)
 {
@@ -1061,4 +1058,3 @@ vrtc_snapshot(struct vrtc *vrtc, struct vm_snapshot_meta *meta)
 done:
 	return (ret);
 }
-#endif
