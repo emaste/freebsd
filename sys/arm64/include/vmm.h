@@ -168,12 +168,10 @@ DECLARE_VMMOPS_FUNC(struct vmspace *, vmspace_alloc, (vm_offset_t min,
     vm_offset_t max));
 DECLARE_VMMOPS_FUNC(void, vmspace_free, (struct vmspace *vmspace));
 #ifdef notyet
-#ifdef BHYVE_SNAPSHOT
 DECLARE_VMMOPS_FUNC(int, snapshot, (void *vmi, struct vm_snapshot_meta *meta));
 DECLARE_VMMOPS_FUNC(int, vcpu_snapshot, (void *vcpui,
     struct vm_snapshot_meta *meta));
 DECLARE_VMMOPS_FUNC(int, restore_tsc, (void *vcpui, uint64_t now));
-#endif
 #endif
 
 int vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval);

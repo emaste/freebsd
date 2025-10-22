@@ -27,8 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-#include "opt_bhyve_snapshot.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 
@@ -466,7 +464,6 @@ vmcb_getdesc(struct svm_vcpu *vcpu, int reg, struct seg_desc *desc)
 	return (0);
 }
 
-#ifdef BHYVE_SNAPSHOT
 int
 vmcb_getany(struct svm_vcpu *vcpu, int ident, uint64_t *val)
 {
@@ -558,4 +555,3 @@ vmcb_snapshot_any(struct svm_vcpu *vcpu, int ident,
 done:
 	return (ret);
 }
-#endif
