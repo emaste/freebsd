@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_bhyve_snapshot.h"
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -430,7 +429,6 @@ done:
 	return (error);
 }
 
-#ifdef BHYVE_SNAPSHOT
 int
 vmcs_getany(struct vmcs *vmcs, int running, int ident, uint64_t *val)
 {
@@ -550,7 +548,6 @@ vmcs_snapshot_any(struct vmcs *vmcs, int running, int ident,
 done:
 	return (ret);
 }
-#endif
 
 #ifdef DDB
 extern int vmxon_enabled[];

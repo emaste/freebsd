@@ -28,8 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-#include "opt_bhyve_snapshot.h"
-
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
@@ -1798,7 +1796,6 @@ vlapic_set_tmr_level(struct vlapic *vlapic, uint32_t dest, bool phys,
 	vlapic_set_tmr(vlapic, vector, true);
 }
 
-#ifdef BHYVE_SNAPSHOT
 static void
 vlapic_reset_callout(struct vlapic *vlapic, uint32_t ccr)
 {
@@ -1905,4 +1902,3 @@ vlapic_snapshot(struct vm *vm, struct vm_snapshot_meta *meta)
 done:
 	return (ret);
 }
-#endif

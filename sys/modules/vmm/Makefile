@@ -78,7 +78,6 @@ CFLAGS+= -I${SRCTOP}/sys/amd64/vmm/intel
 CFLAGS+= -I${SRCTOP}/sys/amd64/vmm/amd
 
 SRCS+=	opt_acpi.h		\
-	opt_bhyve_snapshot.h	\
 	opt_ddb.h
 
 SRCS+=	vmm_host.c	\
@@ -121,7 +120,7 @@ SRCS+=	vmcb.c		\
 	amdvi_hw.c	\
 	svm_msr.c
 
-SRCS.BHYVE_SNAPSHOT=	vmm_snapshot.c
+SRCS+=	vmm_snapshot.c
 
 CLEANFILES+=	vmx_assym.h vmx_genassym.o svm_assym.h svm_genassym.o
 

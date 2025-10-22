@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_bhyve_snapshot.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -148,11 +146,9 @@ DEFINE_VMMOPS_IFUNC(struct vmspace *, vmspace_alloc, (vm_offset_t min,
 DEFINE_VMMOPS_IFUNC(void, vmspace_free, (struct vmspace *vmspace))
 DEFINE_VMMOPS_IFUNC(struct vlapic *, vlapic_init, (void *vcpui))
 DEFINE_VMMOPS_IFUNC(void, vlapic_cleanup, (struct vlapic *vlapic))
-#ifdef BHYVE_SNAPSHOT
 DEFINE_VMMOPS_IFUNC(int, vcpu_snapshot, (void *vcpui,
     struct vm_snapshot_meta *meta))
 DEFINE_VMMOPS_IFUNC(int, restore_tsc, (void *vcpui, uint64_t now))
-#endif
 
 SDT_PROVIDER_DEFINE(vmm);
 
@@ -1942,7 +1938,6 @@ vm_get_wiredcnt(struct vcpu *vcpu, struct vmm_stat_type *stat)
 VMM_STAT_FUNC(VMM_MEM_RESIDENT, "Resident memory", vm_get_rescnt);
 VMM_STAT_FUNC(VMM_MEM_WIRED, "Wired memory", vm_get_wiredcnt);
 
-#ifdef BHYVE_SNAPSHOT
 static int
 vm_snapshot_vcpus(struct vm *vm, struct vm_snapshot_meta *meta)
 {
@@ -2102,4 +2097,3 @@ vm_restore_time(struct vm *vm)
 
 	return (0);
 }
-#endif

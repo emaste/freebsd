@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_bhyve_snapshot.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
@@ -134,13 +132,11 @@ const struct vmmdev_ioctl vmmdev_machdep_ioctls[] = {
 	    VMMDEV_IOCTL_PPT),
 	VMMDEV_IOCTL(VM_UNMAP_PPTDEV_MMIO, VMMDEV_IOCTL_LOCK_ALL_VCPUS |
 	    VMMDEV_IOCTL_PPT),
-#ifdef BHYVE_SNAPSHOT
 #ifdef COMPAT_FREEBSD13
 	VMMDEV_IOCTL(VM_SNAPSHOT_REQ_13, VMMDEV_IOCTL_LOCK_ALL_VCPUS),
 #endif
 	VMMDEV_IOCTL(VM_SNAPSHOT_REQ, VMMDEV_IOCTL_LOCK_ALL_VCPUS),
 	VMMDEV_IOCTL(VM_RESTORE_TIME, VMMDEV_IOCTL_LOCK_ALL_VCPUS),
-#endif
 
 #ifdef COMPAT_FREEBSD13
 	VMMDEV_IOCTL(VM_STATS_13, VMMDEV_IOCTL_LOCK_ONE_VCPU),
@@ -559,7 +555,6 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 	case VM_RESTART_INSTRUCTION:
 		error = vm_restart_instruction(vcpu);
 		break;
-#ifdef BHYVE_SNAPSHOT
 	case VM_SNAPSHOT_REQ: {
 		struct vm_snapshot_meta *snapshot_meta;
 
@@ -586,7 +581,6 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 	case VM_RESTORE_TIME:
 		error = vm_restore_time(vm);
 		break;
-#endif
 	default:
 		error = ENOTTY;
 		break;

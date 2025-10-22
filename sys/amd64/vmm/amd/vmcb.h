@@ -357,14 +357,12 @@ int	vmcb_write(struct svm_vcpu *vcpu, int ident, uint64_t val);
 int	vmcb_setdesc(struct svm_vcpu *vcpu, int ident, struct seg_desc *desc);
 int	vmcb_getdesc(struct svm_vcpu *vcpu, int ident, struct seg_desc *desc);
 int	vmcb_seg(struct vmcb *vmcb, int ident, struct vmcb_segment *seg);
-#ifdef BHYVE_SNAPSHOT
 int	vmcb_getany(struct svm_vcpu *vcpu, int ident, uint64_t *val);
 int	vmcb_setany(struct svm_vcpu *vcpu, int ident, uint64_t val);
 int	vmcb_snapshot_desc(struct svm_vcpu *vcpu, int reg,
 			   struct vm_snapshot_meta *meta);
 int	vmcb_snapshot_any(struct svm_vcpu*vcpu, int ident,
 			  struct vm_snapshot_meta *meta);
-#endif
 
 #endif /* _KERNEL */
 #endif /* _VMCB_H_ */
