@@ -1,0 +1,1470 @@
+File: lib/libc/gen/dup3.3
+Hash: efadb5c2a908a
+
+.Dv O_CLOFORK
+flag appeared in
+.Fx 15.0 .
+
+commit efadb5c2a908a08e98f917ef6e6e65c73e8d04af
+Author:     Ricardo Branco <rbranco@suse.de>
+AuthorDate: Sat May 17 19:10:19 2025 +0200
+Commit:     Mark Johnston <markj@FreeBSD.org>
+CommitDate: Sun Jul 6 23:08:41 2025 +0000
+
+    Add manpages for O_CLOFORK flag and others
+    
+    Reviewed by:    kib
+    MFC after:      1 month
+    Pull Request:   https://github.com/freebsd/freebsd-src/pull/1698
+---
+File: lib/libc/gen/fts.3
+Hash: da2025a0e8945
+
+.Dv FTS_NOSTAT
+options were added in
+.Fx 15.0
+
+commit da2025a0e89455fb646b542b53d5a4ddaa2acbe0
+Author:     Dag-Erling Smørgrav <des@FreeBSD.org>
+AuthorDate: Thu May 8 16:28:51 2025 +0200
+Commit:     Dag-Erling Smørgrav <des@FreeBSD.org>
+CommitDate: Thu May 8 16:29:15 2025 +0200
+
+    fts: Add FTS_COMFOLLOWDIR and FTS_NOSTAT_TYPE.
+    
+    MFC after:      never
+    Relnotes:       yes
+    Sponsored by:   Klara, Inc.
+    Reviewed by:    kevans, imp
+    Differential Revision:  https://reviews.freebsd.org/D50233
+---
+File: lib/libc/gen/glob.3
+Hash: 1e0743f54d2d3
+
+.Fn glob_b
+function first appeared in
+.Fx 15.0 .
+
+commit 1e0743f54d2d3624cd4de2167d373aa38597778e
+Author:     Bojan Novković <bnovkov@FreeBSD.org>
+AuthorDate: Fri May 23 15:26:04 2025 +0200
+Commit:     Bojan Novković <bnovkov@FreeBSD.org>
+CommitDate: Mon Jun 2 11:32:50 2025 +0200
+
+    glob: Add blocks support
+    
+    This change introduces the `glob_b` function which takes a block instead
+    of a function pointer.
+    
+    Relnotes:       yes
+    Sponsored by:   Klara, Inc.
+    Inspired by:  https://github.com/apple-oss-distributions/Libc
+    Differential Revision:  https://reviews.freebsd.org/D50485
+---
+File: lib/libc/gen/psignal.3
+Hash: 3d12567133bfb
+
+.Fn str2sig
+functions appeared in
+.Fx 15.0 .
+
+commit 3d12567133bfb4082a5115f16a71a865ff2af7fb
+Author:     Ricardo Branco <rbranco@suse.de>
+AuthorDate: Sat May 10 22:56:03 2025 +0200
+Commit:     Warner Losh <imp@FreeBSD.org>
+CommitDate: Wed Jun 11 17:16:22 2025 -0600
+
+    Add the POSIX sig2str(3) & str2sig(3) calls
+    
+    Signed-off-by: Ricardo Branco <rbranco@suse.de>
+    Reviewed by: imp, kib, des, jilles
+    Pull Request: https://github.com/freebsd/freebsd-src/pull/1696
+---
+File: lib/libc/gen/scandir.3
+Hash: deeebfdecab56
+
+.Fn scandirat_b
+functions were added in
+.Fx 15.0 .
+
+commit deeebfdecab56729fa898271ae53d01c8e156302
+Author:     Dag-Erling Smørgrav <des@FreeBSD.org>
+AuthorDate: Fri Jun 20 13:10:23 2025 +0200
+Commit:     Dag-Erling Smørgrav <des@FreeBSD.org>
+CommitDate: Fri Jun 20 13:10:23 2025 +0200
+
+    libc: Add fscandir(), fscandir_b(), scandirat_b().
+    
+    While here, clean up scandir() a bit and improve the documentation.
+    
+    MFC after:      never
+    Sponsored by:   Klara, Inc.
+    Reviewed by:    markj
+    Differential Revision:  https://reviews.freebsd.org/D50935
+---
+File: lib/libc/net/linkaddr.3
+Hash: da509c29089ab
+
+.Fn link_ntoa_r
+function appeared in
+.Fx 15.0 .
+
+commit da509c29089ab169b667ebdf82aa903987ba9c6d
+Author:     Lexi Winter <ivy@FreeBSD.org>
+AuthorDate: Wed May 7 10:34:08 2025 +0100
+Commit:     Lexi Winter <ivy@FreeBSD.org>
+CommitDate: Wed May 7 10:52:04 2025 +0100
+
+    libc: add link_ntoa_r()
+    
+    this is a re-entrant version of link_ntoa.  use an in-out parameter for
+    the buffer size, so the user requires at most two calls to determine the
+    needed size.
+    
+    reimplement link_ntoa using link_ntoa_r with a static buffer.
+    
+    Reviewed by:    des
+    Approved by:    des (mentor)
+    Differential Revision:  https://reviews.freebsd.org/D50202
+---
+File: lib/libc/stdtime/ctime.3
+Hash: 155290b23f0b5
+
+.Fn offtime_r
+functions were added in
+.Fx 15.0 .
+
+commit 155290b23f0b503b9db675d6a45f85b189ee1926
+Author:     Dag-Erling Smørgrav <des@FreeBSD.org>
+AuthorDate: Tue Sep 23 20:52:10 2025 +0200
+Commit:     Dag-Erling Smørgrav <des@FreeBSD.org>
+CommitDate: Tue Sep 23 21:38:49 2025 +0200
+
+    tzcode: Expose and document offtime() and offtime_r()
+    
+    Includes diff reduction to upstream version of this patch.
+    
+    MFC after:      3 days
+    Sponsored by:   Klara, Inc.
+    Reviewed by:    philip
+    Differential Revision:  https://reviews.freebsd.org/D39715
+---
+File: lib/libsys/accept.2
+Hash: efadb5c2a908a
+
+.Dv SOCK_CLOFORK
+flag appeared in
+.Fx 15.0 .
+
+commit efadb5c2a908a08e98f917ef6e6e65c73e8d04af
+Author:     Ricardo Branco <rbranco@suse.de>
+AuthorDate: Sat May 17 19:10:19 2025 +0200
+Commit:     Mark Johnston <markj@FreeBSD.org>
+CommitDate: Sun Jul 6 23:08:41 2025 +0000
+
+    Add manpages for O_CLOFORK flag and others
+    
+    Reviewed by:    kib
+    MFC after:      1 month
+    Pull Request:   https://github.com/freebsd/freebsd-src/pull/1698
+---
+File: lib/libsys/chroot.2
+Hash: b165e9e3ea4e3
+
+.Fn fchroot
+system call first appeared in
+.Fx 15.0 .
+
+commit b165e9e3ea4e327fc421d81c2a89242bd8720780
+Author:     Edward Tomasz Napierala <trasz@FreeBSD.org>
+AuthorDate: Fri Nov 29 07:46:07 2024 +0000
+Commit:     Edward Tomasz Napierala <trasz@FreeBSD.org>
+CommitDate: Fri Nov 29 12:10:02 2024 +0000
+
+    Add fchroot(2)
+    
+    This is similar to chroot(2), but takes a file descriptor instead
+    of path.  Same syscall exists in NetBSD and Solaris.  It is part of a larger
+    patch to make absolute pathnames usable in Capsicum mode, but should
+    be useful in other contexts too.
+    
+    Reviewed By:    brooks
+    Sponsored by:   Innovate UK
+    Differential Revision:  https://reviews.freebsd.org/D41564
+---
+File: lib/libsys/closefrom.2
+Hash: efadb5c2a908a
+
+.Dv CLOSE_RANGE_CLOFORK
+flag appeared in
+.Fx 15.0 .
+
+commit efadb5c2a908a08e98f917ef6e6e65c73e8d04af
+Author:     Ricardo Branco <rbranco@suse.de>
+AuthorDate: Sat May 17 19:10:19 2025 +0200
+Commit:     Mark Johnston <markj@FreeBSD.org>
+CommitDate: Sun Jul 6 23:08:41 2025 +0000
+
+    Add manpages for O_CLOFORK flag and others
+    
+    Reviewed by:    kib
+    MFC after:      1 month
+    Pull Request:   https://github.com/freebsd/freebsd-src/pull/1698
+---
+File: lib/libsys/fcntl.2
+Hash: efadb5c2a908a
+
+.Dv F_DUP3FD
+flags appeared in
+.Fx 15.0 .
+
+commit efadb5c2a908a08e98f917ef6e6e65c73e8d04af
+Author:     Ricardo Branco <rbranco@suse.de>
+AuthorDate: Sat May 17 19:10:19 2025 +0200
+Commit:     Mark Johnston <markj@FreeBSD.org>
+CommitDate: Sun Jul 6 23:08:41 2025 +0000
+
+    Add manpages for O_CLOFORK flag and others
+    
+    Reviewed by:    kib
+    MFC after:      1 month
+    Pull Request:   https://github.com/freebsd/freebsd-src/pull/1698
+---
+File: lib/libsys/getgroups.2
+Hash: 9da2fe96ff2ea
+
+.Pp
+Before
+.Fx 15.0 ,
+
+commit 9da2fe96ff2ea227e4d5f03ef92b55aabeabb7fc
+Author:     Kyle Evans <kevans@FreeBSD.org>
+AuthorDate: Thu Aug 14 23:06:09 2025 -0500
+Commit:     Kyle Evans <kevans@FreeBSD.org>
+CommitDate: Thu Aug 14 23:06:09 2025 -0500
+
+    kern: fix setgroups(2) and getgroups(2) to match other platforms
+    
+    On most other platforms observed, including OpenBSD, NetBSD, and Linux,
+    these system calls have long since been converted to only touching the
+    supplementary groups of the process.  This poses both portability and
+    security concerns in porting software to and from FreeBSD, as this
+    subtle difference is a landmine waiting to happen.  Bugs have been
+    discovered even in FreeBSD-local sources, since this behavior is
+    somewhat unintuitive (see, e.g., fix 48fd05999b0f for chroot(8)).
+    
+    Now that the egid is tracked outside of cr_groups in our ucred, convert
+    the syscalls to deal with only supplementary groups.  Some remaining
+    stragglers in base that had baked in assumptions about these syscalls
+    are fixed in the process to avoid heartburn in conversion.
+    
+    For relnotes: application developers should audit their use of both
+    setgroups(2) and getgroups(2) for signs that they had assumed the
+    previous FreeBSD behavior of using the first element for the egid.  Any
+    calls to setgroups() to clear groups that used a single array of the
+    now or soon-to-be egid can be converted to setgroups(0, NULL) calls to
+    clear the supplementary groups entirely on all FreeBSD versions.
+    
+    Co-authored-by: olce (but bugs are likely mine)
+    Relnotes:       yes (see last paragraph)
+    Reviewed by:    kib
+    Differential Revision:  https://reviews.freebsd.org/D51648
+---
+File: lib/libsys/inotify.2
+Hash: 5202cfcf93b19
+
+.Sh HISTORY
+The inotify system calls first appeared in
+.Fx 15.0 .
+
+commit 5202cfcf93b19b39f3d2bf80e73a8ca94d7fffd1
+Author:     Mark Johnston <markj@FreeBSD.org>
+AuthorDate: Thu Jul 3 20:02:21 2025 +0000
+Commit:     Mark Johnston <markj@FreeBSD.org>
+CommitDate: Fri Jul 4 14:42:33 2025 +0000
+
+    inotify: Add man pages for the new syscalls and for VOP_INOTIFY
+    
+    Reviewed by:    kib
+    MFC after:      3 months
+    Sponsored by:   Klara, Inc.
+    Differential Revision:  https://reviews.freebsd.org/D50315
+---
+File: lib/libsys/nanosleep.2
+Hash: 626ea75ed2e9e
+
+.Pp
+In
+.Fx 15.0
+
+commit 626ea75ed2e9e9365ef8d7a4fa8ef219020c98c6
+Author:     Gleb Smirnoff <glebius@FreeBSD.org>
+AuthorDate: Wed Apr 30 09:47:57 2025 -0700
+Commit:     Gleb Smirnoff <glebius@FreeBSD.org>
+CommitDate: Wed Apr 30 09:47:57 2025 -0700
+
+    time: use precise callout for clock_nanosleep(2) and nanosleep(2)
+    
+    Don't apply tc_precexp and TIMESEL() that uses sbt_timethreshold (both
+    derivatives of kern.timecounter.alloweddeviation) to sleep callout when
+    processing the default and precise clocks.  The default timer deviation of
+    5% is our internal optimization in the kernel, and we shouldn't leak that
+    into the POSIX APIs.  Note that application doesn't have any control to
+    cancel the deviation, only a superuser can change the global tunable [with
+    side effects].
+    
+    Leave the deviation for CLOCK_*_FAST and CLOCK_SECOND that are documented
+    as imprecise.
+    
+    Provide a sysctl kern.timecounter.nanosleep_precise that allows to restore
+    the previous behavior.
+    
+    Improve documentation.
+    
+    Reviewed by:            ziaee, vangyzen, imp, kib
+    Differential Revision:  https://reviews.freebsd.org/D50075
+---
+File: lib/libsys/open.2
+Hash: efadb5c2a908a
+
+.Dv O_CLOFORK
+appeared in
+.Fx 15.0 .
+
+commit efadb5c2a908a08e98f917ef6e6e65c73e8d04af
+Author:     Ricardo Branco <rbranco@suse.de>
+AuthorDate: Sat May 17 19:10:19 2025 +0200
+Commit:     Mark Johnston <markj@FreeBSD.org>
+CommitDate: Sun Jul 6 23:08:41 2025 +0000
+
+    Add manpages for O_CLOFORK flag and others
+    
+    Reviewed by:    kib
+    MFC after:      1 month
+    Pull Request:   https://github.com/freebsd/freebsd-src/pull/1698
+---
+File: lib/libsys/pipe.2
+Hash: efadb5c2a908a
+
+.Dv O_CLOFORK
+flag appeared in
+.Fx 15.0 .
+
+commit efadb5c2a908a08e98f917ef6e6e65c73e8d04af
+Author:     Ricardo Branco <rbranco@suse.de>
+AuthorDate: Sat May 17 19:10:19 2025 +0200
+Commit:     Mark Johnston <markj@FreeBSD.org>
+CommitDate: Sun Jul 6 23:08:41 2025 +0000
+
+    Add manpages for O_CLOFORK flag and others
+    
+    Reviewed by:    kib
+    MFC after:      1 month
+    Pull Request:   https://github.com/freebsd/freebsd-src/pull/1698
+---
+File: lib/libsys/setgroups.2
+Hash: 9da2fe96ff2ea
+
+.Pp
+Before
+.Fx 15.0 ,
+
+commit 9da2fe96ff2ea227e4d5f03ef92b55aabeabb7fc
+Author:     Kyle Evans <kevans@FreeBSD.org>
+AuthorDate: Thu Aug 14 23:06:09 2025 -0500
+Commit:     Kyle Evans <kevans@FreeBSD.org>
+CommitDate: Thu Aug 14 23:06:09 2025 -0500
+
+    kern: fix setgroups(2) and getgroups(2) to match other platforms
+    
+    On most other platforms observed, including OpenBSD, NetBSD, and Linux,
+    these system calls have long since been converted to only touching the
+    supplementary groups of the process.  This poses both portability and
+    security concerns in porting software to and from FreeBSD, as this
+    subtle difference is a landmine waiting to happen.  Bugs have been
+    discovered even in FreeBSD-local sources, since this behavior is
+    somewhat unintuitive (see, e.g., fix 48fd05999b0f for chroot(8)).
+    
+    Now that the egid is tracked outside of cr_groups in our ucred, convert
+    the syscalls to deal with only supplementary groups.  Some remaining
+    stragglers in base that had baked in assumptions about these syscalls
+    are fixed in the process to avoid heartburn in conversion.
+    
+    For relnotes: application developers should audit their use of both
+    setgroups(2) and getgroups(2) for signs that they had assumed the
+    previous FreeBSD behavior of using the first element for the egid.  Any
+    calls to setgroups() to clear groups that used a single array of the
+    now or soon-to-be egid can be converted to setgroups(0, NULL) calls to
+    clear the supplementary groups entirely on all FreeBSD versions.
+    
+    Co-authored-by: olce (but bugs are likely mine)
+    Relnotes:       yes (see last paragraph)
+    Reviewed by:    kib
+    Differential Revision:  https://reviews.freebsd.org/D51648
+---
+File: lib/libsys/socket.2
+Hash: efadb5c2a908a
+
+.Dv SOCK_CLOFORK
+flag appeared in
+.Fx 15.0 .
+
+commit efadb5c2a908a08e98f917ef6e6e65c73e8d04af
+Author:     Ricardo Branco <rbranco@suse.de>
+AuthorDate: Sat May 17 19:10:19 2025 +0200
+Commit:     Mark Johnston <markj@FreeBSD.org>
+CommitDate: Sun Jul 6 23:08:41 2025 +0000
+
+    Add manpages for O_CLOFORK flag and others
+    
+    Reviewed by:    kib
+    MFC after:      1 month
+    Pull Request:   https://github.com/freebsd/freebsd-src/pull/1698
+---
+File: lib/libutil/expand_number.3
+Hash: ab1c6874e5004
+
+.Vt int64_t * ,
+in
+.Fx 15.0 .
+
+commit ab1c6874e5004a8ac4e6b077a4aee307e22628b1
+Author:     Dag-Erling Smørgrav <des@FreeBSD.org>
+AuthorDate: Wed Aug 6 22:34:13 2025 +0200
+Commit:     Dag-Erling Smørgrav <des@FreeBSD.org>
+CommitDate: Wed Aug 6 22:43:13 2025 +0200
+
+    libutil: Backward compatibility for expand_number()
+    
+    Reimplement expand_number() in terms of expand_unsigned(), which takes
+    a pointer to uint64_t like expand_number() did before.  Provide a macro
+    that picks the correct version based on the type of the argument.
+    
+    Fixes:          2e0caa7c7e14
+    Reviewed by:    jhb
+    Differential Revision:  https://reviews.freebsd.org/D51723
+---
+File: lib/libutil/mntopts.3
+Hash: cda23fc36d22b
+
+program.
+As of
+.Fx 15.0
+
+commit cda23fc36d22bfa9d57d1a57c0daaeeb86bac94f
+Author:     Brooks Davis <brooks@FreeBSD.org>
+AuthorDate: Tue Apr 22 22:50:19 2025 +0100
+Commit:     Brooks Davis <brooks@FreeBSD.org>
+CommitDate: Tue Apr 22 22:51:42 2025 +0100
+
+    Move mntopts(3) suppport into libutil
+    
+    Many programs use this functionality so it should be available centrally
+    rather than compiled into each program independently.  This has the
+    modest downside of adding libutil dependencies to some mount_<foo>
+    programs, but many (plus mount(8)) already have those depndencies so
+    this shouldn't be a major imposition.
+    
+    In commit 906c312bbf74, Kirk said this could be done once the change was
+    merged to FreeBSD 13.  That happened in commit 668dfa016698 in 2023.
+    
+    While here perform related tidying including removing SRCS where the
+    only entry is ${PROG}.c rendering it unnecessary.
+    
+    Reviewed by:    olce, dim, emaste
+    Differential Revision:  https://reviews.freebsd.org/D49951
+---
+File: sbin/pflowctl/pflowctl.8
+Hash: f92d9b1aad73f
+
+.Nm
+command first appeared in
+.Fx 15.0 .
+
+commit f92d9b1aad73fc47f8f0b960808ca2c1a938e9e7
+Author:     Kristof Provost <kp@FreeBSD.org>
+AuthorDate: Tue Nov 28 14:00:16 2023 +0100
+Commit:     Kristof Provost <kp@FreeBSD.org>
+CommitDate: Tue Jan 16 09:45:53 2024 +0100
+
+    pflow: import from OpenBSD
+    
+    pflow is a pseudo device to export flow accounting data over UDP.
+    It's compatible with netflow version 5 and IPFIX (10).
+    
+    The data is extracted from the pf state table. States are exported once
+    they are removed.
+    
+    Reviewed by:    melifaro
+    Obtained from:  OpenBSD
+    Sponsored by:   Rubicon Communications, LLC ("Netgate")
+    Differential Revision:  https://reviews.freebsd.org/D43106
+---
+File: sbin/umbctl/umbctl.8
+Hash: 0f1bf1c22a0c9
+
+.Nx 9.0 ,
+and
+.Fx 15.0 .
+
+commit 0f1bf1c22a0c97e84a4db19197a75952487aa20b
+Author:     Adrian Chadd <adrian@FreeBSD.org>
+AuthorDate: Mon Jan 20 23:46:15 2025 +0000
+Commit:     Adrian Chadd <adrian@FreeBSD.org>
+CommitDate: Mon Jan 20 23:46:15 2025 +0000
+
+    umb: Introduce the USB umb(4) network driver
+    
+    This includes the port of a driver originally from OpenBSD, later
+    ported to NetBSD by the author:
+    
+    * The umb(4) kernel driver
+    * The umbctl(8) companion tool
+    
+    This driver supports USB network devices implementing the
+    Mobile Broadband Interface Model (MBIM), often found in modern
+    (internal) USB models for 4G/LTE mobile broadband access.
+    
+    It is currently limited to IPv4.
+    
+    umbctl has to be used to display or set MBIM cellular modem
+    interface parameters (4G/LTE).
+    
+    Differential Revision:  https://reviews.freebsd.org/D48167
+    Approved by:    adrian, zlei
+    Sponsored by:   FreeBSD Foundation
+    PR:             kern/263783
+    Submitted by:   Pierre Pronchery <khorben@defora.org>
+---
+File: share/man/man4/bnxt_re.4
+Hash: e213cdb4a2e55
+
+.Nm
+device driver first appeared in
+.Fx 15.0 .
+
+commit e213cdb4a2e55a2c332e0917515a99da75c942f8
+Author:     Chandrakanth Patil <chandrakanth.patil@broadcom.com>
+AuthorDate: Tue Jul 9 11:02:01 2024 +0000
+Commit:     Sumit Saxena <ssaxena@FreeBSD.org>
+CommitDate: Tue Jul 9 11:04:45 2024 +0000
+
+    bnxt_re/bnxt_en: man page support for bnxt_re driver
+    
+    Added new man page support for bnxt_re driver.
+    Updated existing bnxt ethernet driver man page with new controllers support.
+    
+    Reviewed by:            markj
+    Approved by:            imp
+    Differential revision:  https://reviews.freebsd.org/D45203
+---
+File: share/man/man4/cxgbe.4
+Hash: 1ba1c783296bc
+
+.Fx 12.0 .
+Support for T7 cards first appeared in
+.Fx 15.0 .
+
+commit 1ba1c783296bc651e1af3174a1643dff39edf05a
+Author:     Navdeep Parhar <np@FreeBSD.org>
+AuthorDate: Mon Sep 29 00:54:13 2025 -0700
+Commit:     Navdeep Parhar <np@FreeBSD.org>
+CommitDate: Mon Sep 29 07:25:58 2025 -0700
+
+    cxgbe(4): Claim T7 based devices
+    
+    The nexus/ifnet names are chnex/che respectively.
+    
+    MFC after:      3 days
+    Sponsored by:   Chelsio Communications
+---
+File: share/man/man4/epair.4
+Hash: 78537728efc53
+
+.Xr ether_gen_addr 9 .
+This tunable defaults to 1 in
+.Fx 15.0 and might be removed in
+
+commit 78537728efc5387558c97ba2730ce746d6259013
+Author:     Ronald Klop <ronald@FreeBSD.org>
+AuthorDate: Mon Aug 11 15:51:16 2025 +0200
+Commit:     Ronald Klop <ronald@FreeBSD.org>
+CommitDate: Tue Aug 12 16:36:52 2025 +0200
+
+    Document tunable net.link.epair.ether_gen_addr
+    
+    Approved by:    hrs
+    Fixes:  590493c1419092e98f7ad1dcadb886973502341e ("if_epair(4): use ether_gen_addr(9) for stable MAC address")
+    MFC after:      1 week (together with the tunable)
+    Differential Revision: https://reviews.freebsd.org/D51861
+---
+File: share/man/man4/fdc.4
+Hash: 44bab78221f8a
+
+.Nm
+driver is deprecated and may not be present in
+.Fx 15.0
+
+commit 44bab78221f8a9fdd89375a701b87248784acad0
+Author:     Ed Maste <emaste@FreeBSD.org>
+AuthorDate: Tue Aug 22 10:45:14 2023 -0400
+Commit:     Ed Maste <emaste@FreeBSD.org>
+CommitDate: Fri Oct 24 10:48:05 2025 -0400
+
+    Deprecate fdc and floppy utilities
+    
+    Floppies have been obsolete for over a decade.  Add a deprecation note
+    now and plan to remove support in 15.
+    
+    Sponsored by:   The FreeBSD Foundation
+    Differential Revision: https://reviews.freebsd.org/D41549
+---
+File: share/man/man4/hwt.4
+Hash: bc2e3360107af
+
+.Nm
+framework first appeared in
+.Fx 15.0 .
+
+commit bc2e3360107af28fed7157d18605bd038f07e16c
+Author:     Ruslan Bukin <br@FreeBSD.org>
+AuthorDate: Wed Jul 9 16:41:51 2025 +0100
+Commit:     Ruslan Bukin <br@FreeBSD.org>
+CommitDate: Wed Jul 9 16:57:07 2025 +0100
+
+    hwt(4): Add initial man page.
+    
+    Reviewed by:    ziaee
+    Sponsored by:   UKRI
+    Differential Revision:  https://reviews.freebsd.org/D51192
+---
+File: share/man/man4/iwx.4
+Hash: 27c41b28b1d77
+
+.Nm
+driver appeared in
+.Fx 15.0 .
+
+commit 27c41b28b1d7749c4dde266a12cd9ff93f168767
+Author:     Alexander Ziaee <ziaee@FreeBSD.org>
+AuthorDate: Sun Apr 6 14:12:52 2025 -0400
+Commit:     Alexander Ziaee <ziaee@FreeBSD.org>
+CommitDate: Fri May 2 15:09:12 2025 -0400
+
+    iwx.4: Initial manual page
+    
+    Import manual from OpenBSD, tweaked for our system.
+    
+    Obtained from:          OpenBSD (initially)
+    Fixes:                  1ad0f7e91582dd (Import iwx)
+    Reviewed by:            adrian, bz, emaste, mhorne, thj, Pat Maddox
+    Approved by:            mhorne (mentor)
+    Differential Revision:  https://reviews.freebsd.org/D49687
+---
+File: share/man/man4/le.4
+Hash: b95d2237af403
+
+.Nm
+driver may not be present in
+.Fx 15.0
+
+commit b95d2237af403049d48c23229aa8bace3594970e
+Author:     Brooks Davis <brooks@FreeBSD.org>
+AuthorDate: Thu Jun 22 00:50:12 2023 +0100
+Commit:     Brooks Davis <brooks@FreeBSD.org>
+CommitDate: Thu Jun 22 00:52:12 2023 +0100
+
+    le(4): deprecate and mark for removal before 15.0
+    
+    We kept le(4) in the pre-12.0 purge because it was needed for Qemu/MIPS
+    (virtio networking didn't work) but the MIPS port has been removed.
+    
+    Reviewed by:    emaste
+    MFC after:      3 days
+    Differential Revision:  https://reviews.freebsd.org/D40683
+---
+File: share/man/man4/man4.aarch64/rk_grf_gpio.4
+Hash: 0832a409c21b4
+
+.Nm
+driver first appeared in
+.Fx 15.0 .
+
+commit 0832a409c21b45b2a31b90c50a005d9a4b1a5efd
+Author:     Stephen Hurd <shurd@FreeBSD.org>
+AuthorDate: Sat Mar 15 15:43:55 2025 -0400
+Commit:     Stephen Hurd <shurd@FreeBSD.org>
+CommitDate: Tue Mar 18 13:00:19 2025 -0400
+
+    Add driver for the RK3328 GPIO_MUTE pin
+    
+    This is used in in the ROC-RK3328-CC to control a regulator.
+    
+    Reviewed by:    manu
+    Differential Revision: https://reviews.freebsd.org/D49399
+---
+File: share/man/man4/mtw.4
+Hash: 7757c54895081
+
+.Ox 7.1
+and
+.Fx 15.0 .
+
+commit 7757c54895081dd9cbce398bf08f236fa83a175e
+Author:     Alexander Ziaee <ziaee@FreeBSD.org>
+AuthorDate: Tue Apr 15 19:25:34 2025 -0400
+Commit:     Alexander Ziaee <ziaee@FreeBSD.org>
+CommitDate: Thu Jul 17 16:02:56 2025 -0400
+
+    mtw.4: Make style consistent with other manuals
+    
+    Fixes:                  c14b016242613 (importing if_mtw from OpenBSD)
+    Reviewed by:            adrian, carlavilla (mentor), jsm, mhorne(mentor)
+    Differential Revision:  https://reviews.freebsd.org/D48905
+---
+File: share/man/man4/nvmf.4
+Hash: a1eda74167b5e
+
+.Nm
+module first appeared in
+.Fx 15.0 .
+
+commit a1eda74167b5edb99fd31d507d8a3f7d7e14ae2b
+Author:     John Baldwin <jhb@FreeBSD.org>
+AuthorDate: Thu May 2 16:29:37 2024 -0700
+Commit:     John Baldwin <jhb@FreeBSD.org>
+CommitDate: Thu May 2 16:29:37 2024 -0700
+
+    nvmf: The in-kernel NVMe over Fabrics host
+    
+    This is the client (initiator in SCSI terms) for NVMe over Fabrics.
+    Userland is responsible for creating a set of queue pairs and then
+    handing them off via an ioctl to this driver, e.g. via the 'connect'
+    command from nvmecontrol(8).  An nvmeX new-bus device is created
+    at the top-level to represent the remote controller similar to PCI
+    nvmeX devices for PCI-express controllers.
+    
+    As with nvme(4), namespace devices named /dev/nvmeXnsY are created and
+    pass through commands can be submitted to either the namespace devices
+    or the controller device.  For example, 'nvmecontrol identify nvmeX'
+    works for a remote Fabrics controller the same as for a PCI-express
+    controller.
+    
+    nvmf exports remote namespaces via nda(4) devices using the new NVMF
+    CAM transport.  nvmf does not support nvd(4), only nda(4).
+    
+    Sponsored by:   Chelsio Communications
+    Differential Revision:  https://reviews.freebsd.org/D44714
+---
+File: share/man/man4/nvmf_tcp.4
+Hash: 59144db3fca19
+
+.Nm
+module first appeared in
+.Fx 15.0 .
+
+commit 59144db3fca192c4637637dfe6b5a5d98632cd47
+Author:     John Baldwin <jhb@FreeBSD.org>
+AuthorDate: Thu May 2 16:28:47 2024 -0700
+Commit:     John Baldwin <jhb@FreeBSD.org>
+CommitDate: Thu May 2 16:28:47 2024 -0700
+
+    nvmf_tcp: Add a TCP transport for NVMe over Fabrics
+    
+    Structurally this is very similar to the TCP transport for iSCSI
+    (icl_soft.c).  One key difference is that NVMeoF transports use a more
+    abstract interface working with NVMe commands rather than transport
+    PDUs.  Thus, the data transfer for a given command is managed entirely
+    in the transport backend.
+    
+    Similar to icl_soft.c, separate kthreads are used to handle transmit
+    and receive for each queue pair.  On the transmit side, when a capsule
+    is transmitted by an upper layer, it is placed on a queue for
+    processing by the transmit thread.  The transmit thread converts
+    command response capsules into suitable TCP PDUs where each PDU is
+    described by an mbuf chain that is then queued to the backing socket's
+    send buffer.  Command capsules can embed data along with the NVMe
+    command.
+    
+    On the receive side, a socket upcall notifies the receive kthread when
+    more data arrives.  Once enough data has arrived for a PDU, the PDU is
+    handled synchronously in the kthread.  PDUs such as R2T or data
+    related PDUs are handled internally, with callbacks invoked if a data
+    transfer encounters an error, or once the data transfer has completed.
+    Received capsule PDUs invoke the upper layer's capsule_received
+    callback.
+    
+    struct nvmf_tcp_command_buffer manages a TCP command buffer for data
+    transfers that do not use in-capsule-data as described in the NVMeoF
+    spec.  Data related PDUs such as R2T, C2H, and H2C are associated with
+    a command buffer except in the case of the send_controller_data
+    transport method which simply constructs one or more C2H PDUs from the
+    caller's mbuf chain.
+    
+    Sponsored by:   Chelsio Communications
+    Differential Revision:  https://reviews.freebsd.org/D44712
+---
+File: share/man/man4/nvmft.4
+Hash: a15f7c96a2764
+
+.Nm
+module first appeared in
+.Fx 15.0 .
+
+commit a15f7c96a27644de3ed3bfcf5feee285ebc1cc91
+Author:     John Baldwin <jhb@FreeBSD.org>
+AuthorDate: Thu May 2 16:34:45 2024 -0700
+Commit:     John Baldwin <jhb@FreeBSD.org>
+CommitDate: Thu May 2 16:38:30 2024 -0700
+
+    nvmft: The in-kernel NVMe over Fabrics controller
+    
+    This is the server (target in SCSI terms) for NVMe over Fabrics.
+    Userland is responsible for accepting a new queue pair and receiving
+    the initial Connect command before handing the queue pair off via an
+    ioctl to this CTL frontend.
+    
+    This frontend exposes CTL LUNs as NVMe namespaces to remote hosts.
+    Users can ask LUNS to CTL that can be shared via either iSCSI or
+    NVMeoF.
+    
+    Reviewed by:    imp
+    Sponsored by:   Chelsio Communications
+    Differential Revision:  https://reviews.freebsd.org/D44726
+---
+File: share/man/man4/snd_hdsp.4
+Hash: 5687c71d5f369
+
+.Nm
+device driver first appeared in
+.Fx 15.0 .
+
+commit 5687c71d5f369aa39cd295fa64b596b2dce2c997
+Author:     Florian Walpen <dev@submerge.ch>
+AuthorDate: Thu May 9 19:36:40 2024 +0100
+Commit:     Ruslan Bukin <br@FreeBSD.org>
+CommitDate: Thu May 9 19:36:40 2024 +0100
+
+    snd_hdsp(4): RME HDSP 9632 and HDSP 9652 sound card driver.
+    
+    Add a sound(4) bridge device driver for the RME HDSP 9632 and HDSP 9652
+    sound cards. These cards require a nowadays rare PCI 32bit (not PCIe)
+    slot, but still see use due to their value and wealth of features.
+    The HDSP 9632 is mostly comparable to the newer HDSPe AIO, while the
+    HDSP 9652 is similar to the HDSPe RayDAT. These HDSPe PCIe cards are
+    supported by the snd_hdspe(4) driver which was taken as a starting point
+    for development of snd_hdsp(4).
+    
+    Implementation is kept separately due to substantial differences in
+    hardware configuration and to allow easy removal in case PCI 32bit
+    support would be phased out in the future.
+    
+    The snd_hdsp(4) kernel module is not enabled by default, and can be
+    loaded at runtime with kldload(8) or during boot via loader.conf(5).
+    Basic operation was tested with both cards, not including all optional
+    cable connectors and expansion boards. Features should be roughly on par
+    with the snd_hdspe(4) supported cards.
+    
+    Reviewed by:    christos, br
+    Differential Revision:  https://reviews.freebsd.org/D45112
+---
+File: share/man/man4/thunderbolt.4
+Hash: 2f7a796b590e6
+
+.Nm
+driver appeared in
+.Fx 15.0 .
+
+commit 2f7a796b590e67c5d123f2b00b3aaf7ba7a32a13
+Author:     Alexander Ziaee <ziaee@FreeBSD.org>
+AuthorDate: Thu Oct 2 08:05:25 2025 -0400
+Commit:     Alexander Ziaee <ziaee@FreeBSD.org>
+CommitDate: Thu Oct 2 11:12:48 2025 -0400
+
+    thunderbolt.4: Initial manual for HW Relnotes
+    
+    This manual contains nothing and is only suitable for the HW Relnotes,
+    but lets get it in so we have something and then can iterate on it.
+    
+    MFC after:              3 minutes
+    Fixes:                  2ed9833791f2 (thunderbolt: Import USB4 code)
+    Discussed with:         obiwac
+    Differential Revision:  https://reviews.freebsd.org/D52847
+---
+File: share/man/man4/u2f.4
+Hash: 4a04e0a6c703d
+
+.Nm
+driver first appeared in
+.Fx 15.0 .
+
+commit 4a04e0a6c703db9d2d9e6a0ef2b000644143b705
+Author:     Vladimir Kondratyev <wulf@FreeBSD.org>
+AuthorDate: Mon Aug 18 00:00:45 2025 +0300
+Commit:     Vladimir Kondratyev <wulf@FreeBSD.org>
+CommitDate: Mon Aug 18 00:00:45 2025 +0300
+
+    u2f(4): a HID driver for FIDO/U2F security keys
+    
+    While FIDO/U2F keys were already supported by the generic uhid(4) and
+    hidraw(4) drivers, this driver adds some additional features an does
+    steps to tighten the security of FIDO/U2F access.
+    
+    - It automatically loads through devd.
+    - Automatically enables HQ_NO_READAHEAD for FIDO/U2F devices.
+    - Implements only miminum set of features.
+    - Do not requires external devfs configuration to set character device
+      permissions.
+    - Names character device as u2f/# to make possible capsicum or any
+      other pledge()-style sandboxing.
+    
+    PR:             265528
+    Differential Revision:  https://reviews.freebsd.org/D51612
+---
+File: share/man/man4/ufshci.4
+Hash: 93f7ed6ca9cc0
+
+.Nm
+driver first appeared in
+.Fx 15.0 .
+
+commit 93f7ed6ca9cc07e3b9efbc8b944062771b7dab06
+Author:     Jaeyoon Choi <j_yoon.choi@samsung.com>
+AuthorDate: Wed Jul 16 17:14:58 2025 -0600
+Commit:     Warner Losh <imp@FreeBSD.org>
+CommitDate: Wed Jul 16 17:21:07 2025 -0600
+
+    ufshci: add man page
+    
+    Sponsored by:           Samsung Electronics
+    Reviewed by:            pauamma_gundo.com, rpokala, imp
+    Differential Revision:  https://reviews.freebsd.org/D51029
+---
+File: share/man/man4/umb.4
+Hash: 0f1bf1c22a0c9
+
+.Nx 9.0 ,
+and
+.Fx 15.0 .
+
+commit 0f1bf1c22a0c97e84a4db19197a75952487aa20b
+Author:     Adrian Chadd <adrian@FreeBSD.org>
+AuthorDate: Mon Jan 20 23:46:15 2025 +0000
+Commit:     Adrian Chadd <adrian@FreeBSD.org>
+CommitDate: Mon Jan 20 23:46:15 2025 +0000
+
+    umb: Introduce the USB umb(4) network driver
+    
+    This includes the port of a driver originally from OpenBSD, later
+    ported to NetBSD by the author:
+    
+    * The umb(4) kernel driver
+    * The umbctl(8) companion tool
+    
+    This driver supports USB network devices implementing the
+    Mobile Broadband Interface Model (MBIM), often found in modern
+    (internal) USB models for 4G/LTE mobile broadband access.
+    
+    It is currently limited to IPv4.
+    
+    umbctl has to be used to display or set MBIM cellular modem
+    interface parameters (4G/LTE).
+    
+    Differential Revision:  https://reviews.freebsd.org/D48167
+    Approved by:    adrian, zlei
+    Sponsored by:   FreeBSD Foundation
+    PR:             kern/263783
+    Submitted by:   Pierre Pronchery <khorben@defora.org>
+---
+File: share/man/man4/usbhid.4
+Hash: 7b18bf2a225af
+
+.Fx 13.0 .
+It was enabled by default in
+.Fx 15.0 .
+
+commit 7b18bf2a225af348c2d56ad345862fe0f1055839
+Author:     Ed Maste <emaste@FreeBSD.org>
+AuthorDate: Thu Oct 2 12:14:35 2025 -0400
+Commit:     Ed Maste <emaste@FreeBSD.org>
+CommitDate: Thu Oct 2 12:17:53 2025 -0400
+
+    usbhid.4: Note that it was enabled by default for 15.0
+    
+    Also add cross-references to hkbd.4 and hms.4.
+    
+    Sponsored by:   The FreeBSD Foundation
+---
+File: share/man/man4/vmm.4
+Hash: 19cb383dc03a8
+
+.Fx 10.0 .
+arm64 and riscv support first appeared in
+.Fx 15.0 .
+
+commit 19cb383dc03a80e1651d80e0f0e3d4e9cbd20e04
+Author:     Mark Johnston <markj@FreeBSD.org>
+AuthorDate: Tue Jan 7 02:15:36 2025 +0000
+Commit:     Mark Johnston <markj@FreeBSD.org>
+CommitDate: Tue Jan 7 02:15:36 2025 +0000
+
+    vmm.4: Update to mention non-amd64 platforms
+    
+    Most of the text here relates to PCI passthrough, which is still
+    amd64-only, but we should still document supported platforms.
+    
+    While here, remove the comment that vmm.ko has to be loaded at boot-time
+    for passthrough, as devctl makes it possible to detach host drivers on
+    the fly.  I'm not aware of any other reason to require vmm.ko to be
+    loaded at boot.
+    
+    Reviewed by:    br, andrew
+    Differential Revision:  https://reviews.freebsd.org/D48263
+---
+File: share/man/man4/wlan_gcmp.4
+Hash: ca6d68a063171
+
+.Nm
+driver first appeared in
+.Fx 15.0 .
+
+commit ca6d68a063171655c34daaddb6eb7768ed283dee
+Author:     Bjoern A. Zeeb <bz@FreeBSD.org>
+AuthorDate: Wed Jun 11 07:17:07 2025 +0000
+Commit:     Bjoern A. Zeeb <bz@FreeBSD.org>
+CommitDate: Fri Jun 13 14:57:21 2025 +0000
+
+    wlan_gcmp.4: add man page
+    
+    The man page is heavily based on wlan_ccmp.4 with minor modifications
+    for GCMP.
+    
+    Add the .Xr to the other wlan*.4 man pages.
+    
+    Sposnored by:   The FreeBSD Foundation
+    MFC after:      3 days
+    Reviewed by:    adrian, ziaee
+    Differential Revision: https://reviews.freebsd.org/D50789
+---
+File: share/man/man7/d.7
+Hash: 193f2289fc9a5
+
+.Sh HISTORY
+This manual page first appeared in
+.Fx 15.0 .
+
+commit 193f2289fc9a5c7464b460e1e61c2c0ac8c9f57d
+Author:     Mateusz Piotrowski <0mp@FreeBSD.org>
+AuthorDate: Fri Jul 11 20:10:58 2025 +0200
+Commit:     Mateusz Piotrowski <0mp@FreeBSD.org>
+CommitDate: Mon Jul 14 15:01:51 2025 +0200
+
+    d.7: Document the DTrace scripting language
+    
+    Reviewed by:    bcr, christos, ziaee
+    Event:          Berlin Hackathon 202507
+    Relnotes:       yes
+    Differential Revision:  https://reviews.freebsd.org/D51268
+---
+File: share/man/man7/freebsd-base.7
+Hash: 72bf56e273cb9
+
+.Sh HISTORY
+Support for installing the base system as packages was introduced in
+.Fx 15.0 .
+
+commit 72bf56e273cb914e3b00f98e35e7270efd4edddb
+Author:     Lexi Winter <ivy@FreeBSD.org>
+AuthorDate: Thu Sep 25 18:41:00 2025 +0100
+Commit:     Lexi Winter <ivy@FreeBSD.org>
+CommitDate: Thu Sep 25 19:25:10 2025 +0100
+
+    freebsd-base.7: New manpage describing pkgbase
+    
+    This covers the basic structure of pkgbase, how packages are
+    distributed, how package sets work, and provides a few example
+    of actually using pkgbase.
+    
+    MFC after:      6 hours
+    Approved by:    re (cperciva)
+    Reviewed by:    ziaee, cperciva
+    Differential Revision:  https://reviews.freebsd.org/D52644
+---
+File: share/man/man7/named_attribute.7
+Hash: c130914d2923d
+
+.Sh HISTORY
+This interface first appeared in
+.Fx 15.0 .
+
+commit c130914d2923db4a31e83abd054a6a455d3226b3
+Author:     Rick Macklem <rmacklem@FreeBSD.org>
+AuthorDate: Wed Jul 9 15:55:52 2025 -0700
+Commit:     Rick Macklem <rmacklem@FreeBSD.org>
+CommitDate: Wed Jul 9 15:55:52 2025 -0700
+
+    named_attribute.7: Document the named attribute mechanism
+    
+    The named attribute interface is an alternate way
+    to manipulate extended attributes, based on the
+    interface provided by Solaris.
+    
+    This man page documents this interface.
+    
+    Reviewed by:    kib, ziaee (manpages), pauamma_gundo.com
+    Differential Revision:  https://reviews.freebsd.org/D49851
+    Fixes:  2ec2ba7e232d ("vfs: Add VFS/syscall support for Solaris style extended attributes")
+---
+File: share/man/man7/tracing.7
+Hash: c29459f901dc7
+
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .
+It first appeared in
+.Fx 15.0 .
+
+commit c29459f901dc73e1ebe1e654da2677cc0b7bd296
+Author:     Mateusz Piotrowski <0mp@FreeBSD.org>
+AuthorDate: Sat Jun 14 19:38:12 2025 +0200
+Commit:     Mateusz Piotrowski <0mp@FreeBSD.org>
+CommitDate: Thu Jun 19 00:15:26 2025 +0200
+
+    tracing.7: Add a single reference point for tracing facilities in FreeBSD
+    
+    FreeBSD has a fair number of tracing facilities. The new tracing(7)
+    manual page aims to provide a starting point for users to learn about
+    what is available.
+    
+    Reviewed by:    christos, bnovkov, markj, ziaee
+    Approved by:    christos (mentor), bnovkov (mentor), markj (mentor)
+    Relnotes:       yes
+    Differential Revision:  https://reviews.freebsd.org/D50854
+---
+File: share/man/man9/accf_tls.9
+Hash: c68eed82a3dca
+
+.Nm
+accept filter was introduced in
+.Fx 15.0 .
+
+commit c68eed82a3dcadf0c826e9e150f59769f4c44f24
+Author:     Gleb Smirnoff <glebius@FreeBSD.org>
+AuthorDate: Wed Apr 24 13:36:43 2024 -0700
+Commit:     Gleb Smirnoff <glebius@FreeBSD.org>
+CommitDate: Wed Apr 24 17:53:10 2024 -0700
+
+    accf_tls: accept filter that waits for TLS handshake header
+---
+File: share/man/man9/bus_attach_children.9
+Hash: 192d326bcff5e 192d326bcff5e 192d326bcff5e
+
+.Fn bus_identify_children
+first appeared in
+.Fx 15.0 .
+--
+.Fn bus_attach_children
+first appeared in
+.Fx 15.0 .
+--
+.Fn bus_detach_children
+first appeared in
+.Fx 15.0 .
+
+commit 192d326bcff5eef736cfb55fb4568d967b958893
+Author:     John Baldwin <jhb@FreeBSD.org>
+AuthorDate: Wed Feb 5 14:46:56 2025 -0500
+Commit:     John Baldwin <jhb@FreeBSD.org>
+CommitDate: Wed Feb 5 14:47:38 2025 -0500
+
+    bus_attach_children.9: New manpage for functions operating on children
+    
+    This documents bus_attach_children, bus_delayed_attach_children,
+    bus_detach_children, bus_enumerate_hinted_children, and
+    bus_identify_children.
+    
+    Differential Revision:  https://reviews.freebsd.org/D48368
+---
+File: share/man/man9/firmware.9
+Hash: 9478c7f5f80b9
+
+.Fx 6.1 .
+Binary firmware loading was introduced in
+.Fx 15.0 .
+
+commit 9478c7f5f80b9bba03632e9a13294defe354150e
+Author:     Warner Losh <imp@FreeBSD.org>
+AuthorDate: Thu Feb 29 09:36:40 2024 -0700
+Commit:     Warner Losh <imp@FreeBSD.org>
+CommitDate: Thu Feb 29 09:36:40 2024 -0700
+
+    firmware: document new native file loading.
+    
+    Sponsored by:           Netflix
+    Differential Revision:  https://reviews.freebsd.org/D43611
+---
+File: tools/tools/nvmf/nvmfd/nvmfd.8
+Hash: a8089ea5aee57
+
+.Nm
+module first appeared in
+.Fx 15.0 .
+
+commit a8089ea5aee578e08acab2438e82fc9a9ae50ed8
+Author:     John Baldwin <jhb@FreeBSD.org>
+AuthorDate: Thu May 2 16:35:40 2024 -0700
+Commit:     John Baldwin <jhb@FreeBSD.org>
+CommitDate: Thu May 2 16:38:39 2024 -0700
+
+    nvmfd: A simple userspace daemon for the NVMe over Fabrics controller
+    
+    This daemon can operate as a purely userspace controller exporting one
+    or more simulated RAM disks or local block devices as NVMe namespaces
+    to a remote host.  In this case the daemon provides a discovery
+    controller with a single entry for an I/O controller.
+    
+    nvmfd can also offload I/O controller queue pairs to the nvmft.ko
+    in-kernel Fabrics controller when -K is passed.  In this mode, nvmfd
+    still accepts connections and performs initial transport-specific
+    negotitation in userland.  The daemon still provides a userspace-only
+    discovery controller with a single entry for an I/O controller.
+    However, queue pairs for the I/O controller are handed off to the CTL
+    NVMF frontend.
+    
+    Eventually ctld(8) should be refactored to to provide an abstraction
+    for the frontend protocol and the discovery and the kernel mode of
+    this daemon should be merged into ctld(8).  At that point this daemon
+    can be moved to tools/tools/nvmf as a debugging tool (mostly as sample
+    code for a userspace controller using libnvmf).
+    
+    Reviewed by:    imp
+    Sponsored by:   Chelsio Communications
+    Differential Revision:  https://reviews.freebsd.org/D44731
+---
+File: usr.bin/runat/runat.1
+Hash: 0660de8172cd5
+
+.Nm
+utility first appeared in
+.Fx 15.0 .
+
+commit 0660de8172cd5a03affb9e87a1007cac5ba30425
+Author:     Rick Macklem <rmacklem@FreeBSD.org>
+AuthorDate: Tue May 6 13:36:06 2025 -0700
+Commit:     Rick Macklem <rmacklem@FreeBSD.org>
+CommitDate: Tue May 6 13:36:06 2025 -0700
+
+    runat: Add a runat(1) utility similar to the Solaris one
+    
+    Solaris has a utility called runat(1) that runs a shell
+    command on a named attribute directory.  This utility
+    is modelled after that one.
+    
+    Reviewed by:    kib (earlier version)
+    Differential Revision:  https://reviews.freebsd.org/D49850
+---
+File: usr.sbin/fdcontrol/fdcontrol.8
+Hash: 44bab78221f8a
+
+.Nm
+is deprecated and may not be present in
+.Fx 15.0
+
+commit 44bab78221f8a9fdd89375a701b87248784acad0
+Author:     Ed Maste <emaste@FreeBSD.org>
+AuthorDate: Tue Aug 22 10:45:14 2023 -0400
+Commit:     Ed Maste <emaste@FreeBSD.org>
+CommitDate: Fri Oct 24 10:48:05 2025 -0400
+
+    Deprecate fdc and floppy utilities
+    
+    Floppies have been obsolete for over a decade.  Add a deprecation note
+    now and plan to remove support in 15.
+    
+    Sponsored by:   The FreeBSD Foundation
+    Differential Revision: https://reviews.freebsd.org/D41549
+---
+File: usr.sbin/fdformat/fdformat.8
+Hash: 44bab78221f8a
+
+.Nm
+is deprecated and may not be present in
+.Fx 15.0
+
+commit 44bab78221f8a9fdd89375a701b87248784acad0
+Author:     Ed Maste <emaste@FreeBSD.org>
+AuthorDate: Tue Aug 22 10:45:14 2023 -0400
+Commit:     Ed Maste <emaste@FreeBSD.org>
+CommitDate: Fri Oct 24 10:48:05 2025 -0400
+
+    Deprecate fdc and floppy utilities
+    
+    Floppies have been obsolete for over a decade.  Add a deprecation note
+    now and plan to remove support in 15.
+    
+    Sponsored by:   The FreeBSD Foundation
+    Differential Revision: https://reviews.freebsd.org/D41549
+---
+File: usr.sbin/fdread/fdread.1
+Hash: 44bab78221f8a
+
+.Nm
+is deprecated and may not be present in
+.Fx 15.0
+
+commit 44bab78221f8a9fdd89375a701b87248784acad0
+Author:     Ed Maste <emaste@FreeBSD.org>
+AuthorDate: Tue Aug 22 10:45:14 2023 -0400
+Commit:     Ed Maste <emaste@FreeBSD.org>
+CommitDate: Fri Oct 24 10:48:05 2025 -0400
+
+    Deprecate fdc and floppy utilities
+    
+    Floppies have been obsolete for over a decade.  Add a deprecation note
+    now and plan to remove support in 15.
+    
+    Sponsored by:   The FreeBSD Foundation
+    Differential Revision: https://reviews.freebsd.org/D41549
+---
+File: usr.sbin/fdwrite/fdwrite.1
+Hash: 44bab78221f8a
+
+.Nm
+is deprecated and may not be present in
+.Fx 15.0
+
+commit 44bab78221f8a9fdd89375a701b87248784acad0
+Author:     Ed Maste <emaste@FreeBSD.org>
+AuthorDate: Tue Aug 22 10:45:14 2023 -0400
+Commit:     Ed Maste <emaste@FreeBSD.org>
+CommitDate: Fri Oct 24 10:48:05 2025 -0400
+
+    Deprecate fdc and floppy utilities
+    
+    Floppies have been obsolete for over a decade.  Add a deprecation note
+    now and plan to remove support in 15.
+    
+    Sponsored by:   The FreeBSD Foundation
+    Differential Revision: https://reviews.freebsd.org/D41549
+---
+File: usr.sbin/moused/moused/moused.8
+Hash: aef807876c305
+
+.Fx 2.2 .
+It was rewriten to support multiple input event devices in
+.Fx 15.0 .
+
+commit aef807876c305587c60f73e2cd914115d22a53fd
+Author:     Vladimir Kondratyev <wulf@FreeBSD.org>
+AuthorDate: Fri Sep 5 00:07:25 2025 +0300
+Commit:     Vladimir Kondratyev <wulf@FreeBSD.org>
+CommitDate: Fri Sep 5 00:07:25 2025 +0300
+
+    moused(8): Add support for evdev protocol
+    
+    The new daemon have following properties as compared with previous
+    incarnation:
+    - evdev protocol support for mices and touchpads. Additionally to
+      relative PS/2 and USB devices it enables console support for I2C/USB
+      touchpads and bluetooth mices.
+    - Other aged protocols like COM, raw PS/2 and X10 are dropped with only
+      exception of sysmouse. For those who still use them there is an
+      utility called msconvd(8).
+    - single daemon per system where hotplug is processed via devd socket.
+      Per device mode still supported too.
+    - Configuration and quirks files in libinput-compatible format.
+      Actually, the new moused config parser is taken from libinput.
+    
+    The moused(8) can work in 2 modes:
+    1. Evdev support mode. It enables all previously mentioned devices.
+       It is enabled by deault.
+    2. Sysmouse support mode. All should work as before.
+       No new devices supported. To enable it add following lines to
+       /etc/rc.conf:
+          moused_port="/dev/psm0"
+          moused_nondefault_enable="YES"
+       One may add hw.usb.usbhid.enable=0 to /boot/loader.conf to enable
+       ums(4) driver which supports sysmouse protocol.
+    
+    Differential Revision:  https://reviews.freebsd.org/D52164
+---
+File: usr.sbin/moused/moused/moused.conf.5
+Hash: aef807876c305
+
+.Nm
+file format first appeared in
+.Fx 15.0 .
+
+commit aef807876c305587c60f73e2cd914115d22a53fd
+Author:     Vladimir Kondratyev <wulf@FreeBSD.org>
+AuthorDate: Fri Sep 5 00:07:25 2025 +0300
+Commit:     Vladimir Kondratyev <wulf@FreeBSD.org>
+CommitDate: Fri Sep 5 00:07:25 2025 +0300
+
+    moused(8): Add support for evdev protocol
+    
+    The new daemon have following properties as compared with previous
+    incarnation:
+    - evdev protocol support for mices and touchpads. Additionally to
+      relative PS/2 and USB devices it enables console support for I2C/USB
+      touchpads and bluetooth mices.
+    - Other aged protocols like COM, raw PS/2 and X10 are dropped with only
+      exception of sysmouse. For those who still use them there is an
+      utility called msconvd(8).
+    - single daemon per system where hotplug is processed via devd socket.
+      Per device mode still supported too.
+    - Configuration and quirks files in libinput-compatible format.
+      Actually, the new moused config parser is taken from libinput.
+    
+    The moused(8) can work in 2 modes:
+    1. Evdev support mode. It enables all previously mentioned devices.
+       It is enabled by deault.
+    2. Sysmouse support mode. All should work as before.
+       No new devices supported. To enable it add following lines to
+       /etc/rc.conf:
+          moused_port="/dev/psm0"
+          moused_nondefault_enable="YES"
+       One may add hw.usb.usbhid.enable=0 to /boot/loader.conf to enable
+       ums(4) driver which supports sysmouse protocol.
+    
+    Differential Revision:  https://reviews.freebsd.org/D52164
+---
+File: usr.sbin/moused/msconvd/msconvd.8
+Hash: aef807876c305
+
+.Nm
+utility first appeared in
+.Fx 15.0 .
+
+commit aef807876c305587c60f73e2cd914115d22a53fd
+Author:     Vladimir Kondratyev <wulf@FreeBSD.org>
+AuthorDate: Fri Sep 5 00:07:25 2025 +0300
+Commit:     Vladimir Kondratyev <wulf@FreeBSD.org>
+CommitDate: Fri Sep 5 00:07:25 2025 +0300
+
+    moused(8): Add support for evdev protocol
+    
+    The new daemon have following properties as compared with previous
+    incarnation:
+    - evdev protocol support for mices and touchpads. Additionally to
+      relative PS/2 and USB devices it enables console support for I2C/USB
+      touchpads and bluetooth mices.
+    - Other aged protocols like COM, raw PS/2 and X10 are dropped with only
+      exception of sysmouse. For those who still use them there is an
+      utility called msconvd(8).
+    - single daemon per system where hotplug is processed via devd socket.
+      Per device mode still supported too.
+    - Configuration and quirks files in libinput-compatible format.
+      Actually, the new moused config parser is taken from libinput.
+    
+    The moused(8) can work in 2 modes:
+    1. Evdev support mode. It enables all previously mentioned devices.
+       It is enabled by deault.
+    2. Sysmouse support mode. All should work as before.
+       No new devices supported. To enable it add following lines to
+       /etc/rc.conf:
+          moused_port="/dev/psm0"
+          moused_nondefault_enable="YES"
+       One may add hw.usb.usbhid.enable=0 to /boot/loader.conf to enable
+       ums(4) driver which supports sysmouse protocol.
+    
+    Differential Revision:  https://reviews.freebsd.org/D52164
+---
