@@ -603,8 +603,6 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW3:	/* generic ipfw v.3 functions */
 		case IP_FW_ADD:	/* ADD actually returns the body... */
 		case IP_FW_GET:
-		case IP_FW_TABLE_GETSIZE:
-		case IP_FW_TABLE_LIST:
 		case IP_FW_NAT_GET_CONFIG:
 		case IP_FW_NAT_GET_LOG:
 			if (V_ip_fw_ctl_ptr != NULL)
@@ -668,9 +666,6 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_FLUSH:
 		case IP_FW_ZERO:
 		case IP_FW_RESETLOG:
-		case IP_FW_TABLE_ADD:
-		case IP_FW_TABLE_DEL:
-		case IP_FW_TABLE_FLUSH:
 		case IP_FW_NAT_CFG:
 		case IP_FW_NAT_DEL:
 			if (V_ip_fw_ctl_ptr != NULL)
