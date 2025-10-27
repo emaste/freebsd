@@ -6349,6 +6349,8 @@ _gone_in(int major, const char *msg, ...)
 	va_end(ap);
 	if (P_OSREL_MAJOR(__FreeBSD_version) < major)
 		printf("To be removed in FreeBSD %d\n", major);
+	else
+		printf("To be removed without further notice\n");
 }
 
 void
@@ -6361,8 +6363,9 @@ _gone_in_dev(device_t dev, int major, const char *msg, ...)
 	device_printf(dev, msg, ap);
 	va_end(ap);
 	if (P_OSREL_MAJOR(__FreeBSD_version) < major)
-		device_printf(dev,
-		    "to be removed in FreeBSD %d\n", major);
+		device_printf(dev, "to be removed in FreeBSD %d\n", major);
+	else
+		device_printf(dev, "To be removed without further notice\n");
 }
 
 #ifdef DDB
