@@ -24,10 +24,11 @@
  * bytes for FreeBSD 12.  A minimum length is set for safety and supports
  * a SPECNAMELEN as small as 32 on old systems.
  */
-#define	VM_MAX_PREFIXLEN	10
+#define	VM_MAX_PREFIXLEN	10 // [EM: 6 typical]
 #define	VM_MAX_SUFFIXLEN	15
 #define	VM_MIN_NAMELEN		6
 #define	VM_MAX_NAMELEN		\
 	(SPECNAMELEN - VM_MAX_PREFIXLEN - VM_MAX_SUFFIXLEN - 1)
+// [EM: 255 - 10 - 15 - 1 is 229]
 
 #endif /* !_DEV_VMM_PARAM_H_ */
