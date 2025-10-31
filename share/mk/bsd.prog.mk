@@ -68,10 +68,6 @@ LDFLAGS+= -Wl,-zbti-report=error
 .if ${COMPILER_FEATURES:Minit-all}
 CFLAGS+= -ftrivial-auto-var-init=${OPT_INIT_ALL}
 CXXFLAGS+= -ftrivial-auto-var-init=${OPT_INIT_ALL}
-.if ${OPT_INIT_ALL} == "zero" && ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 160000
-CFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
-CXXFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
-.endif
 .else
 .if !defined(_NO_INCLUDE_COMPILERMK)
 .warning INIT_ALL (${OPT_INIT_ALL}) requested but not supported by compiler
