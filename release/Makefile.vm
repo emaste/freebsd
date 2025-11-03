@@ -104,6 +104,9 @@ QEMUTGT?=
 .elif (!defined(WITHOUT_QEMU) && defined(NO_ROOT))
 .error NO_ROOT requires WITHOUT_QEMU
 .endif
+.if !defined(NO_ROOT)
+.error NO_ROOT not set
+.endif
 .endif
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
