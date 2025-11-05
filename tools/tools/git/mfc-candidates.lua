@@ -42,6 +42,25 @@ local function read_from(from_branch, to_branch, author, dirspec)
 	return content
 end
 
+local function read_reverts(from_branch, to_branch)
+	local command = "git log --first-parent --grep 'This reverts commit ' "
+	command = command .. to_branch .. ".." .. from_branch
+	if verbose > 1 then
+		print("Obtaining revert commits using command:")
+		print(command)
+	end
+	local handle = assert(io.popen(command))
+	local content = {}
+	for line in assert(handle:lines()) do
+		local hash = line:match("This reverts commit ([0-9a-f]+).")
+		if (hash) then
+			table.insert(content, hash)
+		end
+	end
+	handle:close()
+	return content
+end
+
 -- Expand hash if it is short.  Git SHA-1 hashes are 40 characters.
 local function expand_hash(hash)
 	if #hash < 40 then
@@ -265,11 +284,20 @@ local function main()
 	end
 
 	local from_hashes = read_from(from_branch, to_branch, author, dirspec)
+
+	-- Remove reverted commits
+	local revert_hashes = read_reverts(from_branch, to_branch)
+	local result_hashes = set_difference(from_hashes, revert_hashes)
+	for _, hash in ipairs(revert_hashes) do
+		print(hash)
+	end
+
+	-- Remove already cherry-picked commits
 	local cherry_expr = "%(cherry picked from commit ([0-9a-f]+)%)"
 	local to_hashes = read_to(from_branch, to_branch, "cherry picked from", cherry_expr, dirspec)
+	result_hashes = set_difference(result_hashes, to_hashes)
 
-	local result_hashes = set_difference(from_hashes, to_hashes)
-
+	-- Remove explictly ignored commits
 	if exclude_file then
 		exclude_hashes = read_exclude(exclude_file)
 		result_hashes = set_difference(result_hashes, exclude_hashes)
