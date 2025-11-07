@@ -209,7 +209,7 @@ newfs_command(const char *fstype, int use_default)
 			if (items[i].on == false)
 				continue;
 			if (strcmp(items[i].name, "FAT32") == 0)
-				fputs("-F 32 -c 1", fp);
+				fputs("-F 32 -c 8 ", fp);
 			else if (strcmp(items[i].name, "FAT16") == 0)
 				fputs("-F 16 ", fp);
 			else if (strcmp(items[i].name, "FAT12") == 0)
