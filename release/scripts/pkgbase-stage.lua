@@ -104,8 +104,8 @@ local function main()
 
 	local packages = select_packages(pkg, media, all_libcompats)
 
-	assert(os.execute(pkg .. "fetch -d -o " .. target .. " " .. table.concat(packages, " ")))
-	assert(os.execute(pkg .. "repo " .. target))
+	os.execute(pkg .. "fetch -d -o " .. target .. " " .. table.concat(packages, " "))
+	os.execute(pkg .. "repo " .. target)
 end
 
 main()
