@@ -9,6 +9,7 @@ ARGS="$ARGS CROSS_TOOLCHAIN=llvm19"
 # Reduce build verbosity
 ARGS="$ARGS -s"
 ARGS="$ARGS PORTSDIR=/home/emaste/src/freebsd-ports"
+ARGS="$ARGS -DNO_ROOT -DWITHOUT_QEMU"
 
 LOG=$(pwd)/build.$(date +%Y%m%d_%H%M%S).log
 ln -fs $LOG build.log
