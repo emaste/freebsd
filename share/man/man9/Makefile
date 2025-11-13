@@ -1374,6 +1374,10 @@ MLINKS+=ifnet.9 if_addmulti.9 \
 	ifnet.9 if_findmulti.9 \
 	ifnet.9 if_free.9 \
 	ifnet.9 if_free_type.9 \
+	ifnet.9 if_getcapenable.9 \
+	ifnet.9 if_setcapenable.9 \
+	ifnet.9 if_setcapenablebit.9 \
+	ifnet.9 if_togglecapenable.9 \
 	ifnet.9 if_up.9 \
 	ifnet.9 ifa_free.9 \
 	ifnet.9 ifa_ifwithaddr.9 \
