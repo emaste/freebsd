@@ -2849,6 +2849,7 @@ _bootstrap_tools_links+=${_links:S/,/ /g}
 .endfor
 .endif	# defined(BOOTSTRAP_ALL_TOOLS)
 
+# XXX we don't link them
 # Link the tools that we need for building but don't need to bootstrap because
 # the host version is known to be compatible into ${WORLDTMP}/legacy
 # We do this before building any of the bootstrap tools in case they depend on
