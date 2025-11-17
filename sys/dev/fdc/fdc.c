@@ -1784,6 +1784,8 @@ fdc_attach(device_t dev)
 	struct	fdc_data *fdc;
 	int	error;
 
+	gone_in_dev(dev, 16, "warning: floppy support is deprecated\n");
+
 	fdc = device_get_softc(dev);
 	fdc->fdc_dev = dev;
 	error = fdc_initial_reset(dev, fdc);
