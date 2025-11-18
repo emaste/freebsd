@@ -287,6 +287,10 @@ iichid_cmd_read(struct iichid_softc* sc, void *buf, iichid_size_t maxlen,
 		msgs[0].len = 2;
 	}
 
+	if (!sc->reset_acked) {
+		msgs[0].len = 2;
+	}
+
 	error = iicbus_transfer(sc->dev, msgs, nitems(msgs));
 	if (error != 0)
 		return (error);
