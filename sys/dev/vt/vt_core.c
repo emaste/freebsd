@@ -191,13 +191,13 @@ int vt_ime_buf_state = 0;
 extern struct vt_mouse_cursor vt_default_mouse_pointer;
 #endif
 
-static int signal_vt_rel(struct vt_window *);
-static int signal_vt_acq(struct vt_window *);
+static bool signal_vt_rel(struct vt_window *);
+static bool signal_vt_acq(struct vt_window *);
 static int finish_vt_rel(struct vt_window *, int, int *);
 static int finish_vt_acq(struct vt_window *);
 static int vt_window_switch(struct vt_window *);
 static int vt_late_window_switch(struct vt_window *);
-static int vt_proc_alive(struct vt_window *);
+static bool vt_proc_alive(struct vt_window *);
 static void vt_resize(struct vt_device *);
 static void vt_update_static(void *);
 #ifndef SC_NO_CUTPASTE
@@ -560,7 +560,7 @@ vt_proc_window_switch(struct vt_window *vw)
 	/* Ask current process permission to switch away. */
 	if (curvw->vw_smode.mode == VT_PROCESS) {
 		DPRINTF(30, "%s: VT_PROCESS ", __func__);
-		if (vt_proc_alive(curvw) == FALSE) {
+		if (vt_proc_alive(curvw) == false) {
 			DPRINTF(30, "Dead. Cleaning.");
 			/* Dead */
 		} else {
@@ -2241,65 +2241,65 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	return (0);
 }
 
-static int
+static bool
 vt_proc_alive(struct vt_window *vw)
 {
 	struct proc *p;
 
 	if (vw->vw_smode.mode != VT_PROCESS)
-		return (FALSE);
+		return (false);
 
 	if (vw->vw_proc) {
 		if ((p = pfind(vw->vw_pid)) != NULL)
 			PROC_UNLOCK(p);
 		if (vw->vw_proc == p)
-			return (TRUE);
+			return (true);
 		vw->vw_proc = NULL;
 		vw->vw_smode.mode = VT_AUTO;
 		DPRINTF(1, "vt controlling process %d died\n", vw->vw_pid);
 		vw->vw_pid = 0;
 	}
-	return (FALSE);
+	return (false);
 }
 
-static int
+static bool
 signal_vt_rel(struct vt_window *vw)
 {
 
 	if (vw->vw_smode.mode != VT_PROCESS)
-		return (FALSE);
-	if (vw->vw_proc == NULL || vt_proc_alive(vw) == FALSE) {
+		return (false);
+	if (vw->vw_proc == NULL || vt_proc_alive(vw) == false) {
 		vw->vw_proc = NULL;
 		vw->vw_pid = 0;
-		return (TRUE);
+		return (true);
 	}
 	vw->vw_flags |= VWF_SWWAIT_REL;
 	PROC_LOCK(vw->vw_proc);
 	kern_psignal(vw->vw_proc, vw->vw_smode.relsig);
 	PROC_UNLOCK(vw->vw_proc);
 	DPRINTF(1, "sending relsig to %d\n", vw->vw_pid);
-	return (TRUE);
+	return (true);
 }
 
-static int
+static bool
 signal_vt_acq(struct vt_window *vw)
 {
 
 	if (vw->vw_smode.mode != VT_PROCESS)
-		return (FALSE);
+		return (false);
 	if (vw == vw->vw_device->vd_windows[VT_CONSWINDOW])
 		cnavailable(vw->vw_terminal->consdev, FALSE);
-	if (vw->vw_proc == NULL || vt_proc_alive(vw) == FALSE) {
+	if (vw->vw_proc == NULL || vt_proc_alive(vw) == false) {
 		vw->vw_proc = NULL;
 		vw->vw_pid = 0;
-		return (TRUE);
+		return (true);
 	}
 	vw->vw_flags |= VWF_SWWAIT_ACQ;
 	PROC_LOCK(vw->vw_proc);
 	kern_psignal(vw->vw_proc, vw->vw_smode.acqsig);
 	PROC_UNLOCK(vw->vw_proc);
 	DPRINTF(1, "sending acqsig to %d\n", vw->vw_pid);
-	return (TRUE);
+	return (true);
 }
 
 static int
