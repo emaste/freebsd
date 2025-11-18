@@ -193,7 +193,7 @@ extern struct vt_mouse_cursor vt_default_mouse_pointer;
 
 static bool signal_vt_rel(struct vt_window *);
 static bool signal_vt_acq(struct vt_window *);
-static int finish_vt_rel(struct vt_window *, int, int *);
+static int finish_vt_rel(struct vt_window *, bool, int *);
 static int finish_vt_acq(struct vt_window *);
 static int vt_window_switch(struct vt_window *);
 static int vt_late_window_switch(struct vt_window *);
@@ -2303,7 +2303,7 @@ signal_vt_acq(struct vt_window *vw)
 }
 
 static int
-finish_vt_rel(struct vt_window *vw, int release, int *s)
+finish_vt_rel(struct vt_window *vw, bool release, int *s)
 {
 
 	if (vw->vw_flags & VWF_SWWAIT_REL) {
@@ -3100,7 +3100,7 @@ skip_thunk:
 			if (vw == vw->vw_device->vd_windows[VT_CONSWINDOW])
 				cnavailable(vw->vw_terminal->consdev, TRUE);
 			/* were we in the middle of the vty switching process? */
-			if (finish_vt_rel(vw, TRUE, &s) == 0)
+			if (finish_vt_rel(vw, true, &s) == 0)
 				DPRINTF(5, "reset WAIT_REL, ");
 			if (finish_vt_acq(vw) == 0)
 				DPRINTF(5, "reset WAIT_ACQ, ");
@@ -3146,14 +3146,14 @@ skip_thunk:
 		error = EINVAL;
 		switch(*(int *)data) {
 		case VT_FALSE:	/* user refuses to release screen, abort */
-			if ((error = finish_vt_rel(vw, FALSE, &s)) == 0)
+			if ((error = finish_vt_rel(vw, false, &s)) == 0)
 				DPRINTF(5, "%s%d: VT_RELDISP: VT_FALSE\n",
 				    SC_DRIVER_NAME, VT_UNIT(vw));
 			break;
 		case VT_TRUE:	/* user has released screen, go on */
-			/* finish_vt_rel(..., TRUE, ...) should not be locked */
+			/* finish_vt_rel(..., true, ...) should not be locked */
 			if (vw->vw_flags & VWF_SWWAIT_REL) {
-				if ((error = finish_vt_rel(vw, TRUE, &s)) == 0)
+				if ((error = finish_vt_rel(vw, true, &s)) == 0)
 					DPRINTF(5, "%s%d: VT_RELDISP: VT_TRUE\n",
 					    SC_DRIVER_NAME, VT_UNIT(vw));
 			} else {
