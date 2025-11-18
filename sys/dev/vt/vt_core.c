@@ -1993,9 +1993,9 @@ vtterm_cngetc(struct terminal *tm)
 	vt_update_kbd_mode(vw, kbd);
 
 	/* Switch the keyboard to polling to make it work here. */
-	kbdd_poll(kbd, TRUE);
+	kbdd_poll(kbd, true);
 	c = kbdd_read_char(kbd, 0);
-	kbdd_poll(kbd, FALSE);
+	kbdd_poll(kbd, false);
 	if (c & RELKEY)
 		return (-1);
 
@@ -2081,7 +2081,7 @@ vtterm_cngrab_noswitch(struct vt_device *vd, struct vt_window *vw)
 	vw->vw_kbdmode = K_XLATE;
 	vt_update_kbd_mode(vw, kbd);
 
-	kbdd_poll(kbd, TRUE);
+	kbdd_poll(kbd, true);
 	return (1);
 }
 
@@ -2096,7 +2096,7 @@ vtterm_cnungrab_noswitch(struct vt_device *vd, struct vt_window *vw)
 	if ((kbd = vd->vd_keyboard) == NULL)
 		return (0);
 
-	kbdd_poll(kbd, FALSE);
+	kbdd_poll(kbd, false);
 
 	vw->vw_kbdmode = vw->vw_prev_kbdmode;
 	vt_update_kbd_mode(vw, kbd);
@@ -2288,7 +2288,7 @@ signal_vt_acq(struct vt_window *vw)
 	if (vw->vw_smode.mode != VT_PROCESS)
 		return (false);
 	if (vw == vw->vw_device->vd_windows[VT_CONSWINDOW])
-		cnavailable(vw->vw_terminal->consdev, FALSE);
+		cnavailable(vw->vw_terminal->consdev, false);
 	if (vw->vw_proc == NULL || vt_proc_alive(vw) == false) {
 		vw->vw_proc = NULL;
 		vw->vw_pid = 0;
@@ -3098,7 +3098,7 @@ skip_thunk:
 			vw->vw_pid = 0;
 			DPRINTF(5, "VT_AUTO, ");
 			if (vw == vw->vw_device->vd_windows[VT_CONSWINDOW])
-				cnavailable(vw->vw_terminal->consdev, TRUE);
+				cnavailable(vw->vw_terminal->consdev, true);
 			/* were we in the middle of the vty switching process? */
 			if (finish_vt_rel(vw, true, &s) == 0)
 				DPRINTF(5, "reset WAIT_REL, ");
@@ -3117,7 +3117,7 @@ skip_thunk:
 			vw->vw_proc = td->td_proc;
 			vw->vw_pid = vw->vw_proc->p_pid;
 			if (vw == vw->vw_device->vd_windows[VT_CONSWINDOW])
-				cnavailable(vw->vw_terminal->consdev, FALSE);
+				cnavailable(vw->vw_terminal->consdev, false);
 		} else {
 			DPRINTF(5, "VT_SETMODE failed, unknown mode %d\n",
 			    mode->mode);
