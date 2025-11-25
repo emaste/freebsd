@@ -203,11 +203,6 @@ static struct linker_class link_elf_class = {
 	link_elf_methods, sizeof(struct elf_file)
 };
 
-static bool link_elf_leak_locals = false;
-SYSCTL_BOOL(_debug, OID_AUTO, link_elf_leak_locals,
-    CTLFLAG_RWTUN, &link_elf_leak_locals, 0,
-    "Allow local symbols to participate in global module symbol resolution");
-
 typedef int (*elf_reloc_fn)(linker_file_t lf, Elf_Addr relocbase,
     const void *data, int type, elf_lookup_fn lookup);
 
@@ -1592,8 +1587,6 @@ link_elf_lookup_symbol1(linker_file_t lf, const char *name, c_linker_sym_t *sym,
 static int
 link_elf_lookup_symbol(linker_file_t lf, const char *name, c_linker_sym_t *sym)
 {
-	if (link_elf_leak_locals)
-		return (link_elf_lookup_debug_symbol(lf, name, sym));
 	return (link_elf_lookup_symbol1(lf, name, sym, false));
 }
 
@@ -1709,8 +1702,6 @@ static int
 link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym,
     linker_symval_t *symval)
 {
-	if (link_elf_leak_locals)
-		return (link_elf_debug_symbol_values(lf, sym, symval));
 	return (link_elf_symbol_values1(lf, sym, symval, false));
 }
 
