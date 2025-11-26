@@ -35,6 +35,11 @@
 #include <linux/scatterlist.h>
 #include <linux/device.h>
 
+typedef	int(*dev_coredump_cb)(void *, size_t, struct vnode *);
+
+int lkpi_dev_coredumpsg(void *, size_t, struct vnode *);
+int lkpi_dev_coredump(struct device *, void *, size_t, dev_coredump_cb);
+
 static inline void
 _lkpi_dev_coredumpsg_free(struct scatterlist *table)
 {
@@ -54,20 +59,26 @@ _lkpi_dev_coredumpsg_free(struct scatterlist *table)
 }
 
 static inline void
-dev_coredumpv(struct device *dev __unused, void *data, size_t datalen __unused,
+dev_coredumpv(struct device *dev, void *data, size_t datalen,
     gfp_t gfp __unused)
 {
 
+	dev_notice(dev, "%s: TODO datalen %zu\n", __func__, datalen);
 	/* UNIMPLEMENTED */
 	vfree(data);
 }
 
 static inline void
-dev_coredumpsg(struct device *dev __unused, struct scatterlist *table,
-    size_t datalen __unused, gfp_t gfp __unused)
+dev_coredumpsg(struct device *dev, struct scatterlist *table,
+    size_t datalen, gfp_t gfp __unused)
 {
+	int error;
 
-	/* UNIMPLEMENTED */
+	error = lkpi_dev_coredump(dev, (void *)table, datalen, &lkpi_dev_coredumpsg);
+	if (error != 0)
+		dev_warn(dev, "%s: coredump failed, datalen %zu: %d\n",
+		    __func__, datalen, error);
+
 	_lkpi_dev_coredumpsg_free(table);
 }
 
