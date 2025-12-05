@@ -3819,7 +3819,7 @@ xhci_early_takeover(device_t self)
 	if (res == NULL)
 		return;
 
-	cparams = bus_read_4(res, XHCI_HCSPARAMS0);
+	cparams = bus_read_4(res, XHCI_HCCPARAMS1);
 
 	eec = -1;
 
