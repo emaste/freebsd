@@ -321,6 +321,11 @@ typedef struct libusb_device_handle libusb_device_handle;
 typedef struct libusb_pollfd libusb_pollfd;
 typedef void (*libusb_pollfd_added_cb) (int fd, short events, void *user_data);
 typedef void (*libusb_pollfd_removed_cb) (int fd, void *user_data);
+// XXX to match libusb needs to be typedef int libusb_hotplug_callback_handle
+// XXX was switched to int in ce9ced951a0b9d004a3b007d4ac6e9087a1301a2 but
+// backwards compat is broken
+// XXX see bapt's https://reviews.freebsd.org/D55686 and
+// https://reviews.freebsd.org/D55687
 typedef int libusb_hotplug_callback_handle;
 
 typedef struct libusb_device_descriptor {
