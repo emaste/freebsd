@@ -125,6 +125,7 @@ struct libusb_context {
 
 	/* backend context holding the USB file descriptors */
 	struct libusb20_be_ctx *be_ctx;
+	int next_callback_id;
 };
 
 struct libusb_device {
