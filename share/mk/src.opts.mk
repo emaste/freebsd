@@ -296,6 +296,8 @@ __DEFAULT_DEPENDENT_OPTIONS+=	LLVM_TARGET_${__llt:${__LLVM_TARGET_FILT}:tu}/LLVM
 
 __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF LLVM_TARGET_MIPS
 
+.include <bsd.compiler.mk>
+
 .if ${__T} == "i386" || ${__T} == "amd64"
 __DEFAULT_NO_OPTIONS+=FDT
 .else
@@ -308,19 +310,11 @@ __DEFAULT_YES_OPTIONS+=LLDB
 __DEFAULT_NO_OPTIONS+=LLDB
 .endif
 # LIB32 is not supported on all 64-bit architectures.
-.if ${__T} == "amd64" || ${__T} == "powerpc64"
-__DEFAULT_YES_OPTIONS+=LIB32
-.elif ${__T:Maarch64*} != ""
-.include <bsd.compiler.mk>
-.if (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} != "gcc") || (!defined(X_COMPILER_TYPE) && ${COMPILER_TYPE} != "gcc")
+.if (${__T:Maarch64*} != "" && ((defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} != "gcc") || (!defined(X_COMPILER_TYPE) && ${COMPILER_TYPE} != "gcc"))) || ${__T} == "amd64" || ${__T} == "powerpc64"
 __DEFAULT_YES_OPTIONS+=LIB32
 .else
 BROKEN_OPTIONS+=LIB32
 .endif
-.else
-BROKEN_OPTIONS+=LIB32
-.endif
-
 # EFI doesn't exist on powerpc (well, officially) and doesn't work on i386
 .if ${__T:Mpowerpc*} || ${__T} == "i386"
 BROKEN_OPTIONS+=EFI
