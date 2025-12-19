@@ -217,6 +217,8 @@ struct aq_hw {
 #define AQ_HW_CHIP_REVISION_A0  0x01000000U
 #define AQ_HW_CHIP_REVISION_B0  0x02000000U
 #define AQ_HW_CHIP_REVISION_B1  0x04000000U
+#define AQ_HW_CHIP_ANTIGUA      0x08000000U
+
 #define IS_CHIP_FEATURE(HW, _F_) (AQ_HW_CHIP_##_F_ & \
 	(HW)->chip_features)
 
