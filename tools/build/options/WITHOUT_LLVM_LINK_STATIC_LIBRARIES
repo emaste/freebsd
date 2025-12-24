@@ -1,0 +1,4 @@
+Build LLVM libraries (libllvm, libclang, liblldb) as private shared libraries.
+
+This means that binaries linked against these libraries, such as clang,
+ld.lld and lldb will be much smaller, but will start more slowly.
