@@ -50,6 +50,28 @@ terminus-b32.fnt:en:Terminus BSD Console, size 32
 terminus-b32.fnt:da:Terminus BSD-konsol, størrelse 32
 terminus-b32.fnt:de:Terminus BSD Console, Größe 32
 
+t0-11.fnt:en:UW ttyp0, 6x11
+
+t0-12.fnt:en:UW ttyp0, 6x12
+
+t0-13.fnt:en:UW ttyp0, 7x13
+
+t0-14.fnt:en:UW ttyp0, 7x14
+
+t0-15.fnt:en:UW ttyp0, 8x15
+
+t0-16.fnt:en:UW ttyp0, 8x16
+
+t0-17.fnt:en:UW ttyp0, 9x17
+
+t0-18.fnt:en:UW ttyp0, 9x18
+
+t0-22.fnt:en:UW ttyp0, 11x22
+
+t0-30.fnt:en:UW ttyp0, 14x30
+
+t0-40.fnt:en:UW ttyp0, 18x40
+
 tom-thumb.fnt:en:tom-thumb Character set, 4x6
 tom-thumb.fnt:da:tom-thumb-tegnsæt, 4x6
 tom-thumb.fnt:de:tom-thumb Zeichensatz, 4x6

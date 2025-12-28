@@ -12,6 +12,17 @@ FONTS=	comic-8x14.fnt \
 	spleen-32x64.fnt \
 	terminus-b16n.fnt \
 	terminus-b32.fnt \
+	t0-11.fnt \
+	t0-12.fnt \
+	t0-13.fnt \
+	t0-14.fnt \
+	t0-15.fnt \
+	t0-16.fnt \
+	t0-17.fnt \
+	t0-18.fnt \
+	t0-22.fnt \
+	t0-30.fnt \
+	t0-40.fnt \
 	tom-thumb.fnt \
 	vgarom-8x8.fnt \
 	vgarom-8x14.fnt \
