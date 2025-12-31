@@ -2114,6 +2114,7 @@ update-packages: .PHONY
 package-pkg: _pkgbootstrap _repodir .PHONY
 .if defined(INCLUDE_PKG_IN_PKGBASE_REPO)
 .if exists(${PORTSDIR})
+	echo XXXEM Building pkg package
 	rm -rf /tmp/ports.${TARGET}
 	env ${WMAKEENV} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
 		PKG_CMD=${PKG_CMD} PKG_VERSION=${PKG_VERSION} REPODIR=${REPODIR} \
