@@ -128,6 +128,7 @@ CXXFLAGS+= -mretpoline
 LDFLAGS+= -Wl,-zretpolineplt
 .else
 .warning Retpoline requested but not supported by compiler or linker
+.info COMPILER_TYPE: ${COMPILER_TYPE} COMPILER_VERSION: ${COMPILER_VERSION}
 .endif
 .endif
 # LLD sensibly defaults to -znoexecstack, so do the same for BFD
@@ -150,6 +151,7 @@ CXXFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-cl
 .endif
 .else
 .warning INIT_ALL (${OPT_INIT_ALL}) requested but not supported by compiler
+.info COMPILER_TYPE: ${COMPILER_TYPE} COMPILER_VERSION: ${COMPILER_VERSION}
 .endif
 .endif
 
