@@ -764,6 +764,9 @@ mdb_fetch_kvno(krb5_context context, HDB *db, krb5_const_principal principal,
     return 0;
 }
 
+int _hdb_mit_dump2mitdb_entry(krb5_context, char *, krb5_storage *);
+krb5_error_code _hdb_set_master_key_usage(krb5_context, HDB *, unsigned int);
+
 static krb5_error_code
 mdb_store(krb5_context context, HDB *db, unsigned flags, hdb_entry_ex *entry)
 {
