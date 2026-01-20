@@ -11,6 +11,8 @@ compute_engine_instance:
 
 env:
   PKG_LEVEL: 1
+  # Maybe PR 264208
+  MAKE_OBJDIR_CHECK_WRITABLE: false
 
 task:
   matrix:
