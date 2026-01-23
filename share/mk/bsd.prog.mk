@@ -48,10 +48,8 @@ CXXFLAGS+= -mretpoline
 .if !defined(NO_SHARED) || ${NO_SHARED:tl} == "no"
 LDFLAGS+= -Wl,-zretpolineplt
 .endif
-.else
-.if !defined(_NO_INCLUDE_COMPILERMK)
+.elif make(all)
 .warning Retpoline requested but not supported by compiler or linker
-.endif
 .endif
 .endif
 # LLD sensibly defaults to -znoexecstack, so do the same for BFD
@@ -68,10 +66,8 @@ LDFLAGS+= -Wl,-zbti-report=error
 .if ${COMPILER_FEATURES:Minit-all}
 CFLAGS+= -ftrivial-auto-var-init=${OPT_INIT_ALL}
 CXXFLAGS+= -ftrivial-auto-var-init=${OPT_INIT_ALL}
-.else
-.if !defined(_NO_INCLUDE_COMPILERMK)
+.elif make(all)
 .warning INIT_ALL (${OPT_INIT_ALL}) requested but not supported by compiler
-.endif
 .endif
 .endif
 
