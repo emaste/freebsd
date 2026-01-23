@@ -70,10 +70,10 @@ Access to system calls in capability mode is restricted: some system calls
 requiring global namespace access are unavailable, while others are
 constrained.
 For instance,
-.Xr sysctl 2
+.Xr sysctl 3
 can be used to query process-local information such as address space layout,
 but also to monitor a system's network connections.
-.Xr sysctl 2
+The sysctl system call
 is constrained by explicitly marking \(~~60 of over 15000 parameters as
 permitted in capability mode; all others are denied.
 .Pp
