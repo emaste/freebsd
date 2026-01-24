@@ -115,8 +115,9 @@ uvc_buf_queue_mmap(struct uvc_buf_queue *bq,
 static void
 uvc_buf_queue_show_qbuf(struct uvc_buf *buf)
 {
-	DPRINTF("buf index:%lu status:%lu mem:%p offset:%lu\n",
-		buf->index, buf->status, buf->mem, buf->offset);
+	DPRINTF("buf index:%ju status:%ju mem:%p offset:%ju\n",
+	    (uintmax_t)buf->index, (uintmax_t)buf->status, buf->mem,
+	    (uintmax_t)buf->offset);
 }
 
 static void
@@ -124,9 +125,10 @@ uvc_buf_queue_show(struct uvc_buf_queue *bq)
 {
 	int i;
 
-	DPRINTF("mem:%p status:%lx flags:%lx seq:%lu buf size:%lu count:%lu\n",
-		bq->mem, bq->status, bq->flags, bq->seq,
-		bq->buf_size, bq->buf_count);
+	DPRINTF("mem:%p status:%jx flags:%jx seq:%ju buf size:%ju count:%ju\n",
+	    bq->mem, (uintmax_t)bq->status, (uintmax_t)bq->flags,
+	    (uintmax_t)bq->seq, (uintmax_t)bq->buf_size,
+	    (uintmax_t)bq->buf_count);
 	for (i = 0; i < UVC_BUF_MAX_BUFFERS; i++)
 		uvc_buf_queue_show_qbuf(bq->buf + i);
 }
@@ -449,7 +451,8 @@ uvc_buf_queue_queue_buf(struct uvc_buf_queue *bq, struct v4l2_buffer *vbuf)
 
 	buf = bq->buf + vbuf->index;
 	if (buf->status != UVC_BUF_STATE_IDLE) {
-		DPRINTF("%s wrong buf type %lu\n", __func__, buf->status);
+		DPRINTF("%s wrong buf type %ju\n", __func__,
+		    (uintmax_t)buf->status);
 		ret = EINVAL;
 		goto done;
 	}
