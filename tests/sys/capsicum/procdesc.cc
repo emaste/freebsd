@@ -26,6 +26,15 @@
 static pid_t pdwait4_(int pd, int *status, int options, struct rusage *ru) {
 #ifdef HAVE_PDWAIT4
   return pdwait4(pd, status, options, ru);
+#elif defined(__FreeBSD__) // HAVE_PDWAIT
+  struct __wrusage wru;
+  pid_t p;
+
+  p = pdwait(pd, status, options, &wru, NULL);
+  if (ru != NULL)
+    *ru = wru.wru_children;
+
+  return p;
 #else
   // Simulate pdwait4() with wait4(pdgetpid()); this won't work in capability mode.
   pid_t pid = -1;
