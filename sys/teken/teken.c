@@ -741,23 +741,6 @@ static const char * const special_strings_normal[] = {
 	[TKEY_PAGE_UP] = "\x1B[5~",
 	[TKEY_PAGE_DOWN] = "\x1B[6~",
 
-<<<<<<< HEAD
-	[TKEY_F1] = "\x1BOP",		[TKEY_F2] = "\x1BOQ",
-	[TKEY_F3] = "\x1BOR",		[TKEY_F4] = "\x1BOS",
-	[TKEY_F5] = "\x1B[15~",		[TKEY_F6] = "\x1B[17~",
-	[TKEY_F7] = "\x1B[18~",		[TKEY_F8] = "\x1B[19~",
-	[TKEY_F9] = "\x1B[20~",		[TKEY_F10] = "\x1B[21~",
-	[TKEY_F11] = "\x1B[23~",	[TKEY_F12] = "\x1B[24~",
-
-	[TKEY_BTAB] = "\x1B[Z",
-||||||| parent of fcbe4a110f22 (vt: Drop two-column table)
-	[TKEY_F1] = "\x1BOP",		[TKEY_F2] = "\x1BOQ",
-	[TKEY_F3] = "\x1BOR",		[TKEY_F4] = "\x1BOS",
-	[TKEY_F5] = "\x1B[15~",		[TKEY_F6] = "\x1B[17~",
-	[TKEY_F7] = "\x1B[18~",		[TKEY_F8] = "\x1B[19~",
-	[TKEY_F9] = "\x1B[20~",		[TKEY_F10] = "\x1B[21~",
-	[TKEY_F11] = "\x1B[23~",	[TKEY_F12] = "\x1B[24~",
-=======
 	[TKEY_F1] = "\x1BOP",
 	[TKEY_F2] = "\x1BOQ",
 	[TKEY_F3] = "\x1BOR",
@@ -770,7 +753,8 @@ static const char * const special_strings_normal[] = {
 	[TKEY_F10] = "\x1B[21~",
 	[TKEY_F11] = "\x1B[23~",
 	[TKEY_F12] = "\x1B[24~",
->>>>>>> fcbe4a110f22 (vt: Drop two-column table)
+
+	[TKEY_BTAB] = "\x1B[Z",
 };
 
 const char *
