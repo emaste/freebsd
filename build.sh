@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # Concurrency
-#DASHJ=-j6
-DASHJ=-j$(nproc)
+DASHJ=-j6
+#DASHJ=-j$(nproc)
 
 # Skip 2x toolchain build
 #ARGS="$ARGS CROSS_TOOLCHAIN=llvm19"
