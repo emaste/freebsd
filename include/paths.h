@@ -82,11 +82,8 @@
 #define	_PATH_NEWFS	"/sbin/newfs"
 #define	_PATH_NOLOGIN	"/var/run/nologin"
 #define	_PATH_NOSHUTDOWN "/var/run/noshutdown"
-#define	_PATH_RCP	"/bin/rcp"
 #define	_PATH_REBOOT	"/sbin/reboot"
-#define	_PATH_RLOGIN	"/usr/bin/rlogin"
 #define	_PATH_RM	"/bin/rm"
-#define	_PATH_RSH	"/usr/bin/rsh"
 #define	_PATH_SENDMAIL	"/usr/sbin/sendmail"
 #define	_PATH_SHELLS	"/etc/shells"
 #define	_PATH_TTY	"/dev/tty"
@@ -134,8 +131,6 @@ __END_DECLS
 #define	_PATH_MOUNT	"/rescue/mount"
 #undef	_PATH_NEWFS
 #define	_PATH_NEWFS	"/rescue/newfs"
-#undef	_PATH_RCP
-#define	_PATH_RCP	"/rescue/rcp"
 #undef	_PATH_REBOOT
 #define	_PATH_REBOOT	"/rescue/reboot"
 #undef	_PATH_RM
