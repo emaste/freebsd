@@ -1,6 +1,8 @@
 /*	$NetBSD: getaddrinfo.c,v 1.4 2014/04/22 02:23:03 ginsbach Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2013 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
