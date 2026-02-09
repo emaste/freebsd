@@ -1,6 +1,8 @@
 /*	$NetBSD: unlz.c,v 1.6 2018/11/11 01:42:36 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2018 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
