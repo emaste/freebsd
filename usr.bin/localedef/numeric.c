@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2015 John Marino <draco@marino.st>
  *
