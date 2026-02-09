@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2004-2016 Maxim Sobolev <sobomax@FreeBSD.org>
  * Copyright (c) 2011 Aleksandr Rybalko <ray@ddteam.net>
  * All rights reserved.
