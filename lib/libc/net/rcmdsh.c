@@ -69,7 +69,7 @@ rcmdsh(char **ahost, int rport, const char *locuser, const char *remuser,
 
 	/* What rsh/shell to use. */
 	if (rshprog == NULL)
-		rshprog = _PATH_RSH;
+		rshprog = "does not exist";
 
 	/* locuser must exist on this host. */
 	if ((pw = getpwnam(locuser)) == NULL) {
