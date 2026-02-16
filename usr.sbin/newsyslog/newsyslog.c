@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause AND NTP-0
+ * 
  * ------+---------+---------+-------- + --------+---------+---------+---------*
  * This file includes significant modifications done by:
  * Copyright (c) 2003, 2004  - Garance Alistair Drosehn <gad@FreeBSD.org>.
