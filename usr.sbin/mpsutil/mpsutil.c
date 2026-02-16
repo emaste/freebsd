@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2015 Netflix, Inc.
  * Written by: Scott Long <scottl@freebsd.org>
  *
