@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ * 
  * ------+---------+---------+---------+---------+---------+---------+---------*
  * Initial version of parse8601 was originally added to newsyslog.c in
  *     FreeBSD on Jan 22, 1999 by Garrett Wollman <wollman@FreeBSD.org>.
