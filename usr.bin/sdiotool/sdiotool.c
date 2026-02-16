@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause AND ISC
+ *
  * Copyright (c) 2016-2017 Ilya Bakulin
  * All rights reserved.
  *
