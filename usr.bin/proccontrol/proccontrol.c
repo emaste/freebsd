@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2016 The FreeBSD Foundation
  *
  * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
