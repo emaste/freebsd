@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2014 Luiz Otavio O Souza <loos@FreeBSD.org>
  * All rights reserved.
  *
