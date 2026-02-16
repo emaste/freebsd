@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * le.c
  *
  * Copyright (c) 2015 Takanori Watanabe <takawata@freebsd.org>
