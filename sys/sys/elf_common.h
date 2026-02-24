@@ -511,6 +511,8 @@ typedef struct {
 #define	SHT_MIPS_PDR_EXCEPTION	0x70000029
 #define	SHT_MIPS_ABIFLAGS	0x7000002a
 
+#define	SHT_RISCV_ATTRIBUTES	0x70000003
+
 #define	SHT_SPARC_GOTDATA	0x70000000
 
 #define	SHT_X86_64_UNWIND	0x70000001	/* unwind information */
@@ -777,6 +779,8 @@ typedef struct {
 #define	DT_PPC64_OPD			0x70000001
 #define	DT_PPC64_OPDSZ			0x70000002
 #define	DT_PPC64_TLSOPT			0x70000003
+
+#define	DT_RISCV_VARIANT_CC		0x70000001
 
 #define	DT_AUXILIARY	0x7ffffffd	/* shared library auxiliary name */
 #define	DT_USED		0x7ffffffe	/* ignored - same as needed */
