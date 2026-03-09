@@ -74,45 +74,6 @@ extern "C" {
 #endif
 
 /*
- * ASSERT3() behaves like ASSERT() except that it is an explicit conditional,
- * and prints out the values of the left and right hand expressions as part of
- * the panic message to ease debugging.  The three variants imply the type
- * of their arguments.  ASSERT3S() is for signed data types, ASSERT3U() is
- * for unsigned, and ASSERT3P() is for pointers.  The VERIFY3*() macros
- * have the same relationship as above.
- */
-extern void assfail3(const char *, uintmax_t, const char *, uintmax_t,
-    const char *, int);
-#define	VERIFY3_IMPL(LEFT, OP, RIGHT, TYPE) do { \
-	const TYPE __left = (TYPE)(LEFT); \
-	const TYPE __right = (TYPE)(RIGHT); \
-	if (!(__left OP __right)) \
-		assfail3(#LEFT " " #OP " " #RIGHT, \
-			(uintmax_t)__left, #OP, (uintmax_t)__right, \
-			__FILE__, __LINE__); \
-_NOTE(CONSTCOND) } while (0)
-
-#define	VERIFY3B(x, y, z)	VERIFY3_IMPL(x, y, z, boolean_t)
-#define	VERIFY3S(x, y, z)	VERIFY3_IMPL(x, y, z, int64_t)
-#define	VERIFY3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
-#define	VERIFY3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
-#define	VERIFY0(x)		VERIFY3_IMPL(x, ==, 0, uintmax_t)
-
-#ifdef DEBUG
-#define	ASSERT3B(x, y, z)	VERIFY3_IMPL(x, y, z, boolean_t)
-#define	ASSERT3S(x, y, z)	VERIFY3_IMPL(x, y, z, int64_t)
-#define	ASSERT3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
-#define	ASSERT3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
-#define	ASSERT0(x)		VERIFY3_IMPL(x, ==, 0, uintmax_t)
-#else
-#define	ASSERT3B(x, y, z)	((void)0)
-#define	ASSERT3S(x, y, z)	((void)0)
-#define	ASSERT3U(x, y, z)	((void)0)
-#define	ASSERT3P(x, y, z)	((void)0)
-#define	ASSERT0(x)		((void)0)
-#endif
-
-/*
  * Compile-time assertion. The condition 'x' must be constant.
  */
 #ifndef CTASSERT
