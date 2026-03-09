@@ -72,15 +72,6 @@ cmn_err(int type, const char *fmt, ...)
 	va_end(ap);
 }
 
-int
-assfail(const char *a, const char *f, int l)
-{
-
-	panic("dtrace assert: %s, file: %s, line: %d", a, f, l);
-
-	return (0);
-}
-
 void
 assfail3(const char *a, uintmax_t lv, const char *op, uintmax_t rv,
     const char *f, int l)
