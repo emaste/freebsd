@@ -44,21 +44,6 @@ extern "C" {
 #endif
 
 /*
- * ASSERT(ex) causes a panic or debugger entry if expression ex is not
- * true.  ASSERT() is included only for debugging, and is a no-op in
- * production kernels.  VERIFY(ex), on the other hand, behaves like
- * ASSERT and is evaluated on both debug and non-debug kernels.
- */
-
-extern int assfail(const char *, const char *, int);
-#define	VERIFY(EX) ((void)((EX) || assfail(#EX, __FILE__, __LINE__)))
-#ifdef DEBUG
-#define	ASSERT(EX) ((void)((EX) || assfail(#EX, __FILE__, __LINE__)))
-#else
-#define	ASSERT(x)  ((void)0)
-#endif
-
-/*
  * Assertion variants sensitive to the compilation data model
  */
 #if defined(_LP64)
