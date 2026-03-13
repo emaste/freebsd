@@ -648,7 +648,7 @@ STRICTTMPPATH:=${STRICTTMPPATH}:${UNIVERSE_TOOLCHAIN_PATH}
 
 # Currently strict $PATH can cause build failures. Once the remaining issues
 # have been resolved it will be turned on by default.
-BUILD_WITH_STRICT_TMPPATH?=0
+BUILD_WITH_STRICT_TMPPATH?=1
 .if defined(CROSSBUILD_HOST)
 # When building on non-FreeBSD we can't rely on the tools in /usr/bin being compatible
 # with what FreeBSD expects. Therefore we only use tools from STRICTTMPPATH
