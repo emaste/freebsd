@@ -846,7 +846,6 @@ typedef struct arc_async_flush {
 static uint64_t l2arc_write_max = L2ARC_WRITE_SIZE;	/* def max write size */
 uint64_t l2arc_dwpd_limit = 100;			/* 100 = 1.0 DWPD */
 static uint64_t l2arc_dwpd_bump = 0;			/* DWPD reset trigger */
-static uint64_t l2arc_write_boost = L2ARC_WRITE_SIZE;	/* extra warmup write */
 static uint64_t l2arc_headroom = L2ARC_HEADROOM;	/* # of dev writes */
 static uint64_t l2arc_headroom_boost = L2ARC_HEADROOM_BOOST;
 static uint64_t l2arc_feed_secs = L2ARC_FEED_SECS;	/* interval seconds */
