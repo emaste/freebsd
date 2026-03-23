@@ -9,7 +9,6 @@ LDFLAGS+=	-L${WORLDTMP}/legacy/usr/lib
 # $PATH before a nm that supports the host architecture.
 # To ensure that host binary compile as expected we use the tools from /usr/bin.
 AR:=	/usr/bin/ar
-RANLIB:=	/usr/bin/ranlib
 NM:=	/usr/bin/nm
 
 # Avoid stale dependecy warnings:
