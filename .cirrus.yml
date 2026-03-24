@@ -164,7 +164,10 @@ task:
   - git submodule update
 
   build_world_script:
-  - su user -c "make -j$(nproc) ${EXTRA_MAKE_FLAGS} WITHOUT_TOOLCHAIN=yes buildworld"
+  - su user -c "make -i -j$(nproc) ${EXTRA_MAKE_FLAGS} WITHOUT_TOOLCHAIN=yes buildworld"
+
+  stand_obj_size_script:
+  - find $(make -V .OBJDIR)/stand -name '*.o' | xargs ls -l
 
   build_kernel_script:
   - su user -c "make -j$(nproc) WITHOUT_TOOLCHAIN=yes buildkernel"
