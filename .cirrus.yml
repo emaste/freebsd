@@ -173,7 +173,7 @@ task:
   - su user -c "make -j$(nproc) WITHOUT_TOOLCHAIN=yes buildkernel"
 
   package_script:
-  - su user -c "make -j$(nproc) WITHOUT_TOOLCHAIN=yes packages"
+  - su user -c "make -j$(nproc) WITHOUT_TOOLCHAIN=yes BUILD_WITH_STRICT_TMPPATH=0 packages"
 
   cat_metalog_script:
   - cat /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage/METALOG
