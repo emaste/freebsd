@@ -20,7 +20,7 @@ build()
 {
 	time make $ARGS buildworld buildkernel $DASHJ
 	echo
-	time make $ARGS $DASHJ PKG_FORMAT=tzst PKG_LEVEL=1 packages
+	time make $ARGS $DASHJ BUILD_WITH_STRICT_TMPPATH=0 PKG_FORMAT=tzst PKG_LEVEL=1 packages
 	echo
 	cd release
 	rm -rf obj/pkgbase-repo* obj/disc1* obj/dvd1*
