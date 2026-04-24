@@ -142,7 +142,6 @@ SUBDIR.${MK_PKGCONF}+=		pkgconf
 SUBDIR.${MK_PMC}+=		pmc
 SUBDIR.${MK_QUOTAS}+=		quotacheck
 SUBDIR.${MK_RESCUE}+=		rescue
-SUBDIR.${MK_SENDMAIL}+=		sendmail libmilter
 SUBDIR.${MK_SOUND}+=		sound
 SUBDIR.${MK_SYSCONS}+=		syscons-data
 SUBDIR.${MK_TCSH}+=		csh
