@@ -29,6 +29,14 @@ build()
 	#time make $ARGS dvd1.iso
 }
 
+build_disc1()
+{
+	cd release
+	rm -rf obj/pkgbase-repo* obj/disc1* obj/dvd1*
+	export PKG_LEVEL=1
+	time make $ARGS BUILD_WITH_STRICT_TMPPATH=0 disc1.iso
+}
+
 build_dvd()
 {
 	cd release
