@@ -33,6 +33,26 @@
 #include "miidevs.h"
 #include "miibus_if.h"
 
+struct conf {
+	uint16_t addr;
+	uint16_t value;
+};
+
+// AN1699 2. Revision D0 Configuration Process
+
+struct conf lan867x_config_d0[] = {
+	{ 0x0037, 0x0800 },
+	{ 0x008a, 0xbfc0 },
+	{ 0x0118, 0x029c },
+	{ 0x00d6, 0x1001 },
+	{ 0x0082, 0x001c },
+	{ 0x00fd, 0x0c0b }, // Per AN1699, both values need to be written
+	{ 0x00fd, 0x8c07 }, // to 0x00fd.
+	{ 0x0091, 0x9660 },
+};
+//	{ 0x0012, (LSCTL) 0xXXXX }
+
+
 static int lan867x_probe(device_t);
 static int lan867x_attach(device_t);
 
@@ -54,6 +74,22 @@ static const struct mii_phy_funcs lan867xphy_funcs = {
 static int
 lan867xphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
+//	struct ifmedia_entry *ife;
+//	int reg;
+//
+//	ife = mii->mii_media.ifm_cur;
+
+	switch (cmd) {
+	case MII_POLLSTAT:
+		break;
+
+	case MII_MEDIACHG:
+		break;
+
+	case MII_TICK:
+		break;
+	}
+
 	PHY_STATUS(sc);
 	mii_phy_update(sc, cmd);
 	return (0);
@@ -83,6 +119,15 @@ lan867x_attach(device_t dev)
 	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
 	    &lan867xphy_funcs, 0);
 
+	switch (sc->mii_mpd_rev) {
+	case 5: /* C2 */
+	case 6: /* D0 */
+		break;
+	default:
+		device_printf(dev,
+		    "unsupported silicon revision %d may not work properly.\n",
+		    sc->mii_mpd_rev);
+	}
 	PHY_RESET(sc);
 
 	/* PHY supports 10BASE-T1S only, no negotiation. */
