@@ -116,5 +116,8 @@ lan867xphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 static void
 lan867xphy_status(struct mii_softc *sc)
 {
-	
+	struct mii_data *mii = sc->mii_pdata;
+
+	mii->mii_media_status = IFM_AVALID | IFM_ACTIVE;
+	mii->mii_media_active = IFM_ETHER | IFM_10_T1S | IFM_HDX;
 }
