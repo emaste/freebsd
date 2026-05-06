@@ -45,6 +45,8 @@
 #include <dev/hid/hidbus.h>
 #include <dev/hid/hidmap.h>
 
+static hidmap_cb_t	hsctrl_radio_cb;
+
 #define	HSCTRL_MAP(usage, code)	\
 	{ HIDMAP_KEY(HUP_GENERIC_DESKTOP, HUG_SYSTEM_##usage, code) }
 
@@ -64,11 +66,48 @@ static const struct hidmap_item hsctrl_map[] = {
 	HSCTRL_MAP(MENU_DOWN,		KEY_DOWN),
 	HSCTRL_MAP(POWER_UP,		KEY_POWER2),
 	HSCTRL_MAP(RESTART,		KEY_RESTART),
+	{ HIDMAP_REL_CB(HUP_GENERIC_DESKTOP, HUG_RADIO_BUTTON,
+	    &hsctrl_radio_cb) },
 };
 
 static const struct hid_device_id hsctrl_devs[] = {
 	{ HID_TLC(HUP_GENERIC_DESKTOP, HUG_SYSTEM_CONTROL) },
+	{ HID_TLC(HUP_GENERIC_DESKTOP, HUG_RADIO_CONTROL) },
 };
+
+/*
+ * Synthesize key-down + key-up for the wireless radio button,
+ * which only reports a relative pulse (value=1) on press.
+ * The firmware latches value=1 and never resets it, so we
+ * track the last value via HIDMAP_CB_UDATA64 and only fire
+ * on the 0 -> non-zero transition.
+ */
+static int
+hsctrl_radio_cb(HIDMAP_CB_ARGS)
+{
+	struct evdev_dev *evdev = HIDMAP_CB_GET_EVDEV();
+	int32_t last;
+
+	switch (HIDMAP_CB_GET_STATE()) {
+	case HIDMAP_CB_IS_ATTACHING:
+		evdev_support_event(evdev, EV_KEY);
+		evdev_support_key(evdev, KEY_RFKILL);
+		HIDMAP_CB_UDATA64 = 0;
+		break;
+	case HIDMAP_CB_IS_RUNNING:
+		last = (int32_t)HIDMAP_CB_UDATA64;
+		HIDMAP_CB_UDATA64 = (uint64_t)ctx.data;
+		if (ctx.data == 0 || ctx.data == last)
+			return (ENOMSG);
+		evdev_push_key(evdev, KEY_RFKILL, 1);
+		evdev_push_key(evdev, KEY_RFKILL, 0);
+		break;
+	default:
+		break;
+	}
+
+	return (0);
+}
 
 static int
 hsctrl_probe(device_t dev)
