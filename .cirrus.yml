@@ -192,6 +192,8 @@ task:
   - su user -c "make -j$(nproc) WITHOUT_TOOLCHAIN=yes BUILD_WITH_STRICT_TMPPATH=0 packages"
 
   cat_metalog_script:
+  - ls /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/
+  - ls /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage
   - cat /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage/METALOG
 
   test_script:
