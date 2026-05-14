@@ -13,6 +13,8 @@
 #define Encode					Fssh_Encode
 #define Hide					Fssh_Hide
 #define Short_random				Fssh_Short_random
+#define __ssp_protected_read			Fssh___ssp_protected_read
+#define __ssp_protected_readv			Fssh___ssp_protected_readv
 #define _ssh__compat_glob			Fssh__ssh__compat_glob
 #define _ssh__compat_globfree			Fssh__ssh__compat_globfree
 #define _ssh_exchange_banner			Fssh__ssh_exchange_banner
@@ -329,6 +331,7 @@
 #define ipv64_normalise_mapped			Fssh_ipv64_normalise_mapped
 #define is_cert_revoked				Fssh_is_cert_revoked
 #define is_key_revoked				Fssh_is_key_revoked
+#define kdf					Fssh_kdf
 #define kex_alg_by_name				Fssh_kex_alg_by_name
 #define kex_alg_list				Fssh_kex_alg_list
 #define kex_assemble_names			Fssh_kex_assemble_names
@@ -485,6 +488,7 @@
 #define newkeys_to_blob				Fssh_newkeys_to_blob
 #define nh_aux					Fssh_nh_aux
 #define nh_final				Fssh_nh_final
+#define nh_update				Fssh_nh_update
 #define note_key				Fssh_note_key
 #define notify_complete				Fssh_notify_complete
 #define notify_start				Fssh_notify_start
