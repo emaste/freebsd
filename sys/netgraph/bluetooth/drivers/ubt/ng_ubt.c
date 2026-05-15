@@ -631,17 +631,12 @@ ubt_probe(device_t dev)
 	if (id == NULL)
 		return (ENXIO);
 
-	if (uaa->info.bIfaceIndex != 0) {
-		/* make sure we are matching the interface */
-		if (id->match_flag_int_class &&
-		    id->match_flag_int_subclass &&
-		    id->match_flag_int_protocol)
-			return (BUS_PROBE_GENERIC);
-		else
-			return (ENXIO);
-	} else {
-		return (BUS_PROBE_GENERIC);
-	}
+	/* make sure we are matching the interface */
+	if (uaa->info.bIfaceIndex != 0 && (!id->match_flag_int_class ||
+	    !id->match_flag_int_subclass || !id->match_flag_int_protocol))
+		return (ENXIO);
+
+	return (BUS_PROBE_GENERIC);
 } /* ubt_probe */
 
 /*
