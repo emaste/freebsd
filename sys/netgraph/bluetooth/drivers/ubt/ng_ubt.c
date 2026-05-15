@@ -524,6 +524,9 @@ static const STRUCT_USB_HOST_ID ubt_devs[] =
 	{ USB_VPI(USB_VENDOR_FOXCONN, 0xe042, 0) },
 	{ USB_VPI(USB_VENDOR_DELL, 0x8197, 0) },
 	{ USB_VPI(USB_VENDOR_BELKIN, 0x065a, 0) },
+
+	/* CSR */
+	{ USB_VPI(USB_VENDOR_CSR, 0x0001, 1) },
 };
 
 /*
@@ -635,6 +638,10 @@ ubt_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != 0 && (!id->match_flag_int_class ||
 	    !id->match_flag_int_subclass || !id->match_flag_int_protocol))
 		return (ENXIO);
+
+	if (id->driver_info == 1) {
+		printf("%s: XXX CSR flag\n", __func__);
+	}
 
 	return (BUS_PROBE_GENERIC);
 } /* ubt_probe */
