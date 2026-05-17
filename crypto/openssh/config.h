@@ -1036,10 +1036,10 @@
 /* #undef HAVE_NGETADDRINFO */
 
 /* Define to 1 if you have the 'nlist' function. */
-#define HAVE_NLIST 1
+/* #undef HAVE_NLIST */
 
 /* Define to 1 if you have the <nlist.h> header file. */
-#define HAVE_NLIST_H 1
+/* #undef HAVE_NLIST_H */
 
 /* Define to 1 if you have the 'nl_langinfo' function. */
 #define HAVE_NL_LANGINFO 1
