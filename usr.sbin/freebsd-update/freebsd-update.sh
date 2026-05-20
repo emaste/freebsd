@@ -540,7 +540,7 @@ parse_cmdline () {
 
 		# Commands
 		cron | fetch | upgrade | updatesready | install | rollback |\
-		IDS | showconfig)
+		IDS | ids | showconfig)
 			COMMANDS="${COMMANDS} $1"
 			;;
 
@@ -3588,6 +3588,10 @@ cmd_IDS () {
 	finalize_components_config ${COMPONENTS}
 	IDS_check_params
 	IDS_run || exit 1
+}
+
+cmd_ids() {
+	cmd_IDS "$@"
 }
 
 # Output configuration.
