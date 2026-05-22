@@ -701,7 +701,6 @@ fold_mappings(unsigned int map_idx)
 	struct mapping_list *ml = &maps[map_idx];
 	struct mapping *mn, *mp, *mbase;
 
-	mp = mbase = TAILQ_FIRST(ml);
 	for (mp = mbase = TAILQ_FIRST(ml); mp != NULL; mp = mn) {
 		mn = TAILQ_NEXT(mp, m_list);
 		if (mn != NULL && mn->m_char == mp->m_char + 1 &&
