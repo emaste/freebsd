@@ -175,6 +175,7 @@ nl_find_nhop(uint32_t fibnum, int family, uint32_t uidx,
 		struct nhop_object *nh = unhop->un_nhop;
 		UN_RUNLOCK(ctl);
 		*perror = 0;
+		/* XXX should this be before UN_RUNLOCK? D57156 */
 		nhop_ref_any(nh);
 		return (nh);
 	}
