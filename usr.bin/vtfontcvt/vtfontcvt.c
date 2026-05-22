@@ -237,9 +237,10 @@ dedup_mapping(unsigned int map_idx)
 	assert(map_idx == VFNT_MAP_BOLD || map_idx == VFNT_MAP_BOLD_RIGHT);
 	mp_normal = TAILQ_FIRST(&maps[normal_map_idx]);
 	TAILQ_FOREACH_SAFE(mp_bold, &maps[map_idx], m_list, mp_temp) {
-		while (mp_normal->m_char < mp_bold->m_char)
+		while (mp_normal != NULL &&
+		    mp_normal->m_char < mp_bold->m_char)
 			mp_normal = TAILQ_NEXT(mp_normal, m_list);
-		if (mp_bold->m_char != mp_normal->m_char)
+		if (mp_normal == NULL || mp_bold->m_char != mp_normal->m_char)
 			errx(1, "Character %u not in normal font!",
 			    mp_bold->m_char);
 		if (mp_bold->m_glyph != mp_normal->m_glyph)
