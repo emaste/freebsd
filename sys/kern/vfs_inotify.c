@@ -435,6 +435,7 @@ inotify_close(struct file *fp, struct thread *td)
 	struct inotify_watch *watch;
 
 	sc = fp->f_data;
+	fp->f_data = NULL;
 
 	/* Detach watches from their vnodes. */
 	mtx_lock(&sc->lock);
