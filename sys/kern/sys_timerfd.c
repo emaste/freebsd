@@ -349,6 +349,7 @@ timerfd_close(struct file *fp, struct thread *td)
 	knlist_destroy(&tfd->tfd_sel.si_note);
 	mtx_destroy(&tfd->tfd_lock);
 	free(tfd, M_TIMERFD);
+	fp->f_data = NULL;
 	fp->f_ops = &badfileops;
 
 	return (0);
