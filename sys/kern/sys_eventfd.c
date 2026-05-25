@@ -184,6 +184,7 @@ eventfd_close(struct file *fp, struct thread *td)
 	struct eventfd *efd;
 
 	efd = fp->f_data;
+	fp->f_data = NULL;
 	eventfd_put(efd);
 	return (0);
 }
