@@ -1144,6 +1144,7 @@ rtnl_handle_getroute(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 		return (error);
 
 	old_linux_compat(&attrs);
+	// XXX attrs.rta_table == RT_TABLE_UNSPEC ok for handle_rtm_dump
 	if (attrs.rta_table >= V_rt_numfibs || attrs.rtm_family >= AF_MAX) {
 		NLMSG_REPORT_ERR_MSG(npt, "invalid fib");
 		return (EINVAL);
