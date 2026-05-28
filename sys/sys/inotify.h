@@ -59,7 +59,7 @@ struct inotify_event {
 /* Flags, set in the mask field. */
 #define	IN_ONLYDIR		0x01000000
 #define	IN_DONT_FOLLOW		0x02000000
-#define	IN_EXCL_UNLINK		0x04000000
+#define	IN_EXCL_UNLINK		0x04000000 /* XXX Ignored: FreeBSD default. */
 #define	IN_MASK_CREATE		0x10000000
 #define	IN_MASK_ADD		0x20000000
 #define	IN_ONESHOT		0x80000000
