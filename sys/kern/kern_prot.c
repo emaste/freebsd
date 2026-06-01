@@ -54,6 +54,7 @@
 #include <sys/systm.h>
 #include <sys/abi_compat.h>
 #include <sys/acct.h>
+#include <sys/capsicum.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -196,6 +197,8 @@ sys_getpgid(struct thread *td, struct getpgid_args *uap)
 		p = td->td_proc;
 		PROC_LOCK(p);
 	} else {
+		if (IN_CAPABILITY_MODE(td) && uap->pid != td->td_proc->p_pid)
+			return (ECAPMODE);
 		p = pfind_any(uap->pid);
 		if (p == NULL)
 			return (ESRCH);
@@ -236,6 +239,8 @@ kern_getsid(struct thread *td, pid_t pid)
 		p = td->td_proc;
 		PROC_LOCK(p);
 	} else {
+		if (IN_CAPABILITY_MODE(td) && pid != td->td_proc->p_pid)
+			return (ECAPMODE);
 		p = pfind_any(pid);
 		if (p == NULL)
 			return (ESRCH);
