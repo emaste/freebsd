@@ -102,8 +102,12 @@ kern_getpriority(struct thread *td, int which, int who)
 	int error, low;
 
 	if (IN_CAPABILITY_MODE(td)) {
-		if (which != PRIO_PROCESS)
+		if (which != PRIO_PROCESS) {
+			ktrcapfail(CAPFAIL_SYSCALL, NULL);
+//CAPFAIL_SYSCALL, &uap->op);
+
 			return (ECAPMODE);
+		}
 		if (who != 0 && who != td->td_proc->p_pid)
 			return (ECAPMODE);
 	}
