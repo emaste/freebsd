@@ -910,6 +910,7 @@ fiodgname_buf_get_ptr(void *fgnp, u_long com)
 	fgnup = fgnp;
 	switch (com) {
 	case FIODGNAME:
+		// XXX minor cap mode disclosure?
 		return (fgnup->fgn.buf);
 #ifdef COMPAT_FREEBSD32
 	case FIODGNAME_32:
