@@ -2208,7 +2208,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 
 	/* Grow the screen buffer and terminal. */
 	terminal_mute(tm, 1);
-	(void)vtbuf_grow(&vw->vw_buf, &size, vw->vw_buf.vb_history_size);
+	vtbuf_grow(&vw->vw_buf, &size, vw->vw_buf.vb_history_size);
 	terminal_set_winsize_blank(tm, &wsz, 0, NULL);
 	terminal_set_cursor(tm, &vw->vw_buf.vb_cursor);
 	terminal_mute(tm, 0);
@@ -2835,7 +2835,7 @@ skip_thunk:
 		    *(int *)data > UINT_MAX / USHRT_MAX / sizeof(term_char_t))
 			return (EINVAL);
 		if (*(int *)data != vw->vw_buf.vb_history_size)
-			return (vtbuf_sethistory_size(&vw->vw_buf, *(int *)data));
+			vtbuf_sethistory_size(&vw->vw_buf, *(int *)data);
 		return (0);
 	case CONS_CLRHIST:
 		vtbuf_clearhistory(&vw->vw_buf);
