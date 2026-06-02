@@ -519,7 +519,7 @@ vtbuf_clearhistory(struct vt_buf *vb)
 	VTBUF_UNLOCK(vb);
 }
 
-int
+void
 vtbuf_sethistory_size(struct vt_buf *vb, unsigned int size)
 {
 	term_pos_t p;
@@ -527,10 +527,10 @@ vtbuf_sethistory_size(struct vt_buf *vb, unsigned int size)
 	/* With same size */
 	p.tp_row = vb->vb_scr_size.tp_row;
 	p.tp_col = vb->vb_scr_size.tp_col;
-	return (vtbuf_grow(vb, &p, size));
+	vtbuf_grow(vb, &p, size);
 }
 
-int
+void
 vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 {
 	term_char_t *old, *new, **rows, **oldrows, **copyrows, *row, *oldrow;
@@ -543,8 +543,6 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 	ch = TCOLOR_FG(a->ta_fgcolor) | TCOLOR_BG(a->ta_bgcolor);
 
 	history_size = MAX(history_size, p->tp_row);
-	if (history_size >= SIZE_MAX / p->tp_col / sizeof(term_char_t))
-		return (EINVAL);
 
 	/* Allocate new buffer. */
 	new = mallocarray(history_size, p->tp_col * sizeof(term_char_t),
@@ -695,8 +693,6 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 	/* Deallocate old buffer. */
 	free(old, M_VTBUF);
 	free(oldrows, M_VTBUF);
-
-	return (0);
 }
 
 void
