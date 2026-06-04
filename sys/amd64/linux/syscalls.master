@@ -109,8 +109,8 @@
 		    l_ulong prot
 		);
 	}
-11	AUE_MUNMAP	NOPROTO {
-		int munmap(
+11	AUE_MUNMAP	STD {
+		int linux_munmap(
 		    void *addr,
 		    l_size_t len
 		);

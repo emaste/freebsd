@@ -229,7 +229,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_recvmsg_args), .sy_call = (sy_call_t *)linux_recvmsg, .sy_auevent = AUE_RECVMSG, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 212 = linux_recvmsg */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },	/* 213 = linux_readahead */
 	{ .sy_narg = AS(linux_brk_args), .sy_call = (sy_call_t *)linux_brk, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 214 = linux_brk */
-	{ .sy_narg = AS(munmap_args), .sy_call = (sy_call_t *)sys_munmap, .sy_auevent = AUE_MUNMAP, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 215 = munmap */
+	{ .sy_narg = AS(linux_munmap_args), .sy_call = (sy_call_t *)linux_munmap, .sy_auevent = AUE_MUNMAP, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 215 = linux_munmap */
 	{ .sy_narg = AS(linux_mremap_args), .sy_call = (sy_call_t *)linux_mremap, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 216 = linux_mremap */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_add_key, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 217 = linux_add_key */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_request_key, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 218 = linux_request_key */
