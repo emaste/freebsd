@@ -488,8 +488,8 @@
 		    struct l_mmap_argv *ptr
 		);
 	}
-91	AUE_MUNMAP	NOPROTO {
-		int munmap(
+91	AUE_MUNMAP	STD {
+		int linux_munmap(
 		    caddr_t addr,
 		    int len
 		);

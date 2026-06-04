@@ -25,7 +25,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_lseek_args), .sy_call = (sy_call_t *)linux_lseek, .sy_auevent = AUE_LSEEK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 8 = linux_lseek */
 	{ .sy_narg = AS(linux_mmap2_args), .sy_call = (sy_call_t *)linux_mmap2, .sy_auevent = AUE_MMAP, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 9 = linux_mmap2 */
 	{ .sy_narg = AS(linux_mprotect_args), .sy_call = (sy_call_t *)linux_mprotect, .sy_auevent = AUE_MPROTECT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 10 = linux_mprotect */
-	{ .sy_narg = AS(munmap_args), .sy_call = (sy_call_t *)sys_munmap, .sy_auevent = AUE_MUNMAP, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 11 = munmap */
+	{ .sy_narg = AS(linux_munmap_args), .sy_call = (sy_call_t *)linux_munmap, .sy_auevent = AUE_MUNMAP, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 11 = linux_munmap */
 	{ .sy_narg = AS(linux_brk_args), .sy_call = (sy_call_t *)linux_brk, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 12 = linux_brk */
 	{ .sy_narg = AS(linux_rt_sigaction_args), .sy_call = (sy_call_t *)linux_rt_sigaction, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 13 = linux_rt_sigaction */
 	{ .sy_narg = AS(linux_rt_sigprocmask_args), .sy_call = (sy_call_t *)linux_rt_sigprocmask, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 14 = linux_rt_sigprocmask */
