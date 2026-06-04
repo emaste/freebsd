@@ -136,8 +136,9 @@ extern char **environ;
 
 static gid_t gid;
 static uid_t uid;
-static bool dobackup, docompare, dodir, dopreserve, dostrip, dounpriv;
-static bool safecopy, verbose;
+static bool dobackup, docompare, dodir, dopreserve, dostrip, dounpriv,
+    safecopy, verbose;
+static bool noobj;
 static bool haveopt_f, haveopt_g, haveopt_m, haveopt_o;
 static int linkmode;
 static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
@@ -161,7 +162,7 @@ static void	makelink(const char *, const char *, const struct stat *);
 static void	install(const char *, const char *, u_long, u_int);
 static void	install_dir(char *);
 static void	metadata_log(const char *, const char *, struct timespec *,
-		    const char *, const char *, off_t);
+		    const char *, const char *, off_t, const char *);
 static int	parseid(const char *, id_t *);
 static bool	strip(const char *, int, const char *, char **);
 static void	usage(void);
@@ -181,8 +182,8 @@ main(int argc, char *argv[])
 	iflags = 0;
 	set = NULL;
 	group = owner = NULL;
-	while ((ch = getopt(argc, argv, "B:bCcD:df:g:h:l:M:m:N:o:pSsT:Uv")) !=
-	     -1)
+	while ((ch = getopt(argc, argv,
+	    "B:bCcD:df:g:h:l:M:m:N:no:pSsT:Uv")) != -1)
 		switch((char)ch) {
 		case 'B':
 			suffix = optarg;
@@ -256,6 +257,9 @@ main(int argc, char *argv[])
 				err(EX_OSERR, "Unable to use user and group "
 				    "databases in `%s'", optarg);
 			break;
+		case 'n':
+			noobj = true;
+			break;
 		case 'o':
 			haveopt_o = true;
 			owner = optarg;
@@ -295,6 +299,11 @@ main(int argc, char *argv[])
 	if (dostrip && linkmode) {
 		warnx("-l and -s may not be specified together");
 		usage();
+	}
+
+	/* XXX */
+	if (dostrip && noobj && metafile != NULL) {
+		warnx("with -n and -s, metalog will reference the unstripped source file");
 	}
 
 	/*
@@ -708,7 +717,7 @@ makelink(const char *from_name, const char *to_name,
 					fflags = NULL;
 				dres = digest_file(from_name);
 				metadata_log(to_name, "file", NULL, NULL,
-				    dres, to_sb.st_size);
+				    dres, to_sb.st_size, NULL);
 				free(dres);
 				mode = omode;
 				owner = oowner;
@@ -726,7 +735,7 @@ makelink(const char *from_name, const char *to_name,
 			err(EX_OSERR, "%s: realpath", from_name);
 		do_symlink(src, to_name, target_sb);
 		/* XXX: src may point outside of destdir */
-		metadata_log(to_name, "link", NULL, src, NULL, 0);
+		metadata_log(to_name, "link", NULL, src, NULL, 0, NULL);
 		return;
 	}
 
@@ -735,7 +744,8 @@ makelink(const char *from_name, const char *to_name,
 			/* this is already a relative link */
 			do_symlink(from_name, to_name, target_sb);
 			/* XXX: from_name may point outside of destdir. */
-			metadata_log(to_name, "link", NULL, from_name, NULL, 0);
+			metadata_log(to_name, "link", NULL, from_name, NULL, 0,
+			    NULL);
 			return;
 		}
 
@@ -796,7 +806,7 @@ makelink(const char *from_name, const char *to_name,
 
 		do_symlink(lnk, to_name, target_sb);
 		/* XXX: Link may point outside of destdir. */
-		metadata_log(to_name, "link", NULL, lnk, NULL, 0);
+		metadata_log(to_name, "link", NULL, lnk, NULL, 0, NULL);
 		return;
 	}
 
@@ -806,7 +816,7 @@ makelink(const char *from_name, const char *to_name,
 	 */
 	do_symlink(from_name, to_name, target_sb);
 	/* XXX: from_name may point outside of destdir. */
-	metadata_log(to_name, "link", NULL, from_name, NULL, 0);
+	metadata_log(to_name, "link", NULL, from_name, NULL, 0, NULL);
 }
 
 /*
@@ -1099,7 +1109,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	if (!devnull && !ispipe)
 		(void)close(from_fd);
 
-	metadata_log(to_name, "file", tsb, NULL, digestresult, to_sb.st_size);
+	metadata_log(to_name, "file", tsb, NULL, digestresult, to_sb.st_size,
+	    NULL);
 	free(digestresult);
 }
 
@@ -1402,7 +1413,7 @@ again:
 		if (chmod(path, mode) != 0)
 			warn("chmod %o %s", mode, path);
 	}
-	metadata_log(path, "dir", NULL, NULL, NULL, 0);
+	metadata_log(path, "dir", NULL, NULL, NULL, 0, NULL);
 }
 
 /*
@@ -1413,7 +1424,8 @@ again:
  */
 static void
 metadata_log(const char *path, const char *type, struct timespec *ts,
-    const char *slink, const char *digestresult, off_t size)
+    const char *slink, const char *digestresult, off_t size,
+    const char *contents)
 {
 	static const char extra[] = { ' ', '\t', '\n', '\\', '#', '\0' };
 	const char *p;
@@ -1424,10 +1436,12 @@ metadata_log(const char *path, const char *type, struct timespec *ts,
 
 	if (metafp == NULL)
 		return;
-	/* Buffer for strsnvis(3), used for both path and slink. */
+	/* Buffer for strsnvis(3), used for path, slink, and contents. */
 	buflen = strlen(path);
 	if (slink && strlen(slink) > buflen)
 		buflen = strlen(slink);
+	if (contents && strlen(contents) > buflen)
+		buflen = strlen(contents);
 	buflen = 4 * buflen + 1;
 	if ((buf = malloc(buflen)) == NULL) {
 		warn(NULL);
@@ -1475,6 +1489,10 @@ metadata_log(const char *path, const char *type, struct timespec *ts,
 	if (slink) {
 		strsnvis(buf, buflen, slink, VIS_CSTYLE, extra);
 		fprintf(metafp, " link=%s", buf);
+	}
+	if (contents) {
+		strsnvis(buf, buflen, contents, VIS_OCTAL, extra);
+		fprintf(metafp, " contents=%s", buf);
 	}
 	if (*type == 'f') /* type=file */
 		fprintf(metafp, " size=%lld", (long long)size);
