@@ -1330,8 +1330,8 @@
 		    l_ulong dsend
 		);
 	}
-215	AUE_MUNMAP	NOPROTO	{
-		int munmap(
+215	AUE_MUNMAP	STD	{
+		int linux_munmap(
 		    void *addr,
 		    l_size_t len
 		);
