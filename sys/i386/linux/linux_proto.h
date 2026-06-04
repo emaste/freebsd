@@ -288,6 +288,10 @@ struct linux_readdir_args {
 struct linux_mmap_args {
 	char ptr_l_[PADL_(struct l_mmap_argv *)]; struct l_mmap_argv * ptr; char ptr_r_[PADR_(struct l_mmap_argv *)];
 };
+struct linux_munmap_args {
+	char addr_l_[PADL_(caddr_t)]; caddr_t addr; char addr_r_[PADR_(caddr_t)];
+	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
+};
 struct linux_truncate_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
 	char length_l_[PADL_(l_ulong)]; l_ulong length; char length_r_[PADR_(l_ulong)];
@@ -1799,6 +1803,7 @@ int	linux_uselib(struct thread *, struct linux_uselib_args *);
 int	linux_reboot(struct thread *, struct linux_reboot_args *);
 int	linux_readdir(struct thread *, struct linux_readdir_args *);
 int	linux_mmap(struct thread *, struct linux_mmap_args *);
+int	linux_munmap(struct thread *, struct linux_munmap_args *);
 int	linux_truncate(struct thread *, struct linux_truncate_args *);
 int	linux_ftruncate(struct thread *, struct linux_ftruncate_args *);
 int	linux_getpriority(struct thread *, struct linux_getpriority_args *);
@@ -2175,6 +2180,7 @@ int	linux_fchmodat2(struct thread *, struct linux_fchmodat2_args *);
 #define	LINUX_SYS_AUE_linux_reboot	AUE_REBOOT
 #define	LINUX_SYS_AUE_linux_readdir	AUE_GETDIRENTRIES
 #define	LINUX_SYS_AUE_linux_mmap	AUE_MMAP
+#define	LINUX_SYS_AUE_linux_munmap	AUE_MUNMAP
 #define	LINUX_SYS_AUE_linux_truncate	AUE_TRUNCATE
 #define	LINUX_SYS_AUE_linux_ftruncate	AUE_FTRUNCATE
 #define	LINUX_SYS_AUE_linux_getpriority	AUE_GETPRIORITY

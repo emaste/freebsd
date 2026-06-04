@@ -608,9 +608,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* munmap */
+	/* linux_munmap */
 	case 91: {
-		struct munmap_args *p = params;
+		struct linux_munmap_args *p = params;
 		uarg[a++] = (intptr_t)p->addr; /* caddr_t */
 		iarg[a++] = p->len; /* int */
 		*n_args = 2;
@@ -4229,7 +4229,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* munmap */
+	/* linux_munmap */
 	case 91:
 		switch (ndx) {
 		case 0:
@@ -9051,7 +9051,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* munmap */
+	/* linux_munmap */
 	case 91:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
