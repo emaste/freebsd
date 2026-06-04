@@ -33,7 +33,7 @@
 .Nd install binaries
 .Sh SYNOPSIS
 .Nm
-.Op Fl bCcpSsUv
+.Op Fl bCcpnSsUv
 .Op Fl B Ar suffix
 .Op Fl D Ar destdir
 .Op Fl f Ar flags
@@ -47,7 +47,7 @@
 .Op Fl T Ar tags
 .Ar file1 file2
 .Nm
-.Op Fl bCcpSsUv
+.Op Fl bCcpnSsUv
 .Op Fl B Ar suffix
 .Op Fl D Ar destdir
 .Op Fl f Ar flags
@@ -62,7 +62,7 @@
 .Ar file1 ... fileN directory
 .Nm
 .Fl d
-.Op Fl Uv
+.Op Fl nUv
 .Op Fl D Ar destdir
 .Op Fl g Ar group
 .Op Fl h Ar hash
@@ -217,6 +217,13 @@ rather than using the results from the system's
 and
 .Xr getgrnam 3
 (and related) library calls.
+.It Fl n
+Do not create target filesystem objects.
+Entries are still written to the
+.Ar metalog
+if
+.Fl M
+is specified.
 .It Fl o Ar owner
 Specify an owner.
 A numeric UID is allowed.
