@@ -85,7 +85,7 @@
 #define	LINUX_SYS_linux_reboot	88
 #define	LINUX_SYS_linux_readdir	89
 #define	LINUX_SYS_linux_mmap	90
-#define	LINUX_SYS_munmap	91
+#define	LINUX_SYS_linux_munmap	91
 #define	LINUX_SYS_linux_truncate	92
 #define	LINUX_SYS_linux_ftruncate	93
 #define	LINUX_SYS_fchmod	94
