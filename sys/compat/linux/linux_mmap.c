@@ -52,6 +52,17 @@
 #include <compat/linux/linux_persona.h>
 #include <compat/linux/linux_util.h>
 
+#if defined(__amd64__)
+#include <amd64/linux/linux.h>
+#include <amd64/linux/linux_proto.h>
+#elif defined(__i386__)
+#include <i386/linux/linux.h>
+#include <i386/linux/linux_proto.h>
+#elif defined(__aarch64__)
+#include <arm64/linux/linux.h>
+#include <arm64/linux/linux_proto.h>
+#endif
+
 #define STACK_SIZE  (2 * 1024 * 1024)
 #define GUARD_SIZE  (4 * PAGE_SIZE)
 
@@ -465,3 +476,14 @@ linux_fixup_prot(struct thread *td, int *prot)
 
 }
 #endif
+
+int
+linux_munmap(struct thread *td, struct linux_munmap_args *args)
+{
+
+    /* Linux requires addresses to be page aligned */
+    if ((uintptr_t)args->addr & PAGE_MASK)
+        return (EINVAL);
+
+    return (kern_munmap(td, (uintptr_t) args->addr, args->len));
+}
