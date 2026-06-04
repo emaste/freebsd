@@ -855,6 +855,10 @@ struct linux_recvmsg_args {
 struct linux_brk_args {
 	char dsend_l_[PADL_(l_ulong)]; l_ulong dsend; char dsend_r_[PADR_(l_ulong)];
 };
+struct linux_munmap_args {
+	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
+	char len_l_[PADL_(l_size_t)]; l_size_t len; char len_r_[PADR_(l_size_t)];
+};
 struct linux_mremap_args {
 	char addr_l_[PADL_(l_ulong)]; l_ulong addr; char addr_r_[PADR_(l_ulong)];
 	char old_len_l_[PADL_(l_ulong)]; l_ulong old_len; char old_len_r_[PADR_(l_ulong)];
@@ -1421,6 +1425,7 @@ int	linux_shutdown(struct thread *, struct linux_shutdown_args *);
 int	linux_sendmsg(struct thread *, struct linux_sendmsg_args *);
 int	linux_recvmsg(struct thread *, struct linux_recvmsg_args *);
 int	linux_brk(struct thread *, struct linux_brk_args *);
+int	linux_munmap(struct thread *, struct linux_munmap_args *);
 int	linux_mremap(struct thread *, struct linux_mremap_args *);
 int	linux_add_key(struct thread *, struct linux_add_key_args *);
 int	linux_request_key(struct thread *, struct linux_request_key_args *);
@@ -1681,6 +1686,7 @@ int	linux_fchmodat2(struct thread *, struct linux_fchmodat2_args *);
 #define	LINUX_SYS_AUE_linux_sendmsg	AUE_SENDMSG
 #define	LINUX_SYS_AUE_linux_recvmsg	AUE_RECVMSG
 #define	LINUX_SYS_AUE_linux_brk	AUE_NULL
+#define	LINUX_SYS_AUE_linux_munmap	AUE_MUNMAP
 #define	LINUX_SYS_AUE_linux_mremap	AUE_NULL
 #define	LINUX_SYS_AUE_linux_add_key	AUE_NULL
 #define	LINUX_SYS_AUE_linux_request_key	AUE_NULL

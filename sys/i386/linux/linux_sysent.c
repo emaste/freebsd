@@ -105,7 +105,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_reboot_args), .sy_call = (sy_call_t *)linux_reboot, .sy_auevent = AUE_REBOOT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 88 = linux_reboot */
 	{ .sy_narg = AS(linux_readdir_args), .sy_call = (sy_call_t *)linux_readdir, .sy_auevent = AUE_GETDIRENTRIES, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 89 = linux_readdir */
 	{ .sy_narg = AS(linux_mmap_args), .sy_call = (sy_call_t *)linux_mmap, .sy_auevent = AUE_MMAP, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 90 = linux_mmap */
-	{ .sy_narg = AS(munmap_args), .sy_call = (sy_call_t *)sys_munmap, .sy_auevent = AUE_MUNMAP, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 91 = munmap */
+	{ .sy_narg = AS(linux_munmap_args), .sy_call = (sy_call_t *)linux_munmap, .sy_auevent = AUE_MUNMAP, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 91 = linux_munmap */
 	{ .sy_narg = AS(linux_truncate_args), .sy_call = (sy_call_t *)linux_truncate, .sy_auevent = AUE_TRUNCATE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 92 = linux_truncate */
 	{ .sy_narg = AS(linux_ftruncate_args), .sy_call = (sy_call_t *)linux_ftruncate, .sy_auevent = AUE_FTRUNCATE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 93 = linux_ftruncate */
 	{ .sy_narg = AS(fchmod_args), .sy_call = (sy_call_t *)sys_fchmod, .sy_auevent = AUE_FCHMOD, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 94 = fchmod */

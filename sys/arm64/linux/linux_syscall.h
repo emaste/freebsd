@@ -208,7 +208,7 @@
 #define	LINUX_SYS_linux_sendmsg	211
 #define	LINUX_SYS_linux_recvmsg	212
 #define	LINUX_SYS_linux_brk	214
-#define	LINUX_SYS_munmap	215
+#define	LINUX_SYS_linux_munmap	215
 #define	LINUX_SYS_linux_mremap	216
 #define	LINUX_SYS_linux_add_key	217
 #define	LINUX_SYS_linux_request_key	218

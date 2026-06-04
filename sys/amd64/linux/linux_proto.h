@@ -78,6 +78,10 @@ struct linux_mprotect_args {
 	char len_l_[PADL_(l_size_t)]; l_size_t len; char len_r_[PADR_(l_size_t)];
 	char prot_l_[PADL_(l_ulong)]; l_ulong prot; char prot_r_[PADR_(l_ulong)];
 };
+struct linux_munmap_args {
+	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
+	char len_l_[PADL_(l_size_t)]; l_size_t len; char len_r_[PADR_(l_size_t)];
+};
 struct linux_brk_args {
 	char dsend_l_[PADL_(l_ulong)]; l_ulong dsend; char dsend_r_[PADR_(l_ulong)];
 };
@@ -1450,6 +1454,7 @@ int	linux_poll(struct thread *, struct linux_poll_args *);
 int	linux_lseek(struct thread *, struct linux_lseek_args *);
 int	linux_mmap2(struct thread *, struct linux_mmap2_args *);
 int	linux_mprotect(struct thread *, struct linux_mprotect_args *);
+int	linux_munmap(struct thread *, struct linux_munmap_args *);
 int	linux_brk(struct thread *, struct linux_brk_args *);
 int	linux_rt_sigaction(struct thread *, struct linux_rt_sigaction_args *);
 int	linux_rt_sigprocmask(struct thread *, struct linux_rt_sigprocmask_args *);
@@ -1760,6 +1765,7 @@ int	linux_map_shadow_stack(struct thread *, struct linux_map_shadow_stack_args *
 #define	LINUX_SYS_AUE_linux_lseek	AUE_LSEEK
 #define	LINUX_SYS_AUE_linux_mmap2	AUE_MMAP
 #define	LINUX_SYS_AUE_linux_mprotect	AUE_MPROTECT
+#define	LINUX_SYS_AUE_linux_munmap	AUE_MUNMAP
 #define	LINUX_SYS_AUE_linux_brk	AUE_NULL
 #define	LINUX_SYS_AUE_linux_rt_sigaction	AUE_NULL
 #define	LINUX_SYS_AUE_linux_rt_sigprocmask	AUE_NULL

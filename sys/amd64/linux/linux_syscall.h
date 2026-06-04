@@ -15,7 +15,7 @@
 #define	LINUX_SYS_linux_lseek	8
 #define	LINUX_SYS_linux_mmap2	9
 #define	LINUX_SYS_linux_mprotect	10
-#define	LINUX_SYS_munmap	11
+#define	LINUX_SYS_linux_munmap	11
 #define	LINUX_SYS_linux_brk	12
 #define	LINUX_SYS_linux_rt_sigaction	13
 #define	LINUX_SYS_linux_rt_sigprocmask	14
