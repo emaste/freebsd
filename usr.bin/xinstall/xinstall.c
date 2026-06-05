@@ -875,6 +875,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		return;
 	}
 
+	if (noobj) {
+		metadata_log(to_name, "file", NULL, NULL, NULL, 0, NULL);
+		return;
+	}
+
 	if (exists && !S_ISREG(to_sb.st_mode) && !S_ISLNK(to_sb.st_mode))
 		errc(EX_CANTCREAT, EFTYPE, "%s", to_name);
 
@@ -1109,6 +1114,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	if (!devnull && !ispipe)
 		(void)close(from_fd);
 
+//metalog:
 	metadata_log(to_name, "file", tsb, NULL, digestresult, to_sb.st_size,
 	    NULL);
 	free(digestresult);
@@ -1380,6 +1386,12 @@ install_dir(char *path)
 	int ch;
 	bool tried_mkdir;
 
+	if (noobj) {
+		if (verbose)
+			(void)printf("install: mkdir %s\n", path);
+		goto metalog;
+	}
+
 	for (p = path;; ++p) {
 		if (*p == '\0' || (p != path && *p  == '/')) {
 			tried_mkdir = false;
@@ -1413,6 +1425,7 @@ again:
 		if (chmod(path, mode) != 0)
 			warn("chmod %o %s", mode, path);
 	}
+metalog:
 	metadata_log(path, "dir", NULL, NULL, NULL, 0, NULL);
 }
 
