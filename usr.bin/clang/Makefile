@@ -13,7 +13,6 @@ SUBDIR+=	clang-scan-deps
 # by default if clang is enabled. If MK_LLVM_BINUTILS is set, we also use them
 # as the default binutils (ar,nm,addr2line, etc.).
 .if ${MK_CLANG} != "no" || ${MK_LLVM_BINUTILS} != "no"
-_LLVM_BINUTILS=		llvm-ar
 _LLVM_BINUTILS+=	llvm-ar
 _LLVM_BINUTILS+=	llvm-cxxfilt
 _LLVM_BINUTILS+=	llvm-nm
