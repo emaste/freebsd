@@ -1021,6 +1021,7 @@ router_hotplug_intr(void *context, union nhi_ring_desc *ring,
 	unplug = !!(event.adapter_attrs & TB_CFG_UPG_UNPLUG);
 	adap_num = event.adapter_attrs & TB_CFG_ADPT_MASK;
 
+	(void)adap_num;
 	tb_debug(sc, DBG_ROUTER, "Hotplug event route 0x%08x%08x adap %d %s\n",
 	    event.route.hi, event.route.lo, adap_num,
 	    unplug ? "unplugged" : "plugged");
