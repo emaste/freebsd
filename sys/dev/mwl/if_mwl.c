@@ -1845,7 +1845,7 @@ mwl_beacon_setup(struct ieee80211vap *vap)
 	if (m == NULL)
 		return ENOBUFS;
 	mwl_hal_setbeacon(hvap, mtod(m, const void *), m->m_len);
-	m_free(m);
+	m_freem(m);
 
 	return 0;
 }
@@ -2734,7 +2734,7 @@ mwl_rx_proc(void *arg, int npending)
 		newdata = mwl_getrxdma(sc);
 		if (newdata == NULL) {
 			/* NB: stat+msg in mwl_getrxdma */
-			m_free(m);
+			m_freem(m);
 			/* disable RX interrupt and mark state */
 			mwl_hal_intrset(sc->sc_mh,
 			    sc->sc_imask &~ MACREG_A2HRIC_BIT_RX_RDY);
