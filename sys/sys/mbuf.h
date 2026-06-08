@@ -1517,7 +1517,7 @@ m_snd_tag_rele(struct m_snd_tag *mst)
 		m_snd_tag_destroy(mst);
 }
 
-static __inline struct mbuf *
+static __inline /* __result_use_check */ struct mbuf *
 m_free(struct mbuf *m)
 {
 	struct mbuf *n = m->m_next;
