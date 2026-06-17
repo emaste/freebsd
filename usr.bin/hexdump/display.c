@@ -125,7 +125,7 @@ print(PR *pr, u_char *bp)
 	case F_ADDRESS:
 		(void)printf(pr->fmt, (quad_t)address);
 		break;
-	case F_BPAD:
+	case F_BPAD: // XXX we print this for trailing space
 		(void)printf(pr->fmt, "");
 		break;
 	case F_C:
