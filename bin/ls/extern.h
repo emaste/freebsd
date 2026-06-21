@@ -56,6 +56,16 @@ int	 prn_normal(const char *);
 size_t	 len_octal(const char *, int);
 int	 prn_octal(const char *);
 int	 prn_printable(const char *);
+
+/*
+ * stdout wrappers that keep dired_pos (the number of bytes written so far)
+ * up to date.  They are used instead of ftell(3) because ftell(3) fails on
+ * non-seekable outputs such as pipes.
+ */
+int	 dired_putchar(int);
+int	 dired_puts(const char *);
+int	 dired_fputs(const char *);
+int	 dired_printf(const char *, ...) __printflike(1, 2);
 #ifdef COLORLS
 void	 parsecolors(const char *cs);
 void	 colorquit(int);
