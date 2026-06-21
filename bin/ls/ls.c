@@ -96,7 +96,8 @@ enum {
 enum {
 	BIN_OPT = CHAR_MAX,
 	COLOR_OPT,
-	GROUP_OPT
+	GROUP_OPT,
+	DIRED_OPT,
 };
 
 static const struct option long_opts[] =
@@ -104,6 +105,7 @@ static const struct option long_opts[] =
         {"color",        optional_argument,      NULL, COLOR_OPT},
         {"group-directories", optional_argument, NULL, GROUP_OPT},
         {"group-directories-first", no_argument, NULL, GROUP_OPT},
+        {"dired", no_argument, NULL, DIRED_OPT},
         {NULL,           no_argument,            NULL, 0}
 };
 
@@ -162,6 +164,7 @@ char *attrs_off;		/* ANSI sequence to turn off attributes */
 char *enter_bold;		/* ANSI sequence to set color to bold mode */
 char *enter_underline;		/* ANSI sequence to enter underline mode */
 #endif
+int f_dired;
 
 static int rval;
 
@@ -486,6 +489,13 @@ main(int argc, char *argv[])
 #else
 			warnx("color support not compiled in");
 #endif
+			break;
+		case DIRED_OPT:
+			f_longform = 1;
+			f_singlecol = 0;
+			f_stream = 0;
+			f_dired = 1;
+			break;
 		default:
 		case '?':
 			usage();
@@ -698,12 +708,12 @@ traverse(int argc, char *argv[], int options)
 			 * directory with its name.
 			 */
 			if (output) {
-				putchar('\n');
+				dired_putchar('\n');
 				(void)printname(p->fts_path);
-				puts(":");
+				dired_puts(":");
 			} else if (argc > 1) {
 				(void)printname(p->fts_path);
-				puts(":");
+				dired_puts(":");
 				output = 1;
 			}
 			chp = fts_children(ftsp, ch_options);
