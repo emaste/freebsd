@@ -60,18 +60,18 @@ prn_normal(const char *s)
 	n = 0;
 	while ((clen = mbrtowc(&wc, s, MB_LEN_MAX, &mbs)) != 0) {
 		if (clen == (size_t)-2) {
-			n += printf("%s", s);
+			n += dired_printf("%s", s);
 			break;
 		}
 		if (clen == (size_t)-1) {
 			memset(&mbs, 0, sizeof(mbs));
-			putchar((unsigned char)*s);
+			dired_putchar((unsigned char)*s);
 			s++;
 			n++;
 			continue;
 		}
 		for (i = 0; i < (int)clen; i++)
-			putchar((unsigned char)s[i]);
+			dired_putchar((unsigned char)s[i]);
 		s += clen;
 		if (iswprint(wc))
 			n += wcwidth(wc);
@@ -91,25 +91,25 @@ prn_printable(const char *s)
 	n = 0;
 	while ((clen = mbrtowc(&wc, s, MB_LEN_MAX, &mbs)) != 0) {
 		if (clen == (size_t)-1) {
-			putchar('?');
+			dired_putchar('?');
 			s++;
 			n++;
 			memset(&mbs, 0, sizeof(mbs));
 			continue;
 		}
 		if (clen == (size_t)-2) {
-			putchar('?');
+			dired_putchar('?');
 			n++;
 			break;
 		}
 		if (!iswprint(wc)) {
-			putchar('?');
+			dired_putchar('?');
 			s += clen;
 			n++;
 			continue;
 		}
 		for (i = 0; i < (int)clen; i++)
-			putchar((unsigned char)s[i]);
+			dired_putchar((unsigned char)s[i]);
 		s += clen;
 		n += wcwidth(wc);
 	}
@@ -176,7 +176,7 @@ prn_octal(const char *s)
 		goodchar = clen != (size_t)-1 && clen != (size_t)-2;
 		if (goodchar && iswprint(wc) && wc != L'\"' && wc != L'\\') {
 			for (i = 0; i < (int)clen; i++)
-				putchar((unsigned char)s[i]);
+				dired_putchar((unsigned char)s[i]);
 			len += wcwidth(wc);
 		} else if (goodchar && f_octal_escape &&
 #if WCHAR_MIN < 0
@@ -184,8 +184,8 @@ prn_octal(const char *s)
 #endif
 		    wc <= (wchar_t)UCHAR_MAX &&
 		    (p = strchr(esc, (char)wc)) != NULL) {
-			putchar('\\');
-			putchar(p[1]);
+			dired_putchar('\\');
+			dired_putchar(p[1]);
 			len += 2;
 		} else {
 			if (goodchar)
@@ -196,10 +196,10 @@ prn_octal(const char *s)
 				prtlen = strlen(s);
 			for (i = 0; i < prtlen; i++) {
 				ch = (unsigned char)s[i];
-				putchar('\\');
-				putchar('0' + (ch >> 6));
-				putchar('0' + ((ch >> 3) & 7));
-				putchar('0' + (ch & 7));
+				dired_putchar('\\');
+				dired_putchar('0' + (ch >> 6));
+				dired_putchar('0' + ((ch >> 3) & 7));
+				dired_putchar('0' + (ch & 7));
 				len += 4;
 			}
 		}

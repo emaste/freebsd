@@ -36,12 +36,14 @@
 #include <sys/stat.h>
 #include <sys/acl.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
 #include <langinfo.h>
 #include <libutil.h>
 #include <limits.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -105,6 +107,61 @@ static struct {
 
 static size_t padding_for_month[12];
 static size_t month_max_size = 0;
+
+off_t dired_pos;
+
+/*
+ * The following helpers wrap the stdio output routines and accumulate the
+ * number of bytes written to stdout in dired_pos.  dired mode needs the byte
+ * offset of every file name in the output, and ftell(3) cannot provide it
+ * because it fails on non-seekable outputs such as pipes.
+ */
+int
+dired_putchar(int c)
+{
+	int ret;
+
+	ret = putchar(c);
+	if (ret != EOF)
+		dired_pos++;
+	return (ret);
+}
+
+int
+dired_puts(const char *s)
+{
+	int ret;
+
+	ret = puts(s);
+	if (ret != EOF)
+		dired_pos += strlen(s) + 1;	/* puts() appends a newline */
+	return (ret);
+}
+
+int
+dired_fputs(const char *s)
+{
+	int ret;
+
+	ret = fputs(s, stdout);
+	if (ret != EOF)
+		dired_pos += strlen(s);
+	return (ret);
+}
+
+int
+dired_printf(const char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+
+	va_start(ap, fmt);
+	ret = vprintf(fmt, ap);
+	va_end(ap);
+	if (ret > 0)
+		dired_pos += ret;
+	return (ret);
+}
 
 void
 printscol(const DISPLAY *dp)
@@ -204,6 +261,8 @@ printlong(const DISPLAY *dp)
 	FTSENT *p;
 	NAMES *np;
 	char buf[20];
+	off_t *offsets;
+	int offsets_idx = 0;
 #ifdef COLORLS
 	int color_printed = 0;
 #endif
@@ -211,13 +270,20 @@ printlong(const DISPLAY *dp)
 	if ((dp->list == NULL || dp->list->fts_level != FTS_ROOTLEVEL) &&
 	    (f_longform || f_size)) {
 		if (!f_humanval)
-			(void)printf("total %lu\n", howmany(dp->btotal, blocksize));
+			(void)dired_printf("total %lu\n",
+			    howmany(dp->btotal, blocksize));
 		else {
 			(void)humanize_number(buf, 7 /* "1024 KB" */,
 			    dp->btotal * 512, "B", HN_AUTOSCALE, HN_DECIMAL);
 
-			(void)printf("total %s\n", buf);
+			(void)dired_printf("total %s\n", buf);
 		}
+	}
+
+	if (f_dired) {
+		offsets = calloc(dp->entries * 2, sizeof(*offsets));
+		if (offsets == NULL && dp->entries != 0)
+			err(1, NULL);
 	}
 
 	for (p = dp->list; p; p = p->fts_link) {
@@ -225,23 +291,23 @@ printlong(const DISPLAY *dp)
 			continue;
 		sp = p->fts_statp;
 		if (f_inode)
-			(void)printf("%*ju ",
+			(void)dired_printf("%*ju ",
 			    dp->s_inode, (uintmax_t)sp->st_ino);
 		if (f_size)
-			(void)printf(f_thousands ? "%'*jd " : "%*jd ",
+			(void)dired_printf(f_thousands ? "%'*jd " : "%*jd ",
 			    dp->s_block, howmany(sp->st_blocks, blocksize));
 		strmode(sp->st_mode, buf);
 		aclmode(buf, p);
 		np = p->fts_pointer;
-		(void)printf("%s %*ju ", buf, dp->s_nlink,
+		(void)dired_printf("%s %*ju ", buf, dp->s_nlink,
 		    (uintmax_t)sp->st_nlink);
 		if (!f_sowner)
-			(void)printf("%-*s ", dp->s_user, np->user);
-		(void)printf("%-*s ", dp->s_group, np->group);
+			(void)dired_printf("%-*s ", dp->s_user, np->user);
+		(void)dired_printf("%-*s ", dp->s_group, np->group);
 		if (f_flags)
-			(void)printf("%-*s ", dp->s_flags, np->flags);
+			(void)dired_printf("%-*s ", dp->s_flags, np->flags);
 		if (f_label)
-			(void)printf("%-*s ", dp->s_label, np->label);
+			(void)dired_printf("%-*s ", dp->s_label, np->label);
 		if (S_ISCHR(sp->st_mode) || S_ISBLK(sp->st_mode))
 			printdev(dp->s_size, sp->st_rdev);
 		else
@@ -258,7 +324,11 @@ printlong(const DISPLAY *dp)
 		if (f_color)
 			color_printed = colortype(sp->st_mode);
 #endif
+		if (f_dired)
+			offsets[offsets_idx++] = dired_pos;
 		(void)printname(p->fts_name);
+		if (f_dired)
+			offsets[offsets_idx++] = dired_pos;
 #ifdef COLORLS
 		if (f_color && color_printed)
 			endcolor(0);
@@ -267,7 +337,18 @@ printlong(const DISPLAY *dp)
 			(void)printtype(sp->st_mode);
 		if (S_ISLNK(sp->st_mode))
 			printlink(p);
-		(void)putchar('\n');
+		(void)dired_putchar('\n');
+	}
+
+	if (f_dired) {
+		assert(offsets_idx == dp->entries * 2);
+		(void)dired_fputs("//DIRED//");
+		for (offsets_idx = 0; offsets_idx < dp->entries * 2;
+		    offsets_idx++)
+			(void)dired_printf(" %jd",
+			    (intmax_t)offsets[offsets_idx]);
+		(void)dired_putchar('\n');
+		free(offsets);
 	}
 }
 
@@ -430,7 +511,7 @@ static void
 printdev(size_t width, dev_t dev)
 {
 
-	(void)printf("%#*jx ", (u_int)width, (uintmax_t)dev);
+	(void)dired_printf("%#*jx ", (u_int)width, (uintmax_t)dev);
 }
 
 static void
@@ -485,8 +566,8 @@ printtime(time_t ftime)
 		/* mmm dd  yyyy || dd mmm  yyyy */
 		format = d_first ? "%e %b  %Y" : "%b %e  %Y";
 	ls_strftime(longstring, sizeof(longstring), format, localtime(&ftime));
-	fputs(longstring, stdout);
-	fputc(' ', stdout);
+	dired_fputs(longstring);
+	dired_putchar(' ');
 }
 
 static int
@@ -495,7 +576,7 @@ printtype(u_int mode)
 
 	if (f_slash) {
 		if ((mode & S_IFMT) == S_IFDIR) {
-			(void)putchar('/');
+			(void)dired_putchar('/');
 			return (1);
 		}
 		return (0);
@@ -503,25 +584,25 @@ printtype(u_int mode)
 
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
-		(void)putchar('/');
+		(void)dired_putchar('/');
 		return (1);
 	case S_IFIFO:
-		(void)putchar('|');
+		(void)dired_putchar('|');
 		return (1);
 	case S_IFLNK:
-		(void)putchar('@');
+		(void)dired_putchar('@');
 		return (1);
 	case S_IFSOCK:
-		(void)putchar('=');
+		(void)dired_putchar('=');
 		return (1);
 	case S_IFWHT:
-		(void)putchar('%');
+		(void)dired_putchar('%');
 		return (1);
 	default:
 		break;
 	}
 	if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) {
-		(void)putchar('*');
+		(void)dired_putchar('*');
 		return (1);
 	}
 	return (0);
@@ -531,7 +612,7 @@ printtype(u_int mode)
 static int
 putch(int c)
 {
-	(void)putchar(c);
+	(void)dired_putchar(c);
 	return 0;
 }
 
@@ -570,17 +651,17 @@ static void
 printcolor_ansi(Colors c)
 {
 
-	printf("\033[");
+	dired_printf("\033[");
 
 	if (colors[c].bold)
-		printf("1");
+		dired_printf("1");
 	if (colors[c].underline)
-		printf(";4");
+		dired_printf(";4");
 	if (colors[c].num[0] != -1)
-		printf(";3%d", colors[c].num[0]);
+		dired_printf(";3%d", colors[c].num[0]);
 	if (colors[c].num[1] != -1)
-		printf(";4%d", colors[c].num[1]);
-	printf("m");
+		dired_printf(";4%d", colors[c].num[1]);
+	dired_printf("m");
 }
 
 static void
@@ -605,7 +686,7 @@ static void
 endcolor_ansi(void)
 {
 
-	printf("\33[m");
+	dired_printf("\33[m");
 }
 
 static void
@@ -742,7 +823,7 @@ printlink(const FTSENT *p)
 		return;
 	}
 	path[lnklen] = '\0';
-	(void)printf(" -> ");
+	(void)dired_printf(" -> ");
 	(void)printname(path);
 }
 
@@ -759,9 +840,9 @@ printsize(size_t width, off_t bytes)
 
 		humanize_number(buf, sizeof(buf), (int64_t)bytes, "",
 		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
-		(void)printf("%*s ", (u_int)width, buf);
+		(void)dired_printf("%*s ", (u_int)width, buf);
 	} else {
-		(void)printf(f_thousands ? "%'*jd " : "%*jd ",
+		(void)dired_printf(f_thousands ? "%'*jd " : "%*jd ",
 		    (u_int)width, bytes);
 	}
 }
