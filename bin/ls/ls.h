@@ -62,6 +62,8 @@ extern int f_type;		/* add type character for non-regular files */
 #ifdef COLORLS
 extern int f_color;		/* add type in color for non-regular files */
 #endif
+extern int f_dired;	/* dired mode */
+extern off_t dired_pos;	/* number of bytes written to stdout so far */
 
 typedef struct {
 	FTSENT *list;
