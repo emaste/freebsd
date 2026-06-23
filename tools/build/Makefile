@@ -505,7 +505,17 @@ host-symlinks:
 		echo "Cannot find host tool '${_tool}' in PATH ($$PATH)." >&2; false; \
 	fi; \
 	rm -f "${DESTDIR}/bin/${_tool}"; \
-	${_WRAP_HOST_TOOL} "$${source_path}" "${DESTDIR}/bin/${_tool}"
+	${_WRAP_HOST_TOOL} "$${source_path}" "${DESTDIR}/bin/${_tool}"; \
+	if [ -L "$${source_path}" ]; then \
+		link_target=`readlink "$${source_path}"`; \
+		case "$${link_target}" in \
+		/*) link_real="$${link_target}" ;; \
+		*) link_real="`dirname "$${source_path}"`/$${link_target}" ;; \
+		esac; \
+		link_tool=`basename "$${link_target}"`; \
+		rm -f "${DESTDIR}/bin/$${link_tool}"; \
+		${_WRAP_HOST_TOOL} "$${link_real}" "${DESTDIR}/bin/$${link_tool}"; \
+	fi
 .endfor
 
 # Create all the directories that are needed during the legacy, bootstrap-tools
