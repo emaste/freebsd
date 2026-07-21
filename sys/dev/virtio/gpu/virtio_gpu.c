@@ -534,6 +534,10 @@ vtgpu_get_display_info(struct vtgpu_softc *sc)
 			    sc->vtgpu_fb_info.fb_height * 4;
 			sc->vtgpu_fb_info.fb_stride =
 			    sc->vtgpu_fb_info.fb_width * 4;
+			if (sc->vtgpu_fb_info.fb_width == 0 || sc->vtgpu_fb_info.fb_height == 0) {
+				device_printf(sc->vtgpu_dev, "skipping mode with 0 width or height\n");
+				continue;
+			}
 			return (0);
 	}
 
