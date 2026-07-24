@@ -431,7 +431,7 @@ amdiommu_probe(device_t dev)
 	    4);
 	cap_type = cap_h & PCIM_AMDIOMMU_CAP_TYPE_MASK;
 	cap_rev = cap_h & PCIM_AMDIOMMU_CAP_REV_MASK;
-	if (cap_type != PCIM_AMDIOMMU_CAP_TYPE_VAL &&
+	if (cap_type != PCIM_AMDIOMMU_CAP_TYPE_VAL ||
 	    cap_rev != PCIM_AMDIOMMU_CAP_REV_VAL)
 		return (ENXIO);
 
