@@ -88,22 +88,10 @@ static int       nm_init(struct sc_info *);
 static void      nm_intr(void *);
 
 /* talk to the card */
-<<<<<<< HEAD
 static uint32_t nm_rd(struct sc_info *, int, int);
-static void 	 nm_wr(struct sc_info *, int, uint32_t, int);
+static void	 nm_wr(struct sc_info *, int, uint32_t, int);
 static uint32_t nm_rdbuf(struct sc_info *, int, int);
-static void 	 nm_wrbuf(struct sc_info *, int, uint32_t, int);
-||||||| parent of 73b08696f569 (sound: whitespace cleanup)
-static u_int32_t nm_rd(struct sc_info *, int, int);
-static void 	 nm_wr(struct sc_info *, int, u_int32_t, int);
-static u_int32_t nm_rdbuf(struct sc_info *, int, int);
-static void 	 nm_wrbuf(struct sc_info *, int, u_int32_t, int);
-=======
-static u_int32_t nm_rd(struct sc_info *, int, int);
-static void	 nm_wr(struct sc_info *, int, u_int32_t, int);
-static u_int32_t nm_rdbuf(struct sc_info *, int, int);
-static void	 nm_wrbuf(struct sc_info *, int, u_int32_t, int);
->>>>>>> 73b08696f569 (sound: whitespace cleanup)
+static void	 nm_wrbuf(struct sc_info *, int, uint32_t, int);
 
 static uint32_t badcards[] = {
 	0x0007103c,
