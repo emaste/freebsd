@@ -4224,7 +4224,7 @@ static void
 acpi_system_eventhandler_wakeup(struct acpi_softc *const sc,
     const enum power_stype stype)
 {
-    struct acpi_softc *sc = (struct acpi_softc *)arg;
+    //struct acpi_softc *sc = (struct acpi_softc *)arg;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, stype);
 
