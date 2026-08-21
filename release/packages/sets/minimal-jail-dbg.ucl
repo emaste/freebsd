@@ -16,9 +16,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-comment = "Basic multi-user jail debugging symbols (metapackage)"
+comment = "Basic multi-user jail debugging information (metapackage)"
 
 desc = <<EOD
-This metapackage installs debugging symbols for the packages required to bring
+This metapackage installs debugging information for the packages required to bring
 up a basic multi-user jail.
 EOD
