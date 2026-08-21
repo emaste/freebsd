@@ -863,3 +863,8 @@ dev/clk/xilinx/zynqmp_clk_gate.c		optional fdt soc_xilinx_zynq
 dev/clk/xilinx/zynqmp_clk_mux.c			optional fdt soc_xilinx_zynq
 dev/clk/xilinx/zynqmp_clk_pll.c			optional fdt soc_xilinx_zynq
 dev/clk/xilinx/zynqmp_reset.c			optional fdt soc_xilinx_zynq
+
+# Raspberry Pi RP1 clocks
+arm64/rpi/rpiclock.c				optional fdt rpone
+arm64/rpi/rpiclock_pll.c			optional fdt rpone
+arm64/rpi/rpiclock_periph.c			optional fdt rpone
