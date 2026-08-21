@@ -16,10 +16,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-comment = "Optional software debug symbols (metapackage)"
+comment = "Optional software debug information (metapackage)"
 
 desc = <<EOD
-This metapackage installs debugging symbols for optional software
+This metapackage installs debugging information for optional software
 which is not part of the minimal set.
 EOD
 
