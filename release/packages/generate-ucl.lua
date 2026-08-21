@@ -30,8 +30,8 @@ pkg_suffixes = {
 		"32-bit applications on a 64-bit host."
 	},
 	{
-		"%-dbg%-lib32$", "(32-bit debugging symbols)",
-		"This package contains 32-bit external debugging symbols "..
+		"%-dbg%-lib32$", "(32-bit debugging information)",
+		"This package contains 32-bit external debugging information "..
 		"for use with a source-level debugger.",
 	},
 	{
@@ -58,8 +58,8 @@ pkg_suffixes = {
 		"This package contains the online manual pages."
 	},
 	{
-		"%-dbg$", "(debugging symbols)",
-		"This package contains external debugging symbols for use "..
+		"%-dbg$", "(debugging information)",
+		"This package contains external debugging information for use "..
 		"with a source-level debugger.",
 	},
 }
@@ -186,7 +186,7 @@ sets = obj["annotations"]["set"] or "base"
 --
 -- Create a single lib32 set for all lib32 packages.  Most users don't need
 -- lib32, so this avoids creating a large number of unnecessary lib32 sets.
--- However, lib32 debug symbols still go into their own package since they're
+-- However, lib32 debug information still go into their own package since they're
 -- quite large.
 if pkgname:match("%-dbg%-lib32$") then
 	sets = "lib32-dbg"
@@ -204,7 +204,7 @@ elseif pkgname:match("%-dev$") or pkgname:match("^lib.*%-man$") then
 elseif sets == "tests" then
 	sets = sets
 -- If this is a -dbg package, put it in the -dbg subpackage of each set,
--- which means the user can install debug symbols only for the sets they
+-- which means the user can install debug information only for the sets they
 -- have installed.
 elseif pkgname:match("%-dbg$") then
 	local newsets = {}
