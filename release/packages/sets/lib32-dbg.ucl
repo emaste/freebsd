@@ -16,9 +16,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-comment = "32-bit compatibility library debugging symbols (metapackage)"
+comment = "32-bit compatibility library debugging information (metapackage)"
 
 desc = <<EOD
-This metapackage installs debugging symbols for the compatibility libraries
+This metapackage installs debugging information for the compatibility libraries
 required for building and running 32-bit applications on a 64-bit host system.
 EOD

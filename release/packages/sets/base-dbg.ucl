@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-comment = "Base system debug symbols (metapackage)"
+comment = "Base system debug information (metapackage)"
 
 desc = <<EOD
 This metapackage installs debugging symbols for the complete base system.
