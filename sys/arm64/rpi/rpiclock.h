@@ -1,0 +1,310 @@
+
+#include <sys/cdefs.h>
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/proc.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/rman.h>
+#include <sys/endian.h>
+
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_pci.h>
+
+#include <dev/fdt/fdt_intr.h>
+#include <dev/fdt/simplebus.h>
+
+#include <machine/bus.h>
+#include <machine/intr.h>
+#include <machine/resource.h>
+
+#include <dev/clk/clk.h>
+
+#include "clkdev_if.h"
+
+#include <dt-bindings/clock/raspberrypi,rp1-clocks.h>
+
+#define	RD4(sc, reg, val)	CLKDEV_READ_4((sc)->clkdev, reg, val)
+#define	WR4(sc, reg, val)	CLKDEV_WRITE_4((sc)->clkdev, reg, val)
+#define	MD4(sc, reg, mask, set)	CLKDEV_MODIFY_4((sc)->clkdev, reg, mask, set)
+#define	DEVICE_LOCK(sc)		CLKDEV_DEVICE_LOCK((sc)->clkdev)
+#define	DEVICE_UNLOCK(sc)	CLKDEV_DEVICE_UNLOCK((sc)->clkdev)
+
+#define PLL_SYS_OFFSET			0x08000
+#define PLL_SYS_CS			(PLL_SYS_OFFSET + 0x00)
+#define PLL_SYS_PWR			(PLL_SYS_OFFSET + 0x04)
+#define PLL_SYS_FBDIV_INT		(PLL_SYS_OFFSET + 0x08)
+#define PLL_SYS_FBDIV_FRAC		(PLL_SYS_OFFSET + 0x0c)
+#define PLL_SYS_PRIM			(PLL_SYS_OFFSET + 0x10)
+#define PLL_SYS_SEC			(PLL_SYS_OFFSET + 0x14)
+
+#define PLL_AUDIO_OFFSET		0x0c000
+#define PLL_AUDIO_CS			(PLL_AUDIO_OFFSET + 0x00)
+#define PLL_AUDIO_PWR			(PLL_AUDIO_OFFSET + 0x04)
+#define PLL_AUDIO_FBDIV_INT		(PLL_AUDIO_OFFSET + 0x08)
+#define PLL_AUDIO_FBDIV_FRAC		(PLL_AUDIO_OFFSET + 0x0c)
+#define PLL_AUDIO_PRIM			(PLL_AUDIO_OFFSET + 0x10)
+#define PLL_AUDIO_SEC			(PLL_AUDIO_OFFSET + 0x14)
+#define PLL_AUDIO_TERN			(PLL_AUDIO_OFFSET + 0x18)
+
+#define PLL_VIDEO_OFFSET		0x10000
+#define PLL_VIDEO_CS			(PLL_VIDEO_OFFSET + 0x00)
+#define PLL_VIDEO_PWR			(PLL_VIDEO_OFFSET + 0x04)
+#define PLL_VIDEO_FBDIV_INT		(PLL_VIDEO_OFFSET + 0x08)
+#define PLL_VIDEO_FBDIV_FRAC		(PLL_VIDEO_OFFSET + 0x0c)
+#define PLL_VIDEO_PRIM			(PLL_VIDEO_OFFSET + 0x10)
+#define PLL_VIDEO_SEC			(PLL_VIDEO_OFFSET + 0x14)
+
+#define GPCLK_OE_CTRL			0x00000
+
+#define CLK_SYS_OFFSET			0x00014
+#define CLK_SYS_CTRL			(CLK_SYS_OFFSET + 0x00)
+#define CLK_SYS_DIV_INT			(CLK_SYS_OFFSET + 0x04)
+#define CLK_SYS_SEL			(CLK_SYS_OFFSET + 0x0c)
+
+#define CLK_SLOW_OFFSET			0x00024
+#define CLK_SLOW_SYS_CTRL		(CLK_SLOW_OFFSET + 0x00)
+#define CLK_SLOW_SYS_DIV_INT		(CLK_SLOW_OFFSET + 0x04)
+#define CLK_SLOW_SYS_SEL		(CLK_SLOW_OFFSET + 0x0c)
+
+#define CLK_DMA_OFFSET			0x00044
+#define CLK_DMA_CTRL			(CLK_DMA_OFFSET + 0x00)
+#define CLK_DMA_DIV_INT			(CLK_DMA_OFFSET + 0x04)
+#define CLK_DMA_SEL			(CLK_DMA_OFFSET + 0x0c)
+
+#define CLK_UART_OFFSET			0x00054
+#define CLK_UART_CTRL			(CLK_UART_OFFSET + 0x00)
+#define CLK_UART_DIV_INT		(CLK_UART_OFFSET + 0x04)
+#define CLK_UART_SEL			(CLK_UART_OFFSET + 0x0c)
+
+#define CLK_ETH_OFFSET			0x00064
+#define CLK_ETH_CTRL			(CLK_ETH_OFFSET + 0x00)
+#define CLK_ETH_DIV_INT			(CLK_ETH_OFFSET + 0x04)
+#define CLK_ETH_SEL			(CLK_ETH_OFFSET + 0x0c)
+
+#define CLK_PWM0_OFFSET			0x00074
+#define CLK_PWM0_CTRL			(CLK_PWM0_OFFSET + 0x00)
+#define CLK_PWM0_DIV_INT		(CLK_PWM0_OFFSET + 0x04)
+#define CLK_PWM0_DIV_FRAC		(CLK_PWM0_OFFSET + 0x08)
+#define CLK_PWM0_SEL			(CLK_PWM0_OFFSET + 0x0c)
+
+#define CLK_PWM1_OFFSET			0x00084
+#define CLK_PWM1_CTRL			(CLK_PWM1_OFFSET + 0x00)
+#define CLK_PWM1_DIV_INT		(CLK_PWM1_OFFSET + 0x04)
+#define CLK_PWM1_DIV_FRAC		(CLK_PWM1_OFFSET + 0x08)
+#define CLK_PWM1_SEL			(CLK_PWM1_OFFSET + 0x0c)
+
+#define CLK_AUDIO_IN_OFFSET		0x00094
+#define CLK_AUDIO_IN_CTRL		(CLK_AUDIO_IN_OFFSET + 0x00)
+#define CLK_AUDIO_IN_DIV_INT		(CLK_AUDIO_IN_OFFSET + 0x04)
+#define CLK_AUDIO_IN_SEL		(CLK_AUDIO_IN_OFFSET + 0x0c)
+
+#define CLK_AUDIO_OUT_OFFSET		0x000a4
+#define CLK_AUDIO_OUT_CTRL		(CLK_AUDIO_OUT_OFFSET + 0x00)
+#define CLK_AUDIO_OUT_DIV_INT		(CLK_AUDIO_OUT_OFFSET + 0x04)
+#define CLK_AUDIO_OUT_SEL		(CLK_AUDIO_OUT_OFFSET + 0x0c)
+
+#define CLK_I2S_OFFSET			0x000b4
+#define CLK_I2S_CTRL			(CLK_I2S_OFFSET + 0x00)
+#define CLK_I2S_DIV_INT			(CLK_I2S_OFFSET + 0x04)
+#define CLK_I2S_SEL			(CLK_I2S_OFFSET + 0x0c)
+
+#define CLK_MIPI0_CFG_OFFSET		0x000c4
+#define CLK_MIPI0_CFG_CTRL		(CLK_MIPI0_CFG_OFFSET + 0x00)
+#define CLK_MIPI0_CFG_DIV_INT		(CLK_MIPI0_CFG_OFFSET + 0x04)
+#define CLK_MIPI0_CFG_SEL		(CLK_MIPI0_CFG_OFFSET + 0x0c)
+
+#define CLK_MIPI1_CFG_OFFSET		0x000d4
+#define CLK_MIPI1_CFG_CTRL		(CLK_MIPI1_CFG_OFFSET + 0x00)
+#define CLK_MIPI1_CFG_DIV_INT		(CLK_MIPI1_CFG_OFFSET + 0x04)
+#define CLK_MIPI1_CFG_SEL		(CLK_MIPI1_CFG_OFFSET + 0x0c)
+
+#define CLK_PCIE_AUX_OFFSET		0x000e4
+#define CLK_PCIE_AUX_CTRL		(CLK_PCIE_AUX_OFFSET + 0x00)
+#define CLK_PCIE_AUX_DIV_INT		(CLK_PCIE_AUX_OFFSET + 0x04)
+#define CLK_PCIE_AUX_SEL		(CLK_PCIE_AUX_OFFSET + 0x0c)
+
+#define CLK_USBH0_MICROFRAME_OFFSET	0x000f4
+#define CLK_USBH0_MICROFRAME_CTRL	(CLK_USBH0_MICROFRAME_OFFSET + 0x00)
+#define CLK_USBH0_MICROFRAME_DIV_INT	(CLK_USBH0_MICROFRAME_OFFSET + 0x04)
+#define CLK_USBH0_MICROFRAME_SEL	(CLK_USBH0_MICROFRAME_OFFSET + 0x0c)
+
+#define CLK_USBH1_MICROFRAME_OFFSET	0x00104
+#define CLK_USBH1_MICROFRAME_CTRL	(CLK_USBH1_MICROFRAME_OFFSET + 0x00)
+#define CLK_USBH1_MICROFRAME_DIV_INT	(CLK_USBH1_MICROFRAME_OFFSET + 0x04)
+#define CLK_USBH1_MICROFRAME_SEL	(CLK_USBH1_MICROFRAME_OFFSET + 0x0c)
+
+#define CLK_USBH0_SUSPEND_OFFSET	0x00114
+#define CLK_USBH0_SUSPEND_CTRL		(CLK_USBH0_SUSPEND_OFFSET + 0x00)
+#define CLK_USBH0_SUSPEND_DIV_INT	(CLK_USBH0_SUSPEND_OFFSET + 0x04)
+#define CLK_USBH0_SUSPEND_SEL		(CLK_USBH0_SUSPEND_OFFSET + 0x0c)
+
+#define CLK_USBH1_SUSPEND_OFFSET	0x00124
+#define CLK_USBH1_SUSPEND_CTRL		(CLK_USBH1_SUSPEND_OFFSET + 0x00)
+#define CLK_USBH1_SUSPEND_DIV_INT	(CLK_USBH1_SUSPEND_OFFSET + 0x04)
+#define CLK_USBH1_SUSPEND_SEL		(CLK_USBH1_SUSPEND_OFFSET + 0x0c)
+
+#define CLK_ETH_TSU_OFFSET		0x00134
+#define CLK_ETH_TSU_CTRL		(CLK_ETH_TSU_OFFSET + 0x00)
+#define CLK_ETH_TSU_DIV_INT		(CLK_ETH_TSU_OFFSET + 0x04)
+#define CLK_ETH_TSU_SEL			(CLK_ETH_TSU_OFFSET + 0x0c)
+
+#define CLK_ADC_OFFSET			0x00144
+#define CLK_ADC_CTRL			(CLK_ADC_OFFSET + 0x00)
+#define CLK_ADC_DIV_INT			(CLK_ADC_OFFSET + 0x04)
+#define CLK_ADC_SEL			(CLK_ADC_OFFSET + 0x0c)
+
+#define CLK_SDIO_TIMER_OFFSET		0x00154
+#define CLK_SDIO_TIMER_CTRL		(CLK_SDIO_TIMER_OFFSET + 0x00)
+#define CLK_SDIO_TIMER_DIV_INT		(CLK_SDIO_TIMER_OFFSET + 0x04)
+#define CLK_SDIO_TIMER_SEL		(CLK_SDIO_TIMER_OFFSET + 0x0c)
+
+#define CLK_SDIO_ALT_SRC_OFFSET		0x00164
+#define CLK_SDIO_ALT_SRC_CTRL		(CLK_SDIO_ALT_SRC_OFFSET + 0x00)
+#define CLK_SDIO_ALT_SRC_DIV_INT	(CLK_SDIO_ALT_SRC_OFFSET + 0x04)
+#define CLK_SDIO_ALT_SRC_SEL		(CLK_SDIO_ALT_SRC_OFFSET + 0x0c)
+
+#define CLK_GP0_OFFSET			0x00174
+#define CLK_GP0_CTRL			(CLK_GP0_OFFSET + 0x00)
+#define CLK_GP0_DIV_INT			(CLK_GP0_OFFSET + 0x04)
+#define CLK_GP0_DIV_FRAC		(CLK_GP0_OFFSET + 0x08)
+#define CLK_GP0_SEL			(CLK_GP0_OFFSET + 0x0c)
+
+#define CLK_GP1_OFFSET			0x00184
+#define CLK_GP1_CTRL			(CLK_GP1_OFFSET + 0x00)
+#define CLK_GP1_DIV_INT			(CLK_GP1_OFFSET + 0x04)
+#define CLK_GP1_DIV_FRAC		(CLK_GP1_OFFSET + 0x08)
+#define CLK_GP1_SEL			(CLK_GP1_OFFSET + 0x0c)
+
+#define CLK_GP2_OFFSET			0x00194
+#define CLK_GP2_CTRL			(CLK_GP2_OFFSET + 0x00)
+#define CLK_GP2_DIV_INT			(CLK_GP2_OFFSET + 0x04)
+#define CLK_GP2_DIV_FRAC		(CLK_GP2_OFFSET + 0x08)
+#define CLK_GP2_SEL			(CLK_GP2_OFFSET + 0x0c)
+
+#define CLK_GP3_OFFSET			0x001a4
+#define CLK_GP3_CTRL			(CLK_GP3_OFFSET + 0x00)
+#define CLK_GP3_DIV_INT			(CLK_GP3_OFFSET + 0x04)
+#define CLK_GP3_DIV_FRAC		(CLK_GP3_OFFSET + 0x08)
+#define CLK_GP3_SEL			(CLK_GP3_OFFSET + 0x0c)
+
+#define CLK_GP4_OFFSET			0x001b4
+#define CLK_GP4_CTRL			(CLK_GP4_OFFSET + 0x00)
+#define CLK_GP4_DIV_INT			(CLK_GP4_OFFSET + 0x04)
+#define CLK_GP4_DIV_FRAC		(CLK_GP4_OFFSET + 0x08)
+#define CLK_GP4_SEL			(CLK_GP4_OFFSET + 0x0c)
+
+#define CLK_GP5_OFFSET			0x001c4
+#define CLK_GP5_CTRL			(CLK_GP5_OFFSET + 0x00)
+#define CLK_GP5_DIV_INT			(CLK_GP5_OFFSET + 0x04)
+#define CLK_GP5_DIV_FRAC		(CLK_GP5_OFFSET + 0x08)
+#define CLK_GP5_SEL			(CLK_GP5_OFFSET + 0x0c)
+
+#define CLK_SYS_RESUS_CTRL		0x0020c
+
+#define CLK_SLOW_SYS_RESUS_CTRL		0x00214
+
+#define FC0_OFFSET			0x0021c
+#define FC0_REF_KHZ			(FC0_OFFSET + 0x00)
+#define FC0_MIN_KHZ			(FC0_OFFSET + 0x04)
+#define FC0_MAX_KHZ			(FC0_OFFSET + 0x08)
+#define FC0_DELAY			(FC0_OFFSET + 0x0c)
+#define FC0_INTERVAL			(FC0_OFFSET + 0x10)
+#define FC0_SRC				(FC0_OFFSET + 0x14)
+#define FC0_STATUS			(FC0_OFFSET + 0x18)
+#define FC0_RESULT			(FC0_OFFSET + 0x1c)
+#define FC_SIZE				0x20
+#define FC_COUNT			8
+#define FC_NUM(idx, off)		((idx) * 32 + (off))
+
+#define AUX_SEL				1
+
+#define VIDEO_CLOCKS_OFFSET		0x4000
+#define VIDEO_CLK_VEC_CTRL		(VIDEO_CLOCKS_OFFSET + 0x0000)
+#define VIDEO_CLK_VEC_DIV_INT		(VIDEO_CLOCKS_OFFSET + 0x0004)
+#define VIDEO_CLK_VEC_SEL		(VIDEO_CLOCKS_OFFSET + 0x000c)
+#define VIDEO_CLK_DPI_CTRL		(VIDEO_CLOCKS_OFFSET + 0x0010)
+#define VIDEO_CLK_DPI_DIV_INT		(VIDEO_CLOCKS_OFFSET + 0x0014)
+#define VIDEO_CLK_DPI_SEL		(VIDEO_CLOCKS_OFFSET + 0x001c)
+#define VIDEO_CLK_MIPI0_DPI_CTRL	(VIDEO_CLOCKS_OFFSET + 0x0020)
+#define VIDEO_CLK_MIPI0_DPI_DIV_INT	(VIDEO_CLOCKS_OFFSET + 0x0024)
+#define VIDEO_CLK_MIPI0_DPI_DIV_FRAC	(VIDEO_CLOCKS_OFFSET + 0x0028)
+#define VIDEO_CLK_MIPI0_DPI_SEL		(VIDEO_CLOCKS_OFFSET + 0x002c)
+#define VIDEO_CLK_MIPI1_DPI_CTRL	(VIDEO_CLOCKS_OFFSET + 0x0030)
+#define VIDEO_CLK_MIPI1_DPI_DIV_INT	(VIDEO_CLOCKS_OFFSET + 0x0034)
+#define VIDEO_CLK_MIPI1_DPI_DIV_FRAC	(VIDEO_CLOCKS_OFFSET + 0x0038)
+#define VIDEO_CLK_MIPI1_DPI_SEL		(VIDEO_CLOCKS_OFFSET + 0x003c)
+
+#define DIV_INT_8BIT_MAX		(0xff << 0)
+#define DIV_INT_16BIT_MAX		(0xffff << 0)
+#define DIV_INT_24BIT_MAX               (0xffffff << 0)
+
+#define FC0_STATUS_DONE			(1 << 4)
+#define FC0_STATUS_RUNNING		(1 << 8)
+#define FC0_RESULT_FRAC_SHIFT		5
+
+#define PLL_PRIM_DIV1_SHIFT		16
+#define PLL_PRIM_DIV1_MASK		(0x7 << PLL_PRIM_DIV1_SHIFT)
+#define PLL_PRIM_DIV2_SHIFT		12
+#define PLL_PRIM_DIV2_MASK		(0x7 << PLL_PRIM_DIV2_SHIFT)
+
+#define PLL_SEC_DIV_SHIFT		8
+#define PLL_SEC_DIV_MASK		(0x1f << PLL_SEC_DIV_SHIFT)
+
+#define PLL_CS_LOCK			(1 << 31)
+#define PLL_CS_REFDIV_SHIFT		1
+#define PLL_CS_REFDIV_MASK		(1 << PLL_CS_REFDIV_SFHIFT)
+
+#define PLL_PWR_PD			(1 << 0)
+#define PLL_PWR_DACPD			(1 << 1)
+#define PLL_PWR_DSMPD			(1 << 2)
+#define PLL_PWR_POSTDIVPD		(1 << 3)
+#define PLL_PWR_4PHASEPD		(1 << 4)
+#define PLL_PWR_VCOPD			(1 << 5)
+#define PLL_PWR_MASK			(0x3f << 0)
+
+#define PLL_SEC_RST			(1 << 16)
+#define PLL_SEC_IMPL			(1 << 31)
+
+/* PLL phase output for both PRI and SEC */
+#define PLL_PH_EN			(1 << 4)
+#define PLL_PH_PHASE_SHIFT		0
+
+#define RP1_PLL_PHASE_0			0
+#define RP1_PLL_PHASE_90		1
+#define RP1_PLL_PHASE_180		2
+#define RP1_PLL_PHASE_270		3
+
+/* Clock fields for all clocks */
+#define CLK_CTRL_ENABLE			(1 << 11)
+#define CLK_CTRL_AUXSRC_SHIFT		5
+#define CLK_CTRL_AUXSRC_MASK		(0x1f << CLK_CTRL_AUXSRC_SHIFT)
+#define CLK_CTRL_SRC_SHIFT		0
+#define CLK_DIV_FRAC_BITS		16
+
+#define LOCK_TIMEOUT_US			100000
+#define LOCK_POLL_DELAY_US		5
+
+#define MAX_CLK_PARENTS			16
+
+#define PLL_DIV_INVALID			19
+
+#define DIV_ROUND(x, y) ((x) / (y))
+
+struct rpiclock_softc {
+	device_t dev;
+
+	struct clkdom *clkdom;
+
+	struct resource *mem_res;
+
+	struct mtx mtx;
+};
+
+void rpiclock_init_plls(struct rpiclock_softc *sc);
+void rpiclock_init_periphs(struct rpiclock_softc *sc);
