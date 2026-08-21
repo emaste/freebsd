@@ -16,9 +16,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-comment = "Base system kernels debugging symbols (metapackage)"
+comment = "Base system kernels debugging information (metapackage)"
 
 desc = <<EOD
-This metapackage installs debugging symbols for the operating system kernels
+This metapackage installs debugging information for the operating system kernels
 provided with the base system.
 EOD
