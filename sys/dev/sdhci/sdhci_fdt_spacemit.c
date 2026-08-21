@@ -65,7 +65,7 @@ static int
 sdhci_fdt_spacemit_attach(device_t dev)
 {
 	struct sdhci_fdt_softc *sc;
-	clk_t clk_core;
+	clk_t clk_core; // XXX not stored for detach? io clock in sc->clk_core
 	hwreset_t rst;
 
 	sc = device_get_softc(dev);
