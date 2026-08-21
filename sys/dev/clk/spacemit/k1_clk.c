@@ -338,6 +338,7 @@ k1_clk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		mux_mask <<= clk_sc->mux_shift;
 		val = READ4(sc, clk_sc->reg);
 		val &= ~mux_mask;
+		// XXX should be best_parent, not p_idx?
 		val |= (p_idx << clk_sc->mux_shift);
 		WRITE4(sc, clk_sc->reg, val);
 
