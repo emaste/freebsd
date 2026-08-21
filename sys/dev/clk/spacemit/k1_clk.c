@@ -294,6 +294,7 @@ k1_clk_send_fc_req(struct clknode *clk)
 	}
 	if ((val & clk_sc->fc_mask) != 0) {
 		/* The FC bit is still set, something went wrong. */
+		// XXX should emit diagnostic?
 		return (ENXIO);
 	}
 
