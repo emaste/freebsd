@@ -74,6 +74,7 @@
 }
 
 static struct k1_clk_def k1_plls[] = {
+	// XXX should these read the values in the registers?
     K1_PLL_ROOT(pll1, CLK_PLL1, 2457600000UL),
     K1_PLL_ROOT(pll2, CLK_PLL2, 3000000000UL),
     K1_PLL_ROOT(pll3, CLK_PLL3, 3200000000UL),
