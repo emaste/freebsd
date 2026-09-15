@@ -1789,7 +1789,7 @@ digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
 	const char *note_name;
 	uintptr_t p;
 
-	for (note = (const Elf_Note *)note_start;; note = next_note) {
+	for (note = (const Elf_Note *)note_start; ; note = next_note) {
 		if ((Elf_Addr)note + sizeof(Elf_Note) > note_end)
 			break;
 		next_note = (const Elf_Note *)((const char *)(note + 1) +
