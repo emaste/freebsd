@@ -133,6 +133,10 @@ static VT_SYSCTL_INT(enable_bell, 0, "Enable bell");
 static VT_SYSCTL_INT(debug, 0, "vt(4) debug level");
 static VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
 static VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
+static VT_SYSCTL_INT(mouse_scroll_lines, 3,
+	"Lines per mouse wheel unit in scrollback mode (0 disables)");
+static VT_SYSCTL_INT(mouse_scroll_reverse, 0,
+	"Reverse mouse wheel direction in scrollback mode");
 
 /* Slow down and dont rely on timers and interrupts */
 static VT_SYSCTL_INT(slow_down, 0, "Non-zero make console slower and synchronous.");
@@ -2418,22 +2422,45 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 	struct vt_window *vw;
 	struct vt_font *vf;
 	term_pos_t size;
-	int len, mark;
+	int len, mark, scroll_lines;
+	int64_t scroll_limit, scroll_offset;
 
 	vd = main_vd;
+	VT_LOCK(vd);
 	vw = vd->vd_curwindow;
 	vf = vw->vw_font;
 
-	if (vw->vw_flags & (VWF_MOUSE_HIDE | VWF_GRAPHICS))
+	if (vw->vw_flags & (VWF_MOUSE_HIDE | VWF_GRAPHICS)) {
 		/*
 		 * Either the mouse is disabled, or the window is in
 		 * "graphics mode". The graphics mode is usually set by
 		 * an X server, using the KDSETMODE ioctl.
 		 */
+		VT_UNLOCK(vd);
 		return;
+	}
 
-	if (vf == NULL)	/* Text mode. */
+	if (vf == NULL) {	/* Text mode. */
+		VT_UNLOCK(vd);
 		return;
+	}
+
+	scroll_lines = vt_mouse_scroll_lines;
+	if ((vw->vw_flags & VWF_SCROLL) != 0 &&
+	    (type == MOUSE_ACTION || type == MOUSE_MOTION_EVENT) && z != 0 &&
+	    scroll_lines > 0) {
+		scroll_offset = -(int64_t)z * scroll_lines;
+		if (vt_mouse_scroll_reverse != 0)
+			scroll_offset = -scroll_offset;
+		scroll_limit = MIN((uint64_t)vw->vw_buf.vb_history_size,
+		    (uint64_t)INT_MAX);
+		scroll_offset = MAX(scroll_offset, -scroll_limit);
+		scroll_offset = MIN(scroll_offset, scroll_limit);
+		vt_scroll(vw, (int)scroll_offset, VHS_CUR);
+		VT_UNLOCK(vd);
+		return;
+	}
+	VT_UNLOCK(vd);
 
 	/*
 	 * TODO: add flag about pointer position changed, to not redraw chars
