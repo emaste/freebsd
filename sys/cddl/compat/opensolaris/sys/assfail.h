@@ -38,6 +38,7 @@ extern "C" {
 #endif
 
 #ifdef _KERNEL
+int assfail(const char *, const char *, int);
 void assfail3(const char *, uintmax_t, const char *, uintmax_t, const char *,
     int);
 #else	/* !defined(_KERNEL) */
