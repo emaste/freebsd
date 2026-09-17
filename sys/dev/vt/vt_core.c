@@ -2365,9 +2365,10 @@ vt_mouse_terminput_button(struct vt_device *vd, int button)
 }
 
 static void
-vt_mouse_terminput(struct vt_device *vd, int type, int x, int y, int event,
-    int cnt)
+vt_mouse_terminput(struct vt_device *vd, int type, int x, int y, int z,
+    int event, int cnt)
 {
+	int button, i, wheel_events;
 
 	switch (type) {
 	case MOUSE_BUTTON_EVENT:
@@ -2384,17 +2385,14 @@ vt_mouse_terminput(struct vt_device *vd, int type, int x, int y, int event,
 			vt_mouse_terminput_button(vd, 3);
 		}
 		break;
-#ifdef notyet
 	case MOUSE_MOTION_EVENT:
-		if (mouse->u.data.z < 0) {
-			/* Scroll up. */
-			sc_mouse_input_button(vd, 64);
-		} else if (mouse->u.data.z > 0) {
-			/* Scroll down. */
-			sc_mouse_input_button(vd, 65);
-		}
+		if (z == 0)
+			break;
+		button = z > 0 ? 64 : 65;
+		wheel_events = z > 0 ? z : -z;
+		for (i = 0; i < wheel_events; i++)
+			vt_mouse_terminput_button(vd, button);
 		break;
-#endif
 	}
 }
 
@@ -2416,7 +2414,7 @@ vt_mouse_paste(void)
 }
 
 void
-vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
+vt_mouse_event(int type, int x, int y, int z, int event, int cnt, int mlevel)
 {
 	struct vt_device *vd;
 	struct vt_window *vw;
@@ -2468,7 +2466,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 	 */
 
 	if (vw->vw_mouse_level > 0)
-		vt_mouse_terminput(vd, type, x, y, event, cnt);
+		vt_mouse_terminput(vd, type, x, y, z, event, cnt);
 
 	switch (type) {
 	case MOUSE_ACTION:
