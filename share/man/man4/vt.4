@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 21, 2025
+.Dd September 16, 2026
 .Dt VT 4
 .Os
 .Sh NAME
@@ -64,6 +64,8 @@ In
 .Cd kern.vt.kbd_panic= Ns Ar 0
 .Cd kern.vt.enable_altgr= Ns Ar 0
 .Cd kern.vt.enable_bell= Ns Ar 1
+.Cd kern.vt.mouse_scroll_lines= Ns Ar 3
+.Cd kern.vt.mouse_scroll_reverse= Ns Ar 0
 .Sh DESCRIPTION
 The
 .Nm
@@ -120,6 +122,13 @@ The Page Up and Page Down keys scroll up or down a full screen at a
 time.
 The Home and End keys jump to the beginning or end of the scrollback
 buffer.
+By default, the mouse wheel can also be used to scroll up and down while
+scrollback mode is active.
+This behavior is controlled by the
+.Va kern.vt.mouse_scroll_lines
+and
+.Va kern.vt.mouse_scroll_reverse
+sysctl variables.
 When finished reviewing, press the Scroll Lock key again to return to
 normal use.
 Some laptop keyboards lack a Scroll Lock key, and use a special function key
@@ -331,6 +340,16 @@ or changed at runtime with
 Disable printing kernel messages to the system console.
 .It Va kern.vt.enable_bell
 Enable the terminal bell.
+.It Va kern.vt.mouse_scroll_lines
+Set the number of lines to scroll per mouse wheel unit while Scroll Lock
+is enabled.
+Set to 0 to disable mouse wheel scrolling.
+The default is 3.
+.It Va kern.vt.mouse_scroll_reverse
+Set to a non-zero value to reverse the mouse wheel scroll direction while
+Scroll Lock is enabled.
+This behavior is sometimes called natural scrolling.
+The default is 0.
 .El
 .Sh FILES
 .Bl -tag -width "/usr/share/vt/keymaps/*.kbd" -compact
