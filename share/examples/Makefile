@@ -94,10 +94,6 @@ SE_DIRS+=	inotify
 SE_INOTIFY=	inotify.c \
 		Makefile
 
-.if ${MK_IPFILTER} != "no"
-SUBDIR+=	ipfilter
-.endif
-
 SE_DIRS+=	ipfw
 SE_IPFWPACKAGE=	ipfw
 SE_IPFW=	change_rules.sh
