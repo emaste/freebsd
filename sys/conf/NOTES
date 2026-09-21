@@ -1063,11 +1063,6 @@ options 	IPFIREWALL_NAT		#ipfw kernel nat support
 options 	IPFIREWALL_NAT64	#ipfw kernel NAT64 support
 options 	IPFIREWALL_NPTV6	#ipfw kernel IPv6 NPT support
 options 	IPDIVERT		#divert sockets
-options 	IPFILTER		#ipfilter support
-options 	IPFILTER_LOG		#ipfilter logging
-options 	IPFILTER_LOOKUP		#ipfilter pools
-options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
-options		IPFILTER_IPFS		#enable experimental ipfs(8) support
 options 	IPSTEALTH		#support for stealth forwarding
 options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCP_BLACKBOX
