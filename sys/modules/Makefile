@@ -186,7 +186,6 @@ SUBDIR=	\
 	${_ioat} \
         ${_ipoib} \
 	ipdivert \
-	${_ipfilter} \
 	${_ipfw} \
 	ipfw_nat \
 	${_ipfw_nat64} \
@@ -521,10 +520,6 @@ _ipfw_nat64=	ipfw_nat64
 
 .if ${MK_INET6_SUPPORT} != "no" || defined(ALL_MODULES)
 _ipfw_nptv6=	ipfw_nptv6
-.endif
-
-.if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
-_ipfilter=	ipfilter
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" && ${KERN_OPTS:MFIB_ALGO} && ${KERN_OPTS:MINET}

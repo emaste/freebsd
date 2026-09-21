@@ -2620,7 +2620,7 @@ OLD_FILES+=usr/share/man/man5/inetd.conf.5.gz
 OLD_FILES+=usr/share/man/man8/inetd.8.gz
 .endif
 
-.if ${MK_IPFILTER} == no
+# Move to ObsoleteFiles.inc
 OLD_FILES+=etc/periodic/security/510.ipfdenied
 OLD_FILES+=etc/periodic/security/610.ipf6denied
 OLD_FILES+=etc/rc.d/ipfilter
@@ -2709,11 +2709,8 @@ OLD_FILES+=usr/share/man/man8/ipfstat.8.gz
 OLD_FILES+=usr/share/man/man8/ipmon.8.gz
 OLD_FILES+=usr/share/man/man8/ipnat.8.gz
 OLD_FILES+=usr/share/man/man8/ippool.8.gz
-.endif
 
-.if ${MK_IPFILTER_IPFS} == no
 OLD_FILES+=sbin/ipfs
-.endif
 
 .if ${MK_IPFW} == no
 OLD_FILES+=etc/rc.d/ipfw
