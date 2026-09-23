@@ -748,6 +748,10 @@ clearenv(void)
 	if (__merge_environ() == -1 || (envVars == NULL && __build_env() == -1))
 		return (-1);
 
+	/* Nothing to do if env is empty. */
+	if (envVars == NULL)
+		return (0);
+
 	/* Remove from the end to not shuffle memory too much. */
 	for (ndx = envVarsTotal - 1; ndx >= 0; ndx--) {
 		envVars[ndx].active = false;
