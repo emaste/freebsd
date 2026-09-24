@@ -148,7 +148,7 @@ static int64_t cd9660_compute_offsets(iso9660_disk *, cd9660node *, int64_t);
 static int cd9660_copy_stat_info(cd9660node *, cd9660node *, int);
 #endif
 static cd9660node *cd9660_create_virtual_entry(iso9660_disk *, const char *,
-    cd9660node *, int, int);
+    cd9660node *, bool, bool);
 static cd9660node *cd9660_create_file(iso9660_disk *, const char *,
     cd9660node *, cd9660node *);
 static cd9660node *cd9660_create_directory(iso9660_disk *, const char *,
@@ -1845,7 +1845,7 @@ cd9660_copy_stat_info(cd9660node *from, cd9660node *to, int file)
 
 static cd9660node *
 cd9660_create_virtual_entry(iso9660_disk *diskStructure, const char *name,
-    cd9660node *parent, int file, int insert)
+    cd9660node *parent, bool file, bool insert)
 {
 	cd9660node *temp;
 	fsnode * tfsnode;
@@ -1902,7 +1902,8 @@ cd9660_create_file(iso9660_disk *diskStructure, const char *name,
 {
 	cd9660node *temp;
 
-	temp = cd9660_create_virtual_entry(diskStructure, name, parent, 1, 1);
+	temp = cd9660_create_virtual_entry(diskStructure, name, parent, true,
+	    true);
 	if (temp == NULL)
 		return NULL;
 
@@ -1930,7 +1931,8 @@ cd9660_create_directory(iso9660_disk *diskStructure, const char *name,
 {
 	cd9660node *temp;
 
-	temp = cd9660_create_virtual_entry(diskStructure, name, parent, 0, 1);
+	temp = cd9660_create_virtual_entry(diskStructure, name, parent, false,
+	    true);
 	if (temp == NULL)
 		return NULL;
 	temp->node->type |= S_IFDIR;
@@ -1963,7 +1965,7 @@ cd9660_create_special_directory(iso9660_disk *diskStructure, u_char type,
 
 	na[1] = 0;
 	if ((temp = cd9660_create_virtual_entry(diskStructure, na, parent,
-	    0, 0)) == NULL)
+	    false, false)) == NULL)
 		return NULL;
 
 	temp->parent = parent;
