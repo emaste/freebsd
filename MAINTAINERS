@@ -102,7 +102,6 @@ stand			imp	Pre-commit review strongly requested.
 stdio			des	Pre-commit review requested
 sys/compat/linuxkpi		pre-commit review requested via #linuxkpi phabricator group.
 sys/contrib/dev/ice	erj	Pre-commit phabricator review requested.
-sys/netpfil/ipfilter	cy	Pre-commit review requested.
 sys/dev/e1000	#intel_networking	Pre-commit phabricator review requested.
 sys/dev/ixgbe	#intel_networking	Pre-commit phabricator review requested.
 sys/dev/ixl	#intel_networking	Pre-commit phabricator review requested.

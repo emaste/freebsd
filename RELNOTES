@@ -298,9 +298,6 @@ e967a2a03677:
 	services.  The fastboot(8) and fasthalt(8) commands still perform a "fast"
 	reboot or shutdown.
 
-d9788eabffa4:
-	ipfilter cannot be used in a jail by default.
-
 0ff0c19e7f70:
 	ipfs(8) is no longer built by default.
 
