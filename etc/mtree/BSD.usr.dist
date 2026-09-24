@@ -318,8 +318,6 @@
             ..
             inotify
             ..
-            ipfilter
-            ..
             ipfw
             ..
             jails
