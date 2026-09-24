@@ -49,8 +49,7 @@
  * the normal ip_input processing path. We should only be called from
  * interfaces connected to the outside world.
  *
- * Firewalling is fully supported including divert, ipfw fwd and ipfilter
- * ipnat and address rewrite.
+ * Firewalling is fully supported including divert and ipfw fwd.
  *
  * IPSEC is not supported if this host is a tunnel broker. IPSEC is
  * supported for connections to/from local host.
