@@ -36,7 +36,6 @@ _start=quietstart
 /etc/rc.d/hostid ${_start}
 /etc/rc.d/hostname ${_start}
 /etc/rc.d/ipmon ${_start}
-/etc/rc.d/ipfilter ${_start}
 /etc/rc.d/ipnat ${_start}
 /etc/rc.d/ipfs ${_start}
 /etc/rc.d/netif ${_start}
