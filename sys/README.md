@@ -54,7 +54,7 @@ Source Roadmap:
 | netinet6 | IPv6 protocol implementation - `inet6(4)` |
 | netipsec | IPsec protocol implementation - `ipsec(4)` |
 | netlink | kernel network configuration protocol - `netlink(4)` |
-| netpfil | packet filters - `ipfw(4)`, `pf(4)`, and `ipfilter(4)` |
+| netpfil | packet filters - `ipfw(4)` and `pf(4)` |
 | netsmb | Server Message Block protocol implementation |
 | nfs | common code and headers for Network File System |
 | nfsclient | NFS client implementation for mounting and stats |
