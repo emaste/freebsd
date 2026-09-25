@@ -283,7 +283,8 @@ __rebuild_environ(int newEnvironSize)
 	for (envNdx = envVarsTotal - 1, environNdx = 0; envNdx >= 0; envNdx--)
 		if (envVars[envNdx].active)
 			intEnviron[environNdx++] = envVars[envNdx].name;
-	intEnviron[environNdx] = NULL;
+	if (intEnviron != NULL)
+		intEnviron[environNdx] = NULL;
 
 	/* Always set environ which may have been replaced by program. */
 	environ = intEnviron;
