@@ -11,6 +11,13 @@ ARGS="$ARGS -s"
 ARGS="$ARGS PORTSDIR=/home/emaste/src/freebsd-ports"
 ARGS="$ARGS -DNO_ROOT -DWITHOUT_QEMU"
 
+if [ -z $MAKEOBJDIRPREFIX ]; then
+	OBJDIR=$(make -V .OBJDIR)
+	if ! [ -d $OBJDIR ] && ! mkdir -p $OBJDIR 2>/dev/null; then
+		MAKEOBJDIRPREFIX=/home/$USER/obj
+		export MAKEOBJDIRPREFIX
+	fi
+fi
 LOG=$(pwd)/build.$(date +%Y%m%d_%H%M%S).log
 ln -fs $LOG build.log
 
