@@ -193,7 +193,7 @@ ffs_prep_opts(fsinfo_t *fsopts)
 	ffs_opts->maxbpg= -1;
 	ffs_opts->avgfilesize= -1;
 	ffs_opts->avgfpdir= -1;
-	ffs_opts->version = 1;
+	ffs_opts->version = 2;
 	ffs_opts->softupdates = 0;
 
 	fsopts->fs_specific = ffs_opts;
