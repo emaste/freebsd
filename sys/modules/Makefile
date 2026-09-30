@@ -281,6 +281,7 @@ SUBDIR=	\
 	msdosfs \
 	msdosfs_iconv \
 	msk \
+	${_mt76} \
 	${_mthca} \
 	mvs \
 	mwl \
@@ -559,6 +560,7 @@ SUBDIR+=	linux_common
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "riscv"
 _iwlwifi=	iwlwifi
+_mt76=		mt76
 _rtw88=		rtw88
 # rtw89 currently cannot be compiled without ACPI (seems also broken in Linux).
 .if ${KERN_OPTS:MDEV_ACPI}
