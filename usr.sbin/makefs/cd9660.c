@@ -1645,8 +1645,9 @@ printf("oldname=%s\n", oldname);
 			*newname++ = '.';
 		/* Add version */
 		snprintf(newname, newnamelen - (newname - orignewname), ";%i", 1);
-	} else
+	} else {
 		*newname = '\0';
+	}
 
 printf("newname=%s\n", orignewname);
 	return (namelen + extlen + found_ext);
