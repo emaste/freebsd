@@ -376,7 +376,7 @@ test-system-${_t}: .PHONY
 .endif
 BUILD_USER!=	id -u
 .if ${BUILD_USER} == 0
-.warning Warning: ${.TARGETS} should not be run as root
+.info Running ${.TARGETS} as root is discouraged
 .endif
 .endif
 
