@@ -2866,6 +2866,7 @@ skip_thunk:
 		return (0);
 	case CONS_HISTORY:
 		// XXX vexeduxr comment in D57250, should have kernel config param for limit
+		/* XXX 16384 max */
 		if (*(int *)data < 0 ||
 		    *(int *)data > UINT_MAX / USHRT_MAX / sizeof(term_char_t))
 			return (EINVAL);
