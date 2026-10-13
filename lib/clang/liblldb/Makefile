@@ -474,6 +474,7 @@ SRCS+=		Plugins/Platform/FreeBSD/PlatformFreeBSD.cpp
 SRCS+=		Plugins/Platform/POSIX/PlatformPOSIX.cpp
 SRCS+=		Plugins/Platform/QemuUser/PlatformQemuUser.cpp
 SRCS+=		Plugins/Platform/gdb-server/PlatformRemoteGDBServer.cpp
+.if ${MACHINE_CPUARCH} != "riscv"
 SRCS+=		Plugins/Process/FreeBSD/NativeProcessFreeBSD.cpp
 SRCS+=		Plugins/Process/FreeBSD/NativeRegisterContextFreeBSD.cpp
 SRCS+=		Plugins/Process/FreeBSD/NativeRegisterContextFreeBSD_arm.cpp
@@ -482,6 +483,7 @@ SRCS+=		Plugins/Process/FreeBSD/NativeRegisterContextFreeBSD_mips64.cpp
 SRCS+=		Plugins/Process/FreeBSD/NativeRegisterContextFreeBSD_powerpc.cpp
 SRCS+=		Plugins/Process/FreeBSD/NativeRegisterContextFreeBSD_x86_64.cpp
 SRCS+=		Plugins/Process/FreeBSD/NativeThreadFreeBSD.cpp
+.endif
 SRCS+=		Plugins/Process/FreeBSDKernel/ProcessFreeBSDKernel.cpp
 SRCS+=		Plugins/Process/FreeBSDKernel/RegisterContextFreeBSDKernel_arm64.cpp
 SRCS+=		Plugins/Process/FreeBSDKernel/RegisterContextFreeBSDKernel_i386.cpp
