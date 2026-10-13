@@ -1052,7 +1052,7 @@ static void setstr(u_int8_t *, const char *, size_t);
 static void fill_exfat_buffer(u_int8_t *, u_int, const struct bpb *, const struct msdos_options *);
 
 static int
-u8to16char(const u_char **u8strp, u_long *u8lenp, u_char **u16strp, u_long *u16lenp) {
+u8to16char(const u_char **u8strp, size_t *u8lenp, u_char **u16strp, size_t *u16lenp) {
     u_long more;
     unsigned temp;
     u_char c;
@@ -1108,7 +1108,7 @@ u8to16char(const u_char **u8strp, u_long *u8lenp, u_char **u16strp, u_long *u16l
 }
 
 static int
-u8to16str(const u_char **u8strp, u_long *u8lenp, u_char **u16strp, u_long *u16lenp)
+u8to16str(const u_char **u8strp, size_t *u8lenp, u_char **u16strp, size_t *u16lenp)
 {
     int error = 0;
 #ifdef WITH_ICONV
@@ -1243,7 +1243,7 @@ fill_exfat_rootdir(u_int8_t *buffer, const struct bpb *bpb,
     struct exfatdir_upcasetable *p_u;
     struct exfatdir_bitmap *p_b;
     const u_char *u8str;
-    u_long u8len, u16len;
+    size_t u8len, u16len;
     u_char *u16labelp;
 
     u8str = volume_label;
@@ -1742,8 +1742,8 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
     if (cls > maxcls(fat)) {
 	cls = maxcls(fat);
 	bpb.bpbHugeSectors = x1 + (cls + 1) * bpb.bpbSecPerClust - 1;
-	warnx("warning: FAT type limits file system to %lu sectors",
-	      bpb.bpbHugeSectors);
+	warnx("warning: FAT type limits file system to %llu sectors",
+	      (unsigned long long)bpb.bpbHugeSectors);
     }
     printf("%s: %u sector%s in %u FAT%u cluster%s "
 	   "(%u bytes/cluster)\n", fname, cls * bpb.bpbSecPerClust,
