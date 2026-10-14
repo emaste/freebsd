@@ -65,10 +65,17 @@ static const struct mii_phydesc lan867xphys[] = {
 	MII_PHY_END
 };
 
+static void
+lan867xphy_reset(struct mii_softc *sc)
+{
+
+	mii_phy_reset(sc);
+}
+
 static const struct mii_phy_funcs lan867xphy_funcs = {
 	lan867xphy_service,
 	lan867xphy_status,
-	mii_phy_reset,
+	lan867xphy_reset,
 };
 
 static int
