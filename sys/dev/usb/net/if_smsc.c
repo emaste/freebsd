@@ -127,7 +127,7 @@ SYSCTL_BOOL(_hw_usb_smsc, OID_AUTO, smsc_rx_packet_batching, CTLFLAG_RDTUN,
     "Else throughput and latency is decreased.");
 
 #ifdef USB_DEBUG
-static int smsc_debug = 0;
+static int smsc_debug = 1;
 
 SYSCTL_INT(_hw_usb_smsc, OID_AUTO, debug, CTLFLAG_RWTUN, &smsc_debug, 0,
     "Debug level");
@@ -563,6 +563,8 @@ smsc_miibus_statchg(device_t dev)
 				/* Gigabit ethernet not supported by chipset */
 				break;
 			default:
+				smsc_dbg_printf(sc, "media type 0x%x\n",
+				    IFM_SUBTYPE(mii->mii_media_active));
 				break;
 		}
 	}
