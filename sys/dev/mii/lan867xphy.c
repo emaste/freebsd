@@ -62,10 +62,17 @@ static const struct mii_phydesc lan867xphys[] = {
 	MII_PHY_END
 };
 
+static void
+lan867xphy_reset(struct mii_softc *sc)
+{
+
+	mii_phy_reset(sc);
+}
+
 static const struct mii_phy_funcs lan867xphy_funcs = {
 	lan867xphy_service,
 	lan867xphy_status,
-	mii_phy_reset,
+	lan867xphy_reset,
 };
 
 static int
@@ -77,15 +84,28 @@ lan867x_probe(device_t dev)
 static int
 lan867x_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	const struct mii_phy_funcs *mpf;
+	struct mii_softc *sc = device_get_softc(dev);
+	int media;
 
-	sc = device_get_softc(dev);
-	mpf = &lan867xphy_funcs;
-	// XXX flags
-	// XXX just pass lan867xphy_funcs w/o temp variable
-	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE, mpf, 1);
-	mii_phy_setmedia(sc);
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &lan867xphy_funcs, 0);
+
+	switch (sc->mii_mpd_rev) {
+//	case 4: /* C1 */
+//	case 5: /* C2 */
+//	case 6: /* D0 */
+//		break;
+	default:
+		device_printf(dev,
+		    "unsupported silicon revision %d may not work properly.\n",
+		    sc->mii_mpd_rev);
+	}
+	PHY_RESET(sc);
+
+	/* PHY supports 10BASE-T1S only, no negotiation. */
+	media = IFM_MAKEWORD(IFM_ETHER, IFM_10_T1S, IFM_HDX, sc->mii_inst);
+	ifmedia_add(&sc->mii_pdata->mii_media, media, 0, NULL);
+	ifmedia_set(&sc->mii_pdata->mii_media, media);
 
 	return (0);
 }
