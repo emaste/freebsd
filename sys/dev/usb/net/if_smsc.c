@@ -36,11 +36,8 @@
  * The driver only covers the Ethernet part, the standard USB hub driver
  * supports the hub part.
  *
- * This driver is closely modelled on the Linux driver written and copyrighted
- * by SMSC (later acquired by Microchip).
- *
- *
- *
+ * This driver is modelled on the Linux driver written and copyrighted by SMSC
+ * (later acquired by Microchip) in drivers/net/usb/smsc95xx.{c,h}.
  *
  * H/W TCP & UDP Checksum Offloading
  * ---------------------------------
