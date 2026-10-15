@@ -63,7 +63,9 @@ SUBDIR+=	lld
 .endif
 .if ${MK_LLDB} != "no"
 SUBDIR+=	lldb
+.if ${MACHINE_CPUARCH} != "riscv"
 SUBDIR+=	lldb-server
+.endif
 .endif
 .if ${MK_CLANG} != "no"
 SUBDIR+=	llvm-cov
