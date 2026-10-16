@@ -15,17 +15,126 @@
 #include <net/if.h>
 #include <net/if_media.h>
 
+#include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include "miidevs.h"
 #include "miibus_if.h"
 
 struct conf {
-	uint16_t addr;
+	uint16_t address;
 	uint16_t value;
 };
 
-// AN1699 2. Revision D0 Configuration Process
+/* Indirect configuration parameter access (MMD 0x1F). */
+#define	LAN867X_REG_CFGPARAM_ADDR	0x00d8
+#define	LAN867X_REG_CFGPARAM_DATA	0x00d9
+#define	LAN867X_REG_CFGPARAM_CTRL	0x00da
+#define	LAN867X_CFGPARAM_CTRL_READ	0x0002
+/* Reset-complete status. */
+#define	LAN867X_REG_STS2		0x0019
+#define	LAN867X_STS2_RESETC		0x0800	/* bit 11 */
 
+/*
+ * Microchip AN1699 LAN8670/1/2 Configuration Application Note
+ * Revision C2 workaround.
+ */
+#define	LAN867X_MMD_VEND2	0x1f	/* vendor-specific MMD 2 */
+#define	LAN867X_REG_CFGPARAM1	0x0084
+#define	LAN867X_REG_CFGPARAM2	0x008a
+
+static int
+lan867xphy_mmd_read(struct mii_softc *sc, int devad, int reg)
+{
+
+	PHY_WRITE(sc, MII_MMDACR, MMDACR_FN_ADDRESS |
+	    (devad & MMDACR_DADDRMASK));
+	PHY_WRITE(sc, MII_MMDAADR, reg);
+	PHY_WRITE(sc, MII_MMDACR, MMDACR_FN_DATANPI |
+	    (devad & MMDACR_DADDRMASK));
+	return (PHY_READ(sc, MII_MMDAADR));
+}
+
+static void
+lan867xphy_mmd_write(struct mii_softc *sc, int devad, int reg, int val)
+{
+
+	PHY_WRITE(sc, MII_MMDACR, MMDACR_FN_ADDRESS |
+	    (devad & MMDACR_DADDRMASK));
+	PHY_WRITE(sc, MII_MMDAADR, reg);
+	PHY_WRITE(sc, MII_MMDACR, MMDACR_FN_DATANPI |
+	    (devad & MMDACR_DADDRMASK));
+	PHY_WRITE(sc, MII_MMDAADR, val);
+}
+
+/* Datasheet indirect_read(): trim/config parameter access via MMD 0x1F. */
+static uint8_t
+lan867xphy_indirect_read(struct mii_softc *sc, uint8_t addr, uint8_t mask)
+{
+
+	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2,
+	    LAN867X_REG_CFGPARAM_ADDR, addr);
+	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2,
+	    LAN867X_REG_CFGPARAM_CTRL, LAN867X_CFGPARAM_CTRL_READ);
+	return (lan867xphy_mmd_read(sc, LAN867X_MMD_VEND2,
+	    LAN867X_REG_CFGPARAM_DATA) & mask);
+}
+static struct conf lan867x_cfgdata_c2[] = {
+	{ 0x00d0, 0x3f31 },
+	{ 0x00e0, 0xc000 },
+	{ LAN867X_REG_CFGPARAM1, 0 },	/* computed */
+	{ LAN867X_REG_CFGPARAM2, 0 },	/* computed */
+	{ 0x00e9, 0x9e50 },
+	{ 0x00f5, 0x1cf8 },
+	{ 0x00f4, 0xc020 },
+	{ 0x00f8, 0xb900 },
+	{ 0x00f9, 0x4e53 },
+	{ 0x0081, 0x0080 },
+	{ 0x0091, 0x9660 },
+};
+
+static void
+lan867xphy_config_c2(struct mii_softc *sc)
+{
+	size_t i;
+	uint16_t cfgparam1, cfgparam2, val;
+
+	uint8_t value1, value2;
+	int8_t offset1, offset2;
+
+	value1 = lan867xphy_indirect_read(sc, 0x04, 0x1f);
+	offset1 = (value1 & 0x10) != 0 ? (int8_t)(value1 - 0x20) : (int8_t)value1;
+
+	value2 = lan867xphy_indirect_read(sc, 0x08, 0x1f);
+	offset2 = (value2 & 0x10) != 0 ? (int8_t)(value2 - 0x20) : (int8_t)value2;
+
+	cfgparam1 = (uint16_t)(((9 + offset1) & 0x3f) << 10) |
+	    (uint16_t)(((14 + offset1) & 0x3f) << 4) | 0x03;
+	cfgparam2 = (uint16_t)(((40 + offset2) & 0x3f) << 10);
+
+	printf("XXX applying C2 silicon configuration value1=%u value2=%u offset1=%d offset2=%d\n", value1, value2, offset1, offset2);
+
+	for (i = 0; i < nitems(lan867x_cfgdata_c2); i++) {
+		switch (lan867x_cfgdata_c2[i].address) {
+		case LAN867X_REG_CFGPARAM1:
+			val = cfgparam1;
+			break;
+		case LAN867X_REG_CFGPARAM2:
+			val = cfgparam2;
+			break;
+		default:
+			val = lan867x_cfgdata_c2[i].value;
+			break;
+		}
+		printf("XXX writing address 0x%04x value 0x%04x\n",
+		    lan867x_cfgdata_c2[i].address, val);
+		lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2,
+		    lan867x_cfgdata_c2[i].address, val);
+	}
+}
+
+/*
+ * Revision D0 workaround.
+ */
 struct conf lan867x_config_d0[] = {
 	{ 0x0037, 0x0800 },
 	{ 0x008a, 0xbfc0 },
@@ -54,8 +163,17 @@ static const struct mii_phydesc lan867xphys[] = {
 static void
 lan867xphy_reset(struct mii_softc *sc)
 {
-
 	mii_phy_reset(sc);
+	DELAY(1000);
+	/* XXX confirm reset */
+
+	switch (sc->mii_mpd_rev) {
+	case 5:
+		lan867xphy_config_c2(sc);
+		break;
+	}
+
+	/* XXX apply PLCA settings */
 }
 
 static const struct mii_phy_funcs lan867xphy_funcs = {
