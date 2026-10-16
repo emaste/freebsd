@@ -160,12 +160,29 @@ static const struct mii_phydesc lan867xphys[] = {
 	MII_PHY_END
 };
 
+static bool
+lan867xphy_wait_reset(struct mii_softc *sc)
+{
+	size_t i;
+	int sts2;
+
+	for (i = 0; i < 5000; i++) {
+		sts2 = PHY_READ(sc, LAN867X_REG_STS2);
+		if ((sts2 & LAN867X_STS2_RESETC) != 0)
+			return (true);
+		DELAY(1000);
+	}
+	device_printf(sc->mii_dev, "reset did not complete (STS2 0x%04x)\n",
+	    sts2);
+	return (false);
+}
+
 static void
 lan867xphy_reset(struct mii_softc *sc)
 {
 	mii_phy_reset(sc);
-	DELAY(1000);
-	/* XXX confirm reset */
+	if (!lan867xphy_wait_reset(sc))
+		return;
 
 	switch (sc->mii_mpd_rev) {
 	case 5:
