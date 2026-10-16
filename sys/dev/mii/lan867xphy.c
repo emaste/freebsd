@@ -166,11 +166,14 @@ lan867xphy_wait_reset(struct mii_softc *sc)
 	size_t i;
 	int sts2;
 
-	for (i = 0; i < 5000; i++) {
-		sts2 = PHY_READ(sc, LAN867X_REG_STS2);
-		if ((sts2 & LAN867X_STS2_RESETC) != 0)
+	for (i = 0; i < 10; i++) {
+		sts2 = lan867xphy_mmd_read(sc, LAN867X_MMD_VEND2,
+		    LAN867X_REG_STS2);
+		if ((sts2 & LAN867X_STS2_RESETC) != 0) {
+			device_printf(sc->mii_dev, "reset count %zu\n", i);
 			return (true);
-		DELAY(1000);
+		}
+		DELAY(10);
 	}
 	device_printf(sc->mii_dev, "reset did not complete (STS2 0x%04x)\n",
 	    sts2);
