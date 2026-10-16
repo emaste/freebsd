@@ -67,12 +67,25 @@ static uint8_t
 lan867xphy_indirect_read(struct mii_softc *sc, uint8_t addr, uint8_t mask)
 {
 
+	// XXX try reading back, unsure if this will actually work.
+	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2,
+	    LAN867X_REG_CFGPARAM_ADDR, addr);
+	device_printf(sc->mii_dev, "addr 0x%02x readback 0x%02x\n", addr,
+	    lan867xphy_mmd_read(sc, LAN867X_MMD_VEND2,
+	    LAN867X_REG_CFGPARAM_ADDR));
+	//
+
 	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2,
 	    LAN867X_REG_CFGPARAM_ADDR, addr);
 	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2,
 	    LAN867X_REG_CFGPARAM_CTRL, LAN867X_CFGPARAM_CTRL_READ);
-	return (lan867xphy_mmd_read(sc, LAN867X_MMD_VEND2,
-	    LAN867X_REG_CFGPARAM_DATA) & mask);
+	int rb = lan867xphy_mmd_read(sc, LAN867X_MMD_VEND2,
+            LAN867X_REG_CFGPARAM_DATA);
+	device_printf(sc->mii_dev, "raw read value %d\n", rb);
+	return (rb & mask);
+
+//	return (lan867xphy_mmd_read(sc, LAN867X_MMD_VEND2,
+//	    LAN867X_REG_CFGPARAM_DATA) & mask);
 }
 static struct conf lan867x_cfgdata_c2[] = {
 	{ 0x00d0, 0x3f31 },
