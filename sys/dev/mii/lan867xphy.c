@@ -148,7 +148,7 @@ lan867xphy_config_c2(struct mii_softc *sc)
 /*
  * Revision D0 workaround.
  */
-struct conf lan867x_config_d0[] = {
+struct conf lan867x_cfgdata_d0[] = {
 	{ 0x0037, 0x0800 },
 	{ 0x008a, 0xbfc0 },
 	{ 0x0118, 0x029c },
@@ -159,6 +159,19 @@ struct conf lan867x_config_d0[] = {
 	{ 0x0091, 0x9660 },
 };
 //	{ 0x0012, (LSCTL) 0xXXXX }
+
+static void
+lan867xphy_config_d0(struct mii_softc *sc)
+{
+	size_t i;
+
+	for (i = 0; i < nitems(lan867x_cfgdata_d0); i++) {
+		printf("XXX writing address 0x%04x value 0x%04x\n",
+		    lan867x_cfgdata_d0[i].address, lan867x_cfgdata_d0[i].value);
+		lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2,
+		    lan867x_cfgdata_d0[i].address, lan867x_cfgdata_d0[i].value);
+	}
+}
 
 
 static int lan867x_probe(device_t);
@@ -203,6 +216,9 @@ lan867xphy_reset(struct mii_softc *sc)
 	switch (sc->mii_mpd_rev) {
 	case 5:
 		lan867xphy_config_c2(sc);
+		break;
+	case 6:
+		lan867xphy_config_d0(sc);
 		break;
 	}
 
