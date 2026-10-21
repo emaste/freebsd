@@ -45,6 +45,7 @@
  * which is mangled accordingly to compensate.
  */
 
+oui ADI				0x00a0ef	Analog Devices
 oui AGERE			0x00053d	Agere Systems
 oui ALTIMA			0x0010a9	Altima Communications
 oui AMD				0x00001a	Advanced Micro Devices
@@ -116,6 +117,9 @@ oui xxTI			0x100014	Texas Instruments
 /*
  * List of known models.  Grouped by oui.
  */
+
+/* ADI PHYs */
+model ADI ADIN1100		0x0008 ADIN1100 10BASE-T1L PHY
 
 /* Agere Systems PHYs */
 model AGERE ET1011		0x0001 ET1011 10/100/1000baseT PHY
