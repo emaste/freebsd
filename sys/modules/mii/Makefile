@@ -1,7 +1,7 @@
 .PATH: ${SRCTOP}/sys/dev/mii
 
 KMOD=	miibus
-SRCS=	acphy.c amphy.c atphy.c axphy.c bmtphy.c brgphy.c
+SRCS=	acphy.c adin1100phy.c  amphy.c atphy.c axphy.c bmtphy.c brgphy.c
 SRCS+=	ciphy.c dp83822phy.c dp83867phy.c
 SRCS+=	e1000phy.c gentbi.c icsphy.c ip1000phy.c jmphy.c
 SRCS+=	lan867xphy.c
