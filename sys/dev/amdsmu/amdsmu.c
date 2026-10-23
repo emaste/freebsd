@@ -338,6 +338,10 @@ amdsmu_resume_check(device_t dev, enum power_stype stype)
 	device_printf(dev,
 	    "failed to enter S0i3 during last suspend; "
 	    "battery drain will be excessive\n");
+	device_printf(dev,
+	    "  time_last_entering_s0i3 %ju time_last_in_sw_drips %ju idlemask %#x\n",
+	    (uintmax_t)m->time_last_entering_s0i3,
+	    (uintmax_t)m->time_last_in_sw_drips, sc->idlemask);
 
 	switch (sc->product->amdsmu_deviceid) {
 	case PCI_DEVICEID_AMD_PHOENIX_ROOT:
