@@ -18,6 +18,38 @@
 #include "miidevs.h"
 #include "miibus_if.h"
 
+#define	ADIN_MMD_PMAPMD		1
+#define	ADIN_MMD_VEND1		30
+
+#define	ADIN_PMA_STAT1		0x0001
+#define	  ADIN_PMA_STAT1_LINK	0x0004		/* latched low */
+
+#define	ADIN_CRSM_SFT_RST	0x8810
+#define	  ADIN_CRSM_SFT_RST_EN	0x0001
+#define	ADIN_CRSM_SFT_PD_CNTRL	0x8812
+#define	  ADIN_CRSM_SFT_PD_EN	0x0001
+#define	ADIN_CRSM_STAT		0x8818
+#define	  ADIN_CRSM_SYS_RDY	0x0001
+#define	  ADIN_CRSM_SFT_PD_RDY	0x0002
+
+static int
+adin_mmd_read(struct mii_softc *sc, int devad, int reg)
+{
+	PHY_WRITE(sc, MII_MMDACR, MMDACR_FN_ADDRESS | devad);
+	PHY_WRITE(sc, MII_MMDAADR, reg);
+	PHY_WRITE(sc, MII_MMDACR, MMDACR_FN_DATANPI | devad);
+	return (PHY_READ(sc, MII_MMDAADR));
+}
+
+static void
+adin_mmd_write(struct mii_softc *sc, int devad, int reg, int val)
+{
+	PHY_WRITE(sc, MII_MMDACR, MMDACR_FN_ADDRESS | devad);
+	PHY_WRITE(sc, MII_MMDAADR, reg);
+	PHY_WRITE(sc, MII_MMDACR, MMDACR_FN_DATANPI | devad);
+	PHY_WRITE(sc, MII_MMDAADR, val);
+}
+
 static const struct mii_phydesc adin_phys[] = {
 	MII_PHY_DESC(ADI, ADIN1100),
 	MII_PHY_END
@@ -40,10 +72,31 @@ adin1100phy_status(struct mii_softc *sc)
 	mii->mii_media_active = IFM_ETHER | IFM_10_T1L | IFM_FDX;
 }
 
+static int
+adin_crsm_wait(struct mii_softc *sc, int mask, int want)
+{
+	int i;
+
+	for (i = 0; i < 100; i++) {
+		DELAY(1000);
+		if ((adin_mmd_read(sc, ADIN_MMD_VEND1, ADIN_CRSM_STAT) &
+		    mask) == want)
+			return (0);
+	}
+	return (ETIMEDOUT);
+}
+
 static void
 adin1100phy_reset(struct mii_softc *sc)
 {
-	mii_phy_reset(sc);
+	adin_mmd_write(sc, ADIN_MMD_VEND1, ADIN_CRSM_SFT_RST,
+	    ADIN_CRSM_SFT_RST_EN);
+	if (adin_crsm_wait(sc, ADIN_CRSM_SYS_RDY, ADIN_CRSM_SYS_RDY) != 0)
+		device_printf(sc->mii_dev, "soft reset timed out\n");
+
+	adin_mmd_write(sc, ADIN_MMD_VEND1, ADIN_CRSM_SFT_PD_CNTRL, 0);
+	if (adin_crsm_wait(sc, ADIN_CRSM_SFT_PD_RDY, 0) != 0)
+		device_printf(sc->mii_dev, "power-down exit timed out\n");
 }
 
 static const struct mii_phy_funcs adin1100phy_funcs = {
