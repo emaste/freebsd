@@ -182,7 +182,7 @@ static void lan867xphy_status(struct mii_softc *);
 
 
 static const struct mii_phydesc lan867xphys[] = {
-	MII_PHY_DESC(SMSC, LAN867X),
+//	MII_PHY_DESC(SMSC, LAN867X),
 	MII_PHY_END
 };
 
