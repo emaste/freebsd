@@ -86,6 +86,15 @@ lan867xphy_mmd_write(struct mii_softc *sc, int devad, int reg, int val)
 static uint8_t
 lan867xphy_indirect_read(struct mii_softc *sc, uint8_t addr, uint8_t mask)
 {
+
+	// XXX try reading back, unsure if this will actually work.
+	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2,
+	    LAN867X_REG_CFGPARAM_ADDR, addr);
+	device_printf(sc->mii_dev, "addr 0x%02x readback 0x%02x\n", addr,
+	    lan867xphy_mmd_read(sc, LAN867X_MMD_VEND2,
+	    LAN867X_REG_CFGPARAM_ADDR));
+	//
+
 	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2, LAN867X_REG_CFGPARAM_ADDR,
 	    addr);
 	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2, LAN867X_REG_CFGPARAM_CTRL,
@@ -234,8 +243,10 @@ lan867xphy_wait_reset(struct mii_softc *sc)
 	for (i = 0; i < 100; i++) {
 		sts2 = lan867xphy_mmd_read(sc, LAN867X_MMD_VEND2,
 		    LAN867X_REG_STS2);
-		if ((sts2 & LAN867X_STS2_RESETC) != 0)
+		if ((sts2 & LAN867X_STS2_RESETC) != 0) {
+			device_printf(sc->mii_dev, "reset count %zu\n", i);
 			return (true);
+		}
 		DELAY(10);
 	}
 	device_printf(sc->mii_dev, "reset did not complete (STS2 0x%04x)\n",
@@ -271,6 +282,11 @@ static const struct mii_phy_funcs lan867xphy_funcs = {
 static int
 lan867xphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
+//	struct ifmedia_entry *ife;
+//	int reg;
+//
+//	ife = mii->mii_media.ifm_cur;
+
 	PHY_STATUS(sc);
 	mii_phy_update(sc, cmd);
 	return (0);
