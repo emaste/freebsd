@@ -287,6 +287,17 @@ lan867xphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 //
 //	ife = mii->mii_media.ifm_cur;
 
+	switch (cmd) {
+	case MII_POLLSTAT:
+		break;
+
+	case MII_MEDIACHG:
+		break;
+
+	case MII_TICK:
+		break;
+	}
+
 	PHY_STATUS(sc);
 	mii_phy_update(sc, cmd);
 	return (0);
