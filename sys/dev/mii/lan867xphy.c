@@ -100,8 +100,8 @@ lan867xphy_indirect_read(struct mii_softc *sc, uint8_t addr, uint8_t mask)
  * From Microchip AN1699 LAN8670/1/2 Configuration Application Note
  * (Revision G, October 2025).
  *
- * Registers 0x0084 (cfgparam1) and 0x008a (cfgparam2) require computed values,
- * and are written between two blocks of constants.
+ * Five registers require configuration with values derived from reads of other
+ * registers, between blocks of constants.
  */
 static const struct lan867x_cfg_fixup lan867x_cfgdata_revc_part1[] = {
 	{ 0x00d0, 0x3f31 },
@@ -116,6 +116,21 @@ static const struct lan867x_cfg_fixup lan867x_cfgdata_revc_part2[] = {
 	{ 0x00f9, 0x4e53 },
 	{ 0x0081, 0x0080 },
 	{ 0x0091, 0x9660 },
+};
+
+static const struct lan867x_cfg_fixup lan867x_cfgdata_revc_part3[] = {
+	{ 0x00b0, 0x0103 },
+	{ 0x00b1, 0x0910 },
+	{ 0x00b2, 0x1d26 },
+	{ 0x00b3, 0x002a },
+	{ 0x00b4, 0x0103 },
+	{ 0x00b5, 0x070d },
+	{ 0x00b6, 0x1720 },
+	{ 0x00b7, 0x0027 },
+	{ 0x00b8, 0x0509 },
+	{ 0x00b9, 0x0e13 },
+	{ 0x00ba, 0x1c25 },
+	{ 0x00bb, 0x002b },
 };
 
 static void
@@ -133,7 +148,7 @@ lan867xphy_config(struct mii_softc *sc, const struct lan867x_cfg_fixup *fixup,
 static void
 lan867xphy_config_revc(struct mii_softc *sc)
 {
-	uint16_t cfgparam1, cfgparam2;
+	uint16_t cfgparam1, cfgparam2, cfgparam3, cfgparam4, cfgparam5;
 	uint8_t value1, value2;
 	int8_t offset1, offset2;
 
@@ -152,6 +167,12 @@ lan867xphy_config_revc(struct mii_softc *sc)
 	cfgparam1 = (uint16_t)(((9 + offset1) & 0x3f) << 10) |
 	    (uint16_t)(((14 + offset1) & 0x3f) << 4) | 0x03;
 	cfgparam2 = (uint16_t)(((40 + offset2) & 0x3f) << 10);
+	cfgparam3 = (uint16_t)(((5 + offset1) & 0x3f) << 8) |
+	    (uint16_t)((9 + offset1) & 0x3f);
+	cfgparam4 = (uint16_t)(((9 + offset1) & 0x3f) << 8) |
+	    (uint16_t)((14 + offset1) & 0x3f);
+	cfgparam5 = (uint16_t)(((17 + offset1) & 0x3f) << 8) |
+	    (uint16_t)((22 + offset1) & 0x3f);
 
 	lan867xphy_config(sc, lan867x_cfgdata_revc_part1,
 	    nitems(lan867x_cfgdata_revc_part1));
@@ -159,6 +180,11 @@ lan867xphy_config_revc(struct mii_softc *sc)
 	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2, 0x008a, cfgparam2);
 	lan867xphy_config(sc, lan867x_cfgdata_revc_part2,
 	    nitems(lan867x_cfgdata_revc_part2));
+	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2, 0x00ad, cfgparam3);
+	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2, 0x00ae, cfgparam4);
+	lan867xphy_mmd_write(sc, LAN867X_MMD_VEND2, 0x00af, cfgparam5);
+	lan867xphy_config(sc, lan867x_cfgdata_revc_part3,
+	    nitems(lan867x_cfgdata_revc_part3));
 }
 
 static int lan867x_probe(device_t);
