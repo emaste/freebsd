@@ -312,6 +312,7 @@ MAN=	aac.4 \
 	kue.4 \
 	${_kvmclock.4} \
 	lagg.4 \
+	lan867xphy.4 \
 	led.4 \
 	lge.4 \
 	lindebugfs.4 \
