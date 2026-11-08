@@ -1957,8 +1957,8 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 	if ((cu = die_sibling(&dw, NULL)) == NULL ||
 	    (((child = die_child(&dw, cu)) == NULL) &&
 	    should_have_dwarf(elf))) {
-		terminate("file does not contain dwarf type data "
-		    "(try compiling with -g)\n");
+		warning("file does not contain dwarf type data (try compiling with -g)\n");
+		exit(0);
 	} else if (child == NULL) {
 		return (0);
 	}
