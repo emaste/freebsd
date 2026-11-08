@@ -7,10 +7,21 @@
 /*
  * Microchip LAN8670/1/2 10BASE-T1S Single Pair Ethernet (SPE) PHY Driver.
  *
- * This driver is sufficient for basic connectivity with CSMA/CD.
+ * This driver is sufficient for basic connectivity with CSMA/CD or PLCA.
+ *
+ * PHY-Level Collision Avoidance (PLCA) is currently configured via sysctls
+ * (which are also settable as loader tunables):
+ *
+ *   dev.lan867xphy.N.plca.enable
+ *   dev.lan867xphy.N.plca.node_id
+ *   dev.lan867xphy.N.plca.node_count
+ *
+ * These should instead be handled via a generic interface for setting PHY
+ * parameters, once it exists.
  *
  * TODO:
- * - PHY-Level Collision Avoidance (PLCA) configuration
+ * - PLCA configuration for D0+
+ * - Interrupt-driven PLCA status change
  * - Sleep mode (C2, D0 and later)
  * - Topology discovery (D0 and later)
  * - Signal Quality Indicator (SQI) (C2, D0 and later)
@@ -20,10 +31,12 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
@@ -52,6 +65,10 @@
 struct lan867x_cfg_fixup {
 	uint16_t address;
 	uint16_t value;
+};
+
+struct lan867x_softc {
+	struct mii_softc		mii_sc;	/* Must be first */
 };
 
 /*
@@ -234,6 +251,42 @@ static const struct mii_phydesc lan867xphys[] = {
 	MII_PHY_END
 };
 
+static int
+lan867xphy_plca_sysctl(SYSCTL_HANDLER_ARGS)
+{
+//	struct lan867x_softc *lsc = arg1;
+//	u_int cfg, mcfg;
+//	int error, val;
+	return (0);
+}
+
+static void
+lan867xphy_sysctl_attach(device_t dev, struct lan867x_softc *lsc)
+{
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid_list *children =
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+	struct sysctl_oid *plca_node;
+
+	plca_node = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "plca",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "PHY-Level Collision Avoidance");
+	children = SYSCTL_CHILDREN(plca_node);
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "enable",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, lsc,
+	    0, lan867xphy_plca_sysctl, "I",
+	    "Enable PHY-Level Collision Avoidance");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "node_id",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, lsc,
+	    0, lan867xphy_plca_sysctl, "I",
+	    "PLCA Node ID (0 = coordinator, 255 = unconfigured)");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "node_count",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, lsc,
+	    0, lan867xphy_plca_sysctl, "I",
+	    "PLCA transmit slots");
+}
+
+
 static bool
 lan867xphy_wait_reset(struct mii_softc *sc)
 {
@@ -321,11 +374,13 @@ lan867x_probe(device_t dev)
 static int
 lan867x_attach(device_t dev)
 {
-	struct mii_softc *sc = device_get_softc(dev);
+	struct lan867x_softc *lsc = device_get_softc(dev);
+	struct mii_softc *sc = &lsc->mii_sc;
 	int media;
 
 	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
 	    &lan867xphy_funcs, 0);
+	lan867xphy_sysctl_attach(dev, lsc);
 
 	switch (sc->mii_mpd_rev) {
 	case LAN867X_REV_C2:
@@ -357,7 +412,7 @@ static device_method_t lan867x_methods[] = {
 static driver_t lan867x_driver = {
 	"lan867xphy",
 	lan867x_methods,
-	sizeof(struct mii_softc)
+	sizeof(struct lan867x_softc)
 };
 
 DRIVER_MODULE(lan867xphy, miibus, lan867x_driver, 0, 0);
