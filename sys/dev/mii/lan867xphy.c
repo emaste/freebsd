@@ -257,6 +257,7 @@ lan867xphy_plca_sysctl(SYSCTL_HANDLER_ARGS)
 //	struct lan867x_softc *lsc = arg1;
 //	u_int cfg, mcfg;
 //	int error, val;
+	printf("%s\n", __func__);
 	return (0);
 }
 
@@ -267,6 +268,9 @@ lan867xphy_sysctl_attach(device_t dev, struct lan867x_softc *lsc)
 	struct sysctl_oid_list *children =
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 	struct sysctl_oid *plca_node;
+
+	device_printf(dev, "%s: tree %p\n", __func__,
+	    device_get_sysctl_tree(dev));
 
 	plca_node = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "plca",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "PHY-Level Collision Avoidance");
