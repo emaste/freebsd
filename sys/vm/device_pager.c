@@ -295,6 +295,10 @@ cdev_mgtdev_pager_free_page(struct pctrie_iter *pages, vm_page_t m)
 {
 	pmap_remove_all(m);
 	vm_page_iter_remove(pages, m);
+	if ((m->oflags & VPO_FAKE_OWNED) != 0) {
+		MPASS((m->flags & PG_FICTITIOUS) != 0);
+		vm_page_putfake(m);
+	}
 }
 
 void
