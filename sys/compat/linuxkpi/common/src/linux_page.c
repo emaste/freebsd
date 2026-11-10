@@ -782,6 +782,62 @@ retry:
 	return (0);
 }
 
+/*
+ * A special PTE is an unmanaged mapping, with no PV tracking for
+ * the target page.
+ *
+ * The function inserts a fake page with phys_addr set to the requested
+ * pfn into the vma backing object.  It is the caller's duty to ensure
+ * that the mappings are removed before the real page is reused.  The
+ * real page might belong to a different object, in which case the fake
+ * page's phys_addr equals that page's phys_addr, or the fake page may
+ * alias it through an aperture.
+ */
+vm_fault_t
+lkpi_vmf_insert_special_pte_locked(struct vm_area_struct *vma,
+    unsigned long addr, unsigned long pfn, pgprot_t prot)
+{
+	struct pctrie_iter pages;
+	vm_object_t vm_obj;
+	vm_page_t fake_page, page;
+	vm_pindex_t pindex;
+
+	if (addr < vma->vm_start || addr >= vma->vm_end)
+		return (VM_FAULT_SIGBUS);
+
+	vm_obj = vma->vm_obj;
+	VM_OBJECT_ASSERT_WLOCKED(vm_obj);
+	MPASS(vm_obj->type == OBJT_MGTDEVICE);
+
+	vm_page_iter_init(&pages, vm_obj);
+	pindex = OFF_TO_IDX(addr - vma->vm_start);
+	if (vma->vm_pfn_count == 0)
+		vma->vm_pfn_first = pindex;
+
+	page = vm_page_grab_iter(vm_obj, pindex, VM_ALLOC_NOCREAT, &pages);
+	if (page == NULL) {
+		fake_page = vm_page_getfake_nowait(IDX_TO_OFF(pfn),
+		    pgprot2cachemode(prot));
+		if (fake_page == NULL)
+			return (VM_FAULT_OOM);
+		fake_page->oflags |= VPO_FAKE_OWNED;
+		if (vm_page_iter_insert(fake_page, vm_obj, pindex, &pages) !=
+		    0) {
+			vm_page_putfake(fake_page);
+			return (VM_FAULT_OOM);
+		}
+		vm_page_valid(fake_page);
+	} else {
+		/*
+		 * A page is already resident at pindex.  Do not check
+		 * that it maps the same pfn; the first insert wins.
+		 */
+		pmap_page_set_memattr(page, pgprot2cachemode(prot));
+	}
+	vma->vm_pfn_count++;
+	return (VM_FAULT_NOPAGE);
+}
+
 int
 lkpi_io_mapping_map_user(struct io_mapping *iomap,
     struct vm_area_struct *vma, unsigned long addr,
