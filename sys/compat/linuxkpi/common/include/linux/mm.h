@@ -221,6 +221,9 @@ vm_fault_t
 lkpi_vmf_insert_pfn_prot_locked(struct vm_area_struct *vma, unsigned long addr,
     unsigned long pfn, pgprot_t prot);
 
+vm_fault_t lkpi_vmf_insert_special_pte_locked(struct vm_area_struct *vma,
+    unsigned long addr, unsigned long pfn, pgprot_t prot);
+
 static inline vm_fault_t
 vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
     unsigned long pfn, pgprot_t prot)

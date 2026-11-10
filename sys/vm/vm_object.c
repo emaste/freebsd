@@ -885,7 +885,10 @@ vm_object_terminate_single_page(vm_page_t p, void *objectv)
 	    (p->ref_count & VPRC_OBJREF) != 0,
 	    ("%s: page %p is inconsistent", __func__, p));
 	p->object = NULL;
-	if (vm_page_drop(p, VPRC_OBJREF) == VPRC_OBJREF) {
+	if ((p->oflags & VPO_FAKE_OWNED) != 0) {
+		MPASS((p->flags & PG_FICTITIOUS) != 0);
+		vm_page_putfake(p);
+	} else if (vm_page_drop(p, VPRC_OBJREF) == VPRC_OBJREF) {
 		KASSERT((object->flags & OBJ_UNMANAGED) != 0 ||
 		    vm_page_astate_load(p).queue != PQ_NONE,
 		    ("%s: page %p does not belong to a queue", __func__, p));

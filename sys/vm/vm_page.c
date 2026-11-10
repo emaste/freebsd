@@ -1323,6 +1323,17 @@ PHYS_TO_VM_PAGE(vm_paddr_t pa)
 #endif
 }
 
+static vm_page_t
+vm_page_getfake_mallocf(vm_paddr_t paddr, vm_memattr_t memattr, int mallocf)
+{
+	vm_page_t m;
+
+	m = uma_zalloc(fakepg_zone, mallocf | M_ZERO);
+	if (m != NULL)
+		vm_page_initfake(m, paddr, memattr);
+	return (m);
+}
+
 /*
  *	vm_page_getfake:
  *
@@ -1333,11 +1344,13 @@ PHYS_TO_VM_PAGE(vm_paddr_t pa)
 vm_page_t
 vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
 {
-	vm_page_t m;
+	return (vm_page_getfake_mallocf(paddr, memattr, M_WAITOK));
+}
 
-	m = uma_zalloc(fakepg_zone, M_WAITOK | M_ZERO);
-	vm_page_initfake(m, paddr, memattr);
-	return (m);
+vm_page_t
+vm_page_getfake_nowait(vm_paddr_t paddr, vm_memattr_t memattr)
+{
+	return (vm_page_getfake_mallocf(paddr, memattr, M_NOWAIT));
 }
 
 void

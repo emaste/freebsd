@@ -286,6 +286,8 @@ struct vm_page {
 #define	VPO_SWAPSLEEP	0x02		/* waiting for swap to finish */
 #define	VPO_UNMANAGED	0x04		/* no PV management for page */
 #define	VPO_SWAPINPROG	0x08		/* swap I/O in progress on page */
+#define	VPO_FAKE_OWNED	0x10		/* Fake page owned by the object,
+					   putfake on removal */
 
 /*
  * Busy page implementation details.
@@ -592,6 +594,7 @@ void vm_page_free_invalid(vm_page_t m);
 int vm_page_free_pages_toq(struct spglist *free, bool update_wire_count);
 void vm_page_free_zero(vm_page_t m);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
+vm_page_t vm_page_getfake_nowait(vm_paddr_t paddr, vm_memattr_t memattr);
 int vm_page_grab_zero_partial(vm_object_t object, vm_pindex_t pindex, int base,
     int end);
 vm_page_t vm_page_grab(vm_object_t, vm_pindex_t, int);
