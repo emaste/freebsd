@@ -24,19 +24,11 @@ NO_WUNNEEDED_INTERNAL_DECL=	-Wno-error=unneeded-internal-declaration
 NO_WSOMETIMES_UNINITIALIZED=	-Wno-error=sometimes-uninitialized
 NO_WCAST_QUAL=			-Wno-error=cast-qual
 NO_WTAUTOLOGICAL_POINTER_COMPARE= -Wno-tautological-pointer-compare
-.if ${COMPILER_VERSION} >= 100000
 NO_WMISLEADING_INDENTATION=	-Wno-misleading-indentation
-.endif
-.if ${COMPILER_VERSION} >= 130000
 NO_WUNUSED_BUT_SET_VARIABLE=	-Wno-unused-but-set-variable
-.endif
-.if ${COMPILER_VERSION} >= 140000
 NO_WBITWISE_INSTEAD_OF_LOGICAL=	-Wno-bitwise-instead-of-logical
-.endif
-.if ${COMPILER_VERSION} >= 150000
 NO_WSTRICT_PROTOTYPES=		-Wno-strict-prototypes
 NO_WDEPRECATED_NON_PROTOTYPE=	-Wno-deprecated-non-prototype
-.endif
 .if ${COMPILER_VERSION} >= 210000
 NO_WDEFAULT_CONST_INIT_FIELD_UNSAFE= -Wno-default-const-init-field-unsafe
 .endif
@@ -214,15 +206,6 @@ INLINE_LIMIT?=	15000
 .endif
 
 #
-# Use dot symbols (or, better, the V2 ELF ABI) on powerpc64 to make
-# DDB happy. ELFv2, if available, has some other efficiency benefits.
-#
-.if ${MACHINE_ARCH:Mpowerpc64*} != "" && \
-    ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 160000
-CFLAGS+=	-mabi=elfv2
-.endif
-
-#
 # GCC 3.0 and above like to do certain optimizations based on the
 # assumption that the program is linked against libc.  Stop this.
 #
@@ -303,7 +286,7 @@ SAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kcsan \
 # updated to work properly with it.
 MSAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kmsan \
 		-fsanitize=kernel-memory
-.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 160000
+.if ${COMPILER_TYPE} == "clang"
 MSAN_CFLAGS+=	-fno-sanitize-memory-param-retval
 .endif
 SAN_CFLAGS+=	${MSAN_CFLAGS}
@@ -337,9 +320,6 @@ CFLAGS+=	${SAN_CFLAGS}
 .if ${OPT_INIT_ALL} != "none"
 .if ${COMPILER_FEATURES:Minit-all}
 CFLAGS+= -ftrivial-auto-var-init=${OPT_INIT_ALL}
-.if ${OPT_INIT_ALL} == "zero" && ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 160000
-CFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
-.endif
 .else
 .warning INIT_ALL (${OPT_INIT_ALL}) requested but not supported by compiler
 .endif
@@ -388,11 +368,7 @@ NOSAN_CFLAGS= ${CFLAGS:N-fsanitize*:N-fno-sanitize*:N-fasan-shadow-offset*}
 # Add -fuse-ld=${LD} if $LD is in a different directory or not called "ld".
 .if ${COMPILER_TYPE} == "clang"
 # Note: Clang does not like relative paths for ld so we map ld.lld -> lld.
-.if ${COMPILER_VERSION} >= 120000
 CCLDFLAGS+=	--ld-path=${LD:[1]:S/^ld.//1W}
-.else
-CCLDFLAGS+=	-fuse-ld=${LD:[1]:S/^ld.//1W}
-.endif
 .else
 # GCC does not support an absolute path for -fuse-ld so we just print this
 # warning instead and let the user add the required symlinks.
