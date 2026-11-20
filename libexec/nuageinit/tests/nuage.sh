@@ -128,6 +128,11 @@ adddoas_body()
 	atf_check /usr/libexec/flua $(atf_get_srcdir)/adddoas.lua
 }
 
+addmdo_body()
+{
+	atf_check /usr/libexec/flua $(atf_get_srcdir)/addmdo.lua
+}
+
 update_sshd_config_body()
 {
 	mkdir -p etc/ssh
@@ -146,5 +151,6 @@ atf_init_test_cases()
 	atf_add_test_case decode_base64
 	atf_add_test_case addsudo
 	atf_add_test_case adddoas
+	atf_add_test_case addmdo
 	atf_add_test_case update_sshd_config
 }

@@ -548,6 +548,110 @@ local function adddoas(pwd)
 	end
 end
 
+-- Return list of a file's lines (empty if file does not exist).
+local function read_lines(path)
+	local lines = {}
+	local f = io.open(path, "r")
+	if not f then return lines end
+	for line in f:lines() do lines[#lines + 1] = line end
+	f:close()
+	return lines
+end
+
+-- Write list of lines to a temporary name and rename to replace
+-- existing file.
+local function write_lines(path, lines)
+	local newpath = path .. ".new"
+	local f, err = io.open(newpath, "w")
+	if not f then return nil, err end
+	f:write(table.concat(lines, "\n"), "\n")
+	f:close()
+	print("renaming " .. newpath .. " to " .. path)
+	return os.rename(newpath, path)
+end
+
+local function find_key(lines, key)
+	local pattern = "^%s*" .. -- any leading whitespace
+	    key:gsub("%p", "%%%0") .. -- escape key
+	    "%s*=%s*(.-)%s*$"
+	local idx, value
+	for i, line in ipairs(lines) do
+		if not line:match("^%s*#") then -- skip comments
+			local v = line:match(pattern)
+			if v then
+				local _, inner = v:match("^([\"'])(.*)%1$")
+				idx, value = i, inner or v
+			end
+		end
+	end
+	return idx, value
+end
+
+local function set_mdo_rule(value, uid, target)
+	local new_rule = ("uid=%d>%s"):format(uid, target)
+	local rules = {}
+	local replaced = false
+	for part in ((value or "") .. ";"):gmatch("(.-);") do
+		if part ~= "" then
+			print("part = " .. part)
+			local rule_uid = part:match("^uid=(%d+)")
+			if rule_uid and tonumber(rule_uid) == uid then
+				print("rule_uid = " .. rule_uid .. " uid = " .. uid)
+				if not replaced then
+					rules[#rules + 1] = new_rule
+					replaced = true
+				end
+			else
+				rules[#rules + 1] = part
+			end
+		end
+	end
+	if not replaced then rules[#rules + 1] = new_rule end
+	return table.concat(rules, ";")
+end
+
+local function addmdo(pwd)
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	local localbase = getlocalbase()
+	etcdir = "/etc"
+	if root then
+		etcdir= root .. etcdir
+	end
+	local sysctlconf = etcdir .. "/sysctl.conf.test"
+	local key = "security.mac.do.rules"
+
+	local sysctlconf_exists = lfs.attributes(sysctlconf) ~= nil
+	local etcdir_exists = lfs.attributes(etcdir) ~= nil
+
+	-- Ensure etc directory exists
+	if not etcdir_exists then
+		local r, err = mkdir_p(etcdir)
+		if not r then
+			warnmsg("cannot create " .. etcdir .. ": " .. err)
+			return
+		end
+	end
+
+	uid = 1006
+	local lines = read_lines(sysctlconf)
+	local idx, old = find_key(lines, key)
+	local new = set_mdo_rule(old, uid, pwd.mdo)
+	if new ~= old then
+		print("writing file")
+		local newline = key .. "=" .. new
+		if idx then
+			lines[idx] = newline
+		else
+			lines[#lines+1] = newline
+		end
+		local rv, err = write_lines(sysctlconf, lines)
+		if not rv then
+			warnmsg("cannot write " .. sysctlconf .. ": " .. err)
+			return
+		end
+	end
+end
+
 local function addsudo(pwd)
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
 	local localbase = getlocalbase()
@@ -1008,6 +1112,7 @@ local n = {
 	upgrade_packages = upgrade_packages,
 	addsudo = addsudo,
 	adddoas = adddoas,
+	addmdo = addmdo,
 	addfile = addfile,
 	decode_base64 = decode_base64,
 	encode_base64 = encode_base64,

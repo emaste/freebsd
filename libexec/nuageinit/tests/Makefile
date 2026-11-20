@@ -22,6 +22,7 @@ ${PACKAGE}FILES+=	addfile.lua
 ${PACKAGE}FILES+=	decode_base64.lua
 ${PACKAGE}FILES+=	addsudo.lua
 ${PACKAGE}FILES+=	adddoas.lua
+${PACKAGE}FILES+=	addmdo.lua
 ${PACKAGE}FILES+=	update_sshd_config.lua
 
 .include <bsd.test.mk>
