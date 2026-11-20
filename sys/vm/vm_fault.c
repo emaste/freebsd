@@ -153,6 +153,11 @@ struct faultstate {
 
 	/* Vnode if locked. */
 	struct vnode	*vp;
+
+	/* Busy real page of a fake page, to wait on before a retry. */
+	vm_page_t	busy_m;
+	vm_object_t	busy_object;
+	vm_pindex_t	busy_pindex;
 };
 
 /*
@@ -179,6 +184,9 @@ static void vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr,
 	    int ahead);
 static void vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 	    int backward, int forward, bool obj_locked);
+static int vm_fault_pmap_enter(struct faultstate *fs, vm_offset_t va,
+	    vm_page_t m1, vm_prot_t prot, u_int flags, int8_t psind,
+	    vm_page_t fm);
 
 static int vm_pfault_oom_attempts = 3;
 SYSCTL_INT(_vm, OID_AUTO, pfault_oom_attempts, CTLFLAG_RWTUN,
@@ -437,14 +445,10 @@ vm_fault_soft_fast(struct faultstate *fs)
 		}
 	}
 #endif
-	if (pmap_enter(fs->map->pmap, vaddr, m_map, fs->prot, fs->fault_type |
-	    PMAP_ENTER_NOSLEEP | (fs->wired ? PMAP_ENTER_WIRED : 0), psind) !=
-	    KERN_SUCCESS)
+	if (vm_fault_pmap_enter(fs, vaddr, m_map, fs->prot,
+	    fs->fault_type | PMAP_ENTER_NOSLEEP |
+	    (fs->wired ? PMAP_ENTER_WIRED : 0), psind, m) != KERN_SUCCESS)
 		goto fail_busy;
-	if (fs->m_hold != NULL) {
-		(*fs->m_hold) = m;
-		vm_page_wire(m);
-	}
 	if (psind == 0 && !fs->wired)
 		vm_fault_prefault(fs, vaddr, PFBAK, PFFOR, true);
 	VM_OBJECT_RUNLOCK(fs->first_object);
@@ -517,7 +521,7 @@ static enum fault_status
 vm_fault_populate(struct faultstate *fs)
 {
 	vm_offset_t vaddr;
-	vm_page_t m;
+	vm_page_t fm, m;
 	vm_pindex_t map_first, map_last, pager_first, pager_last, pidx;
 	int bdry_idx, i, npages, psind, rv;
 	enum fault_status res;
@@ -603,9 +607,9 @@ vm_fault_populate(struct faultstate *fs)
 		KASSERT((VM_PAGE_TO_PHYS(m) & (pagesizes[bdry_idx] - 1)) == 0,
 		    ("unaligned superpage m %p %#jx", m,
 		    (uintmax_t)VM_PAGE_TO_PHYS(m)));
-		rv = pmap_enter(fs->map->pmap, vaddr, m, fs->prot,
+		rv = vm_fault_pmap_enter(fs, vaddr, m, fs->prot,
 		    fs->fault_type | (fs->wired ? PMAP_ENTER_WIRED : 0) |
-		    PMAP_ENTER_LARGEPAGE, bdry_idx);
+		    PMAP_ENTER_LARGEPAGE, bdry_idx, NULL);
 		VM_OBJECT_WLOCK(fs->first_object);
 		vm_page_xunbusy(m);
 		if (rv != KERN_SUCCESS) {
@@ -674,9 +678,31 @@ vm_fault_populate(struct faultstate *fs)
 		if (psind > 0 && writeable)
 			fs->fault_type |= VM_PROT_WRITE;
 		VM_OBJECT_WUNLOCK(fs->first_object);
-		rv = pmap_enter(fs->map->pmap, vaddr, m,
+		fm = NULL;
+		if (fs->first_pindex >= pidx &&
+		    fs->first_pindex < pidx + npages)
+			fm = &m[fs->first_pindex - pidx];
+		rv = vm_fault_pmap_enter(fs, vaddr, m,
 		    fs->prot & ~(writeable ? 0 : VM_PROT_WRITE),
-		    fs->fault_type | (fs->wired ? PMAP_ENTER_WIRED : 0), psind);
+		    fs->fault_type | (fs->wired ? PMAP_ENTER_WIRED : 0), psind,
+		    fm);
+		if (rv == KERN_FAILURE) {
+			/*
+			 * The real page backing a fake page is busy.  A page
+			 * other than the faulted one is only prefaulted,
+			 * leave it unmapped.  Otherwise restart the fault,
+			 * vm_fault() waits for the busy before the retry.
+			 */
+			if (fm == NULL) {
+				rv = KERN_SUCCESS;
+			} else {
+				VM_OBJECT_WLOCK(fs->first_object);
+				vm_fault_populate_cleanup(fs->first_object,
+				    pidx, pager_last);
+				res = FAULT_RESTART;
+				goto out;
+			}
+		}
 
 		/*
 		 * pmap_enter() may fail for a superpage mapping if additional
@@ -691,8 +717,9 @@ vm_fault_populate(struct faultstate *fs)
 		    rv == KERN_PROTECTION_FAILURE)) {
 			MPASS(!fs->wired);
 			for (i = 0; i < npages; i++) {
-				rv = pmap_enter(fs->map->pmap, vaddr + ptoa(i),
-				    &m[i], fs->prot, fs->fault_type, 0);
+				rv = vm_fault_pmap_enter(fs, vaddr + ptoa(i),
+				    &m[i], fs->prot, fs->fault_type, 0,
+				    &m[i] == fm ? fm : NULL);
 				MPASS(rv == KERN_SUCCESS);
 			}
 		}
@@ -704,11 +731,6 @@ vm_fault_populate(struct faultstate *fs)
 				vm_page_wire(&m[i]);
 			else
 				vm_page_activate(&m[i]);
-			if (fs->m_hold != NULL &&
-			    m[i].pindex == fs->first_pindex) {
-				(*fs->m_hold) = &m[i];
-				vm_page_wire(&m[i]);
-			}
 			vm_page_xunbusy(&m[i]);
 		}
 	}
@@ -1147,7 +1169,7 @@ vm_fault_cow(struct faultstate *fs)
 		 * shadow chain should wait for xbusy on fs->first_m.
 		 */
 		if ((fs->first_object->flags & OBJ_ONEMAPPING) == 0)
-			pmap_remove_all(fs->m_cow);
+			vm_page_pmap_remove_all(fs->m_cow);
 	}
 
 	vm_object_pip_wakeup(fs->object);
@@ -1665,6 +1687,68 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 }
 
 /*
+ * Enter the mapping of the page run starting at m1 into the faulting
+ * pmap at va.  A fake page owned by its object is redirected to the
+ * real page with the same physical address, which is exclusively
+ * busied around pmap_enter().  The busy is only tried, the function
+ * never sleeps.  If the real page is busy, KERN_FAILURE is returned.
+ * Then, if the run contains the faulted page and the caller can sleep,
+ * the real page is recorded for vm_fault() to wait for it before
+ * retrying the fault.
+ *
+ * If fm, the faulted page, is a part of the run and fs->m_hold is not
+ * NULL, fm is wired and returned in *fs->m_hold once the mapping is
+ * established.  A fake page is held as its real page.
+ */
+static int
+vm_fault_pmap_enter(struct faultstate *fs, vm_offset_t va, vm_page_t m1,
+    vm_prot_t prot, u_int flags, int8_t psind, vm_page_t fm)
+{
+	vm_object_t object;
+	vm_page_t m;
+	int rv;
+	bool busied;
+
+	m = vm_page_fictitious_to_real(m1);
+	busied = false;
+	if (m1 != m) {
+		for (;;) {
+			object = atomic_load_ptr(&m->object);
+			if (object != NULL) {
+				VM_OBJECT_WLOCK(object);
+				if (atomic_load_ptr(&m->object) != object) {
+					VM_OBJECT_UNLOCK(object);
+					continue;
+				}
+			}
+			busied = vm_page_busy_acquire(m, VM_ALLOC_NOWAIT);
+			if (!busied && fm != NULL &&
+			    (flags & PMAP_ENTER_NOSLEEP) == 0) {
+				fs->busy_m = m;
+				fs->busy_object = object;
+				fs->busy_pindex = m->pindex;
+			}
+			if (object != NULL)
+				VM_OBJECT_UNLOCK(object);
+			break;
+		}
+		if (!busied)
+			return (KERN_FAILURE);
+	}
+
+	rv = pmap_enter(fs->map->pmap, va, m, prot, flags, psind);
+	if (rv == KERN_SUCCESS && fm != NULL && fs->m_hold != NULL) {
+		if (fm == m1)
+			fm = m;
+		*fs->m_hold = fm;
+		vm_page_wire(fm);
+	}
+	if (busied)
+		vm_page_xunbusy(m);
+	return (rv);
+}
+
+/*
  * vm_fault:
  *
  * Handle a page fault occurring at the given address, requiring the
@@ -1710,10 +1794,25 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	fs.oom_started = false;
 	fs.nera = -1;
 	fs.can_read_lock = true;
+	fs.busy_m = NULL;
 	faultcount = 0;
 	hardfault = false;
 
 RetryFault:
+	if (fs.busy_m != NULL) {
+		/*
+		 * The real page backing a fake page was busy.  Wait for
+		 * it with no fault state held.  A page without an object
+		 * might be freed meanwhile and then its busy is never
+		 * released, so only pause.
+		 */
+		if (fs.busy_object != NULL)
+			vm_page_busy_sleep_unlocked(fs.busy_object, fs.busy_m,
+			    fs.busy_pindex, "vmfrbw", 0);
+		else
+			pause("vmfrbw", 1);
+		fs.busy_m = NULL;
+	}
 	fs.fault_type = fault_type;
 	fs.m_needs_zeroing = true;
 
@@ -1930,8 +2029,16 @@ found:
 	 * back on the active queue until later so that the pageout daemon
 	 * won't find it (yet).
 	 */
-	pmap_enter(fs.map->pmap, vaddr, fs.m, fs.prot,
-	    fs.fault_type | (fs.wired ? PMAP_ENTER_WIRED : 0), 0);
+	if (vm_fault_pmap_enter(&fs, vaddr, fs.m, fs.prot,
+	    fs.fault_type | (fs.wired ? PMAP_ENTER_WIRED : 0), 0, fs.m) ==
+	    KERN_FAILURE) {
+		/*
+		 * The real page backing a fake page is busy, wait for it
+		 * at RetryFault.
+		 */
+		vm_fault_deallocate(&fs);
+		goto RetryFault;
+	}
 	if (faultcount != 1 && (fs.fault_flags & VM_FAULT_WIRE) == 0 &&
 	    fs.wired == 0)
 		vm_fault_prefault(&fs, vaddr,
@@ -1946,10 +2053,6 @@ found:
 		vm_page_wire(fs.m);
 	else
 		vm_page_activate(fs.m);
-	if (fs.m_hold != NULL) {
-		(*fs.m_hold) = fs.m;
-		vm_page_wire(fs.m);
-	}
 
 	KASSERT(fs.first_object == fs.object || vm_page_xbusied(fs.first_m),
 	    ("first_m must be xbusy"));
@@ -2443,7 +2546,7 @@ again:
 			 */
 			if (src_object == dst_object &&
 			    (object->flags & OBJ_ONEMAPPING) == 0)
-				pmap_remove_all(src_m);
+				vm_page_pmap_remove_all(src_m);
 			pmap_copy_page(src_m, dst_m);
 
 			/*

@@ -783,24 +783,72 @@ retry:
 }
 
 /*
- * A special PTE is an unmanaged mapping, with no PV tracking for
- * the target page.
+ * A special PTE is a managed mapping whose PV entry is on the real
+ * page backing the requested physical address.
  *
- * The function inserts a fake page with phys_addr set to the requested
- * pfn into the vma backing object.  It is the caller's duty to ensure
- * that the mappings are removed before the real page is reused.  The
- * real page might belong to a different object, in which case the fake
- * page's phys_addr equals that page's phys_addr, or the fake page may
- * alias it through an aperture.
+ * The function inserts a fake unmanaged page with phys_addr set to
+ * the requested pfn into the vma backing object.  It is the caller's
+ * duty to ensure that the mappings are removed before the real page
+ * is reused.  The real page might belong to a different object, in
+ * which case the fake page's phys_addr equals that page's phys_addr,
+ * or the fake page may alias it through an aperture.
+ *
+ * The real page must stay allocated while the fake page is resident.
+ *
+ * Note that the inserted fake page is unmanaged, although the object
+ * type is OBJT_MGTDEVICE.
+ *
+ * Unmanaged real pages are refused with SIGBUS.
  */
+static vm_fault_t
+lkpi_vmf_insert_special_pte_locked1(struct vm_area_struct *vma,
+    vm_object_t vm_obj, unsigned long addr, unsigned long pfn, pgprot_t prot,
+    bool *matched)
+{
+	struct pctrie_iter pages;
+	vm_page_t fake_page, page;
+	vm_pindex_t pindex;
+
+	vm_page_iter_init(&pages, vm_obj);
+	pindex = OFF_TO_IDX(addr - vma->vm_start);
+	if (vma->vm_pfn_count == 0)
+		vma->vm_pfn_first = pindex;
+
+	page = vm_page_grab_iter(vm_obj, pindex, VM_ALLOC_NOCREAT, &pages);
+	if (page != NULL) {
+		/*
+		 * A page is already resident at pindex.  Do not check
+		 * that it maps the same pfn; the first insert wins.
+		 * If pfn matches, update caching mode.
+		 */
+		if (VM_PAGE_TO_PHYS(page) == IDX_TO_OFF(pfn))
+			*matched = true;
+	} else {
+		fake_page = vm_page_getfake_nowait(IDX_TO_OFF(pfn),
+		    pgprot2cachemode(prot));
+		if (fake_page == NULL)
+			return (VM_FAULT_OOM);
+		fake_page->oflags |= VPO_FAKE_OWNED;
+		if (vm_page_iter_insert(fake_page, vm_obj, pindex, &pages) !=
+		    0) {
+			vm_page_freefake(fake_page);
+			return (VM_FAULT_OOM);
+		}
+		vm_page_valid(fake_page);
+		*matched = true;
+	}
+	vma->vm_pfn_count++;
+	return (VM_FAULT_NOPAGE);
+}
+
 vm_fault_t
 lkpi_vmf_insert_special_pte_locked(struct vm_area_struct *vma,
     unsigned long addr, unsigned long pfn, pgprot_t prot)
 {
-	struct pctrie_iter pages;
 	vm_object_t vm_obj;
-	vm_page_t fake_page, page;
-	vm_pindex_t pindex;
+	vm_page_t m;
+	vm_fault_t ret;
+	bool matched;
 
 	if (addr < vma->vm_start || addr >= vma->vm_end)
 		return (VM_FAULT_SIGBUS);
@@ -809,33 +857,23 @@ lkpi_vmf_insert_special_pte_locked(struct vm_area_struct *vma,
 	VM_OBJECT_ASSERT_WLOCKED(vm_obj);
 	MPASS(vm_obj->type == OBJT_MGTDEVICE);
 
-	vm_page_iter_init(&pages, vm_obj);
-	pindex = OFF_TO_IDX(addr - vma->vm_start);
-	if (vma->vm_pfn_count == 0)
-		vma->vm_pfn_first = pindex;
+	m = PHYS_TO_VM_PAGE(IDX_TO_OFF(pfn));
+	if (m == NULL || (m->oflags & VPO_UNMANAGED) != 0)
+		return (VM_FAULT_SIGBUS);
 
-	page = vm_page_grab_iter(vm_obj, pindex, VM_ALLOC_NOCREAT, &pages);
-	if (page == NULL) {
-		fake_page = vm_page_getfake_nowait(IDX_TO_OFF(pfn),
-		    pgprot2cachemode(prot));
-		if (fake_page == NULL)
-			return (VM_FAULT_OOM);
-		fake_page->oflags |= VPO_FAKE_OWNED;
-		if (vm_page_iter_insert(fake_page, vm_obj, pindex, &pages) !=
-		    0) {
-			vm_page_putfake(fake_page);
-			return (VM_FAULT_OOM);
-		}
-		vm_page_valid(fake_page);
-	} else {
-		/*
-		 * A page is already resident at pindex.  Do not check
-		 * that it maps the same pfn; the first insert wins.
-		 */
-		pmap_page_set_memattr(page, pgprot2cachemode(prot));
+	matched = false;
+	for (;;) {
+		ret = lkpi_vmf_insert_special_pte_locked1(vma, vm_obj, addr,
+		    pfn, prot, &matched);
+		if ((ret & VM_FAULT_OOM) == 0)
+			break;
+		VM_OBJECT_WUNLOCK(vm_obj);
+		vm_wait(NULL);
+		VM_OBJECT_WLOCK(vm_obj);
 	}
-	vma->vm_pfn_count++;
-	return (VM_FAULT_NOPAGE);
+	if (matched)
+		pmap_page_set_memattr(m, pgprot2cachemode(prot));
+	return (ret);
 }
 
 int

@@ -930,14 +930,25 @@ retry:
 						VM_OBJECT_WUNLOCK(object);
 					object = atomic_load_ptr(&m->object);
 					if (object == NULL)
-						goto retry;
+						break;
 					VM_OBJECT_WLOCK(object);
 				}
 				if (pa != pmap_extract(pmap, addr))
 					goto retry;
-				KASSERT(vm_page_all_valid(m),
+				if (object == NULL) {
+					/*
+					 * A managed page without an
+					 * object, e.g. a real page
+					 * mapped through a fake page.
+					 * Report only this pmap's
+					 * state.
+					 */
+					m = NULL;
+				} else {
+					KASSERT(vm_page_all_valid(m),
 				    ("mincore: page %p is mapped but invalid",
-				    m));
+					    m));
+				}
 			} else if (mincoreinfo == 0) {
 				/*
 				 * The page is not mapped by this process.  If

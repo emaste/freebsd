@@ -887,7 +887,7 @@ vm_object_terminate_single_page(vm_page_t p, void *objectv)
 	p->object = NULL;
 	if ((p->oflags & VPO_FAKE_OWNED) != 0) {
 		MPASS((p->flags & PG_FICTITIOUS) != 0);
-		vm_page_putfake(p);
+		vm_page_freefake(p);
 	} else if (vm_page_drop(p, VPRC_OBJREF) == VPRC_OBJREF) {
 		KASSERT((object->flags & OBJ_UNMANAGED) != 0 ||
 		    vm_page_astate_load(p).queue != PQ_NONE,
@@ -2049,7 +2049,7 @@ again:
 wired:
 			if ((options & OBJPR_NOTMAPPED) == 0 &&
 			    object->ref_count != 0)
-				pmap_remove_all(p);
+				vm_page_pmap_remove_all(p);
 			if ((options & OBJPR_CLEANONLY) == 0) {
 				vm_page_invalid(p);
 				vm_page_undirty(p);

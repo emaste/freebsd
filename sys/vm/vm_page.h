@@ -287,7 +287,7 @@ struct vm_page {
 #define	VPO_UNMANAGED	0x04		/* no PV management for page */
 #define	VPO_SWAPINPROG	0x08		/* swap I/O in progress on page */
 #define	VPO_FAKE_OWNED	0x10		/* Fake page owned by the object,
-					   putfake on removal */
+					   freefake on removal */
 
 /*
  * Busy page implementation details.
@@ -591,10 +591,12 @@ void vm_page_deactivate(vm_page_t m);
 void vm_page_deactivate_noreuse(vm_page_t m);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_deferred(vm_page_t m);
+vm_page_t vm_page_fictitious_to_real(vm_page_t m);
 void vm_page_free(vm_page_t m);
 void vm_page_free_invalid(vm_page_t m);
 int vm_page_free_pages_toq(struct spglist *free, bool update_wire_count);
 void vm_page_free_zero(vm_page_t m);
+void vm_page_freefake(vm_page_t m);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 vm_page_t vm_page_getfake_nowait(vm_paddr_t paddr, vm_memattr_t memattr);
 int vm_page_grab_zero_partial(vm_object_t object, vm_pindex_t pindex, int base,
@@ -629,6 +631,7 @@ bool vm_page_iter_rename(struct pctrie_iter *old_pages, vm_page_t m,
 void vm_page_launder(vm_page_t m);
 vm_page_t vm_page_lookup(vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup_unlocked(vm_object_t, vm_pindex_t);
+void vm_page_pmap_remove_all(vm_page_t m1);
 void vm_page_pqbatch_drain(void);
 void vm_page_pqbatch_submit(vm_page_t m, uint8_t queue);
 bool vm_page_pqstate_commit(vm_page_t m, vm_page_astate_t *old,

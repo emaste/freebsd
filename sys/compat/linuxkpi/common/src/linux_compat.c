@@ -675,7 +675,7 @@ zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
 	VM_OBJECT_RLOCK(obj);
 	vm_page_iter_limit_init(&pages, obj, OFF_TO_IDX(address + size));
 	VM_RADIX_FOREACH_FROM(m, &pages, OFF_TO_IDX(address))
-		pmap_remove_all(m);
+		vm_page_pmap_remove_all(m);
 	VM_OBJECT_RUNLOCK(obj);
 	return (0);
 }

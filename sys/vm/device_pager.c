@@ -304,11 +304,14 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 void
 cdev_mgtdev_pager_free_page(struct pctrie_iter *pages, vm_page_t m)
 {
-	pmap_remove_all(m);
+	bool fake_owned;
+
+	fake_owned = (m->oflags & VPO_FAKE_OWNED) != 0;
+	vm_page_pmap_remove_all(m);
 	vm_page_iter_remove(pages, m);
-	if ((m->oflags & VPO_FAKE_OWNED) != 0) {
+	if (fake_owned) {
 		MPASS((m->flags & PG_FICTITIOUS) != 0);
-		vm_page_putfake(m);
+		vm_page_freefake(m);
 	}
 }
 

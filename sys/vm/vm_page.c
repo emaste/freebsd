@@ -1379,6 +1379,30 @@ memattr:
 	pmap_page_set_memattr(m, memattr);
 }
 
+void
+vm_page_freefake(vm_page_t m)
+{
+#ifdef INVARIANTS
+	u_int x;
+
+	KASSERT((m->flags & PG_FICTITIOUS) != 0,
+	    ("vm_page_freefake: bad page %p", m));
+	KASSERT((m->oflags & VPO_UNMANAGED) != 0,
+	    ("vm_page_freefake: managed page %p", m));
+	KASSERT(vm_page_astate_load(m).queue == PQ_NONE,
+	    ("vm_page_freefake: page %p is queued", m));
+	KASSERT((m->oflags & VPO_FAKE_OWNED) == 0 || m->object == NULL,
+	    ("vm_page_freefake: owned page %p still in object %p", m,
+	    m->object));
+	x = vm_page_busy_fetch(m);
+	KASSERT(x == VPB_UNBUSIED ||
+	    (x & ~VPB_BIT_WAITERS) == VPB_CURTHREAD_EXCLUSIVE,
+	    ("vm_page_freefake: page %p busy_lock %#x", m, x));
+#endif
+	vm_page_busy_free(m);
+	uma_zfree(fakepg_zone, m);
+}
+
 /*
  *	vm_page_putfake:
  *
@@ -1389,13 +1413,9 @@ vm_page_putfake(vm_page_t m)
 {
 
 	KASSERT((m->oflags & VPO_UNMANAGED) != 0, ("managed %p", m));
-	KASSERT((m->flags & PG_FICTITIOUS) != 0,
-	    ("vm_page_putfake: bad page %p", m));
-	if (m->object != NULL) {
+	if (m->object != NULL)
 		vm_page_assert_xbusied(m);
-		vm_page_busy_free(m);
-	}
-	uma_zfree(fakepg_zone, m);
+	vm_page_freefake(m);
 }
 
 /*
@@ -1412,6 +1432,26 @@ vm_page_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr)
 	    ("vm_page_updatefake: bad page %p", m));
 	m->phys_addr = paddr;
 	pmap_page_set_memattr(m, memattr);
+}
+
+vm_page_t
+vm_page_fictitious_to_real(vm_page_t m)
+{
+	vm_page_t m1;
+
+	if ((m->oflags & VPO_FAKE_OWNED) == 0)
+		return (m);
+	m1 = PHYS_TO_VM_PAGE(VM_PAGE_TO_PHYS(m));
+	return (m1 == NULL ? m : m1);
+}
+
+void
+vm_page_pmap_remove_all(vm_page_t m1)
+{
+	vm_page_t m;
+
+	m = vm_page_fictitious_to_real(m1);
+	pmap_remove_all(m);
 }
 
 /*
@@ -4713,7 +4753,7 @@ bool
 vm_page_try_remove_all(vm_page_t m)
 {
 
-	return (vm_page_try_blocked_op(m, pmap_remove_all));
+	return (vm_page_try_blocked_op(m, vm_page_pmap_remove_all));
 }
 
 /*
@@ -5728,7 +5768,7 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 	else
 		bits = vm_page_bits(base, size);
 	if (object->ref_count != 0 && vm_page_all_valid(m) && bits != 0)
-		pmap_remove_all(m);
+		vm_page_pmap_remove_all(m);
 	KASSERT((bits == 0 && vm_page_all_valid(m)) ||
 	    !pmap_page_is_mapped(m),
 	    ("vm_page_set_invalid: page %p is mapped", m));

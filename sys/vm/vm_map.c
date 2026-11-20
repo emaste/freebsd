@@ -2751,7 +2751,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 			break;
 		}
 		jump = 1;
-		if (vm_page_all_valid(p)) {
+		if (vm_page_all_valid(p) && (p->oflags & VPO_FAKE_OWNED) == 0) {
 			if (p_start == NULL) {
 				start = addr + ptoa(tmpidx);
 				p_start = p;
