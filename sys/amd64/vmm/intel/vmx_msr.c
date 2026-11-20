@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_bhyve_snapshot.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -400,7 +398,6 @@ vmx_msr_guest_exit_tsc_aux(struct vmx *vmx, struct vmx_vcpu *vcpu)
 		wrmsr(MSR_TSC_AUX, host_aux);
 }
 
-#ifdef BHYVE_SNAPSHOT
 static bool
 canonical_addr(uint64_t addr)
 {
@@ -434,7 +431,6 @@ vmx_msr_guest_restore(struct vmx_vcpu *vcpu,
 	memcpy(vcpu->guest_msrs, msrs, sizeof(vcpu->guest_msrs));
 	return (0);
 }
-#endif
 
 int
 vmx_rdmsr(struct vmx_vcpu *vcpu, u_int num, uint64_t *val, bool *retu)

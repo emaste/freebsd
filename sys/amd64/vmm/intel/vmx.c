@@ -4318,8 +4318,6 @@ const struct vmm_ops vmm_ops_intel = {
 	.vmspace_free	= vmx_vmspace_free,
 	.vlapic_init	= vmx_vlapic_init,
 	.vlapic_cleanup	= vmx_vlapic_cleanup,
-#ifdef BHYVE_SNAPSHOT
 	.vcpu_snapshot	= vmx_vcpu_snapshot,
 	.restore_tsc	= vmx_restore_tsc,
-#endif
 };
