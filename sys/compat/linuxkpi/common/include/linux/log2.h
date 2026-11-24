@@ -38,4 +38,10 @@
 	_n != 0 && (_n & (_n - 1)) == 0;	\
 })
 
+static inline int
+__ilog2_u32(uint32_t n)
+{
+	return (fls(n) - 1);
+}
+
 #endif	/* _LINUXKPI_LINUX_LOG2_H_ */
