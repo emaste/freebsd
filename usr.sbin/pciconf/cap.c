@@ -507,6 +507,8 @@ link_speed_string(uint8_t speed)
 		return ("32.0");
 	case 6:
 		return ("64.0");
+	case 7:
+		return ("128.0");
 	default:
 		return ("undef");
 	}
