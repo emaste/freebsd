@@ -244,6 +244,7 @@ menu.welcome = {
 			boot_entry_2,
 			menu_entries.prompt,
 			menu_entries.reboot,
+			menu_entries.fwsetup,
 			menu_entries.console,
 			{
 				entry_type = core.MENU_SEPARATOR,
@@ -327,6 +328,18 @@ menu.welcome = {
 				loader.perform("reboot")
 			end,
 			alias = {"r", "R"},
+		},
+		fwsetup = {
+			entry_type = core.MENU_ENTRY,
+			name = "Reboot to " .. color.highlight("F") ..
+			    "irmware Setup",
+			func = function()
+				loader.perform("fwsetup")
+			end,
+			visible = function()
+				return core.hasFeature("FW_SETUP")
+			end,
+			alias = {"f", "F"},
 		},
 		kernel_options = {
 			entry_type = core.MENU_CAROUSEL_ENTRY,

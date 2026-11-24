@@ -532,6 +532,7 @@ extern void feature_iter(feature_iter_fn *, void *);
  * features table, just to simplify reasoning about these.
  */
 #define	FEATURE_EARLY_ACPI	0x0001
+#define	FEATURE_FW_SETUP	0x0002
 
 /* hexdump.c */
 void	hexdump(caddr_t region, size_t len);

@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 23, 2026
+.Dd November 25, 2026
 .Dt LOADER.EFI 8
 .Os
 .Sh NAME
@@ -408,6 +408,26 @@ command produces a fault in the
 environment for testing purposes, by executing the
 .Ic ud2
 processor instruction.
+.Ss Firmware Setup
+The
+.Ic fwsetup
+command asks the firmware to stop in its setup user interface on the
+next boot, by setting the
+.Dv EFI_OS_INDICATIONS_BOOT_TO_FW_UI
+bit in the
+.Va OsIndications
+UEFI variable, and then reboots the system.
+It is only available when the firmware advertises support for this
+in the
+.Va OsIndicationsSupported
+UEFI variable.
+When it is, the boot menu also offers a
+.Dq Reboot to Firmware Setup
+entry.
+.Xr efibootmgr 8
+provides the same function from a running system with its
+.Fl f
+option.
 .Ss i386 firmware on amd64 machines
 Some devices have 64-bit (long mode) capable CPUs, but come with a
 32-bit (protected mode) UEFI implementation.

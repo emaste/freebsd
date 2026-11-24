@@ -53,6 +53,7 @@
 
 #include <Guid/DebugImageInfoTable.h>
 #include <Guid/DxeServices.h>
+#include <Guid/GlobalVariable.h>
 #include <Guid/Mps.h>
 #include <Guid/SmBios.h>
 #include <Protocol/Rng.h>
@@ -109,6 +110,7 @@ struct arch_switch archsw = {	/* MI/MD interface boundary */
     { 0xb1b621d5, 0xf19c, 0x41a5, {0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0} }
 
 EFI_GUID devid = DEVICE_PATH_PROTOCOL;
+EFI_GUID globalvar = EFI_GLOBAL_VARIABLE;
 EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
 EFI_GUID mps = MPS_TABLE_GUID;
 EFI_GUID netid = EFI_SIMPLE_NETWORK_PROTOCOL_GUID;
@@ -1328,6 +1330,21 @@ is_efi_netboot(void)
 	return (efi_devpath_get_mac(devpath, mac));
 }
 
+static bool
+fwsetup_supported(void)
+{
+	UINT64 osind;
+	size_t sz;
+
+	/* Older firmware provides UINT32, newer UINT64. */
+	osind = 0;
+	sz = sizeof(osind);
+	if (efi_global_getenv("OsIndicationsSupported", &osind, &sz) !=
+	    EFI_SUCCESS)
+		return (false);
+	return ((osind & EFI_OS_INDICATIONS_BOOT_TO_FW_UI) != 0);
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
@@ -1352,6 +1369,9 @@ main(int argc, CHAR16 *argv[])
 
 	/* Report the RSDP early. */
 	acpi_detect();
+
+	if (fwsetup_supported())
+		feature_enable(FEATURE_FW_SETUP);
 
 #ifdef LOADER_VERIEXEC
 	/* tell boot_setenv to be careful */
@@ -1738,6 +1758,49 @@ static int
 command_reboot(int argc, char *argv[])
 {
 	int i;
+
+	for (i = 0; devsw[i] != NULL; ++i)
+		if (devsw[i]->dv_cleanup != NULL)
+			(devsw[i]->dv_cleanup)();
+
+	RS->ResetSystem(EfiResetCold, EFI_SUCCESS, 0, NULL);
+
+	/* NOTREACHED */
+	return (CMD_ERROR);
+}
+
+COMMAND_SET(fwsetup, "fwsetup", "reboot into the firmware setup UI",
+    command_fwsetup);
+
+static int
+command_fwsetup(int argc __unused, char *argv[] __unused)
+{
+	UINT64 osind;
+	size_t sz;
+	EFI_STATUS status;
+	int i;
+
+	if (!fwsetup_supported()) {
+		command_errmsg =
+		    "firmware does not support booting into its setup UI";
+		return (CMD_ERROR);
+	}
+
+	/* Preserve any other indications already pending. */
+	osind = 0;
+	sz = sizeof(osind);
+	if (efi_global_getenv("OsIndications", &osind, &sz) != EFI_SUCCESS)
+		osind = 0;
+	osind |= EFI_OS_INDICATIONS_BOOT_TO_FW_UI;
+	status = efi_setenv(&globalvar, "OsIndications",
+	    EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS |
+	    EFI_VARIABLE_RUNTIME_ACCESS, &osind, sizeof(osind));
+	if (EFI_ERROR(status)) {
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "failed to set OsIndications: error %lu",
+		    DECODE_ERROR(status));
+		return (CMD_ERROR);
+	}
 
 	for (i = 0; devsw[i] != NULL; ++i)
 		if (devsw[i]->dv_cleanup != NULL)

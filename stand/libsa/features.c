@@ -18,6 +18,7 @@ static const struct feature_entry {
 	const char	*desc;
 } feature_map[] = {
 	FEATURE_ENTRY(EARLY_ACPI,  "Loader probes ACPI in early startup"),
+	FEATURE_ENTRY(FW_SETUP,    "Loader can reboot into firmware setup"),
 };
 
 void
