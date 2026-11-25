@@ -38,6 +38,10 @@ struct dmi_header {
 	uint16_t	handle;
 };
 
+enum dmi_entry_type {
+	DMI_ENTRY_MEM_DEVICE = 17,
+};
+
 int linux_dmi_check_system(const struct dmi_system_id *);
 bool linux_dmi_match(enum dmi_field, const char *);
 const struct dmi_system_id *linux_dmi_first_match(const struct dmi_system_id *);
