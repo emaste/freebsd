@@ -2417,7 +2417,6 @@ svm_setdesc(void *vcpui, int reg, struct seg_desc *desc)
 	return (vmcb_setdesc(vcpui, reg, desc));
 }
 
-#ifdef BHYVE_SNAPSHOT
 static int
 svm_snapshot_reg(void *vcpui, int ident, struct vm_snapshot_meta *meta)
 {
@@ -2444,7 +2443,6 @@ svm_snapshot_reg(void *vcpui, int ident, struct vm_snapshot_meta *meta)
 done:
 	return (ret);
 }
-#endif
 
 static int
 svm_setcap(void *vcpui, int type, int val)
@@ -2614,7 +2612,6 @@ svm_vlapic_cleanup(struct vlapic *vlapic)
         free(vlapic, M_SVM_VLAPIC);
 }
 
-#ifdef BHYVE_SNAPSHOT
 static int
 svm_vcpu_snapshot(void *vcpui, struct vm_snapshot_meta *meta)
 {
@@ -2827,7 +2824,6 @@ svm_restore_tsc(void *vcpui, uint64_t offset)
 
 	return (0);
 }
-#endif
 
 const struct vmm_ops vmm_ops_amd = {
 	.modinit	= svm_modinit,
@@ -2849,8 +2845,6 @@ const struct vmm_ops vmm_ops_amd = {
 	.vmspace_free	= svm_vmspace_free,
 	.vlapic_init	= svm_vlapic_init,
 	.vlapic_cleanup	= svm_vlapic_cleanup,
-#ifdef BHYVE_SNAPSHOT
 	.vcpu_snapshot	= svm_vcpu_snapshot,
 	.restore_tsc	= svm_restore_tsc,
-#endif
 };
